@@ -1,0 +1,576 @@
+{
+  "extensionName": {
+    "message": "NyandSign — Hand Sign Media Controller",
+    "description": "Extension name shown in Chrome"
+  },
+  "extensionDescription": {
+    "message": "Detect hand signs and control media playback",
+    "description": "Extension description in Chrome Web Store"
+  },
+
+  "btnStartCamera": {
+    "message": "▶ Start Camera",
+    "description": "Button to start the camera"
+  },
+  "btnStopCamera": {
+    "message": "⏹ Stop",
+    "description": "Button to stop the camera"
+  },
+  "btnCameraLoading": {
+    "message": "⏳ Starting...",
+    "description": "Button text while camera is loading"
+  },
+  "btnRequestPermission": {
+    "message": "📷 Grant Permission & Start",
+    "description": "Button to request camera permission"
+  },
+  "btnOpenEyecon": {
+    "message": "🕶️ Open EyeCon",
+    "description": "Button to navigate to EyeCon setup page"
+  },
+  "btnResetMapping": {
+    "message": "Reset",
+    "description": "Button to reset hand sign mapping"
+  },
+  "btnResetSettings": {
+    "message": "Reset",
+    "description": "Button to reset settings"
+  },
+  "btnCopyLog": {
+    "message": "📋 Copy",
+    "description": "Button to copy log to clipboard"
+  },
+  "btnClearLog": {
+    "message": "Clear",
+    "description": "Button to clear log"
+  },
+
+  "headerMediaControl": {
+    "message": "Media Control",
+    "description": "Header label for media control toggle"
+  },
+  "titleMediaControlToggle": {
+    "message": "Enable/disable media control",
+    "description": "Tooltip for media control toggle"
+  },
+
+  "sectionHandTracking": {
+    "message": "Hand Tracking",
+    "description": "Section title for camera preview"
+  },
+  "sectionCurrentSign": {
+    "message": "Current Hand Sign",
+    "description": "Section title for recognized sign display"
+  },
+  "sectionHandSigns": {
+    "message": "Hand Signs",
+    "description": "Collapsible section title for sign mapping"
+  },
+  "sectionSettings": {
+    "message": "Settings",
+    "description": "Collapsible section title for settings"
+  },
+  "sectionLog": {
+    "message": "Log",
+    "description": "Collapsible section title for log"
+  },
+
+  "settingMirrorLabel": {
+    "message": "Mirror",
+    "description": "Setting label for mirror camera"
+  },
+  "settingMirrorTitle": {
+    "message": "Flip camera image horizontally (for selfie cameras)",
+    "description": "Tooltip for mirror setting"
+  },
+  "settingSkeletonLabel": {
+    "message": "Skeleton Only",
+    "description": "Setting label for skeleton-only mode"
+  },
+  "settingSkeletonTitle": {
+    "message": "Hide camera image and show only hand skeleton",
+    "description": "Tooltip for skeleton-only setting"
+  },
+  "settingWakeLabel": {
+    "message": "Wake",
+    "description": "Setting label for wake gesture"
+  },
+  "settingWakeTitle": {
+    "message": "Hand sign to start media control. After detection, perform command signs within the timeout period",
+    "description": "Tooltip for wake gesture setting"
+  },
+  "settingWakeTimeoutLabel": {
+    "message": "Timeout",
+    "description": "Setting label for wake timeout"
+  },
+  "settingWakeTimeoutTitle": {
+    "message": "Time to accept command signs after wake",
+    "description": "Tooltip for wake timeout setting"
+  },
+  "settingToggleLabel": {
+    "message": "Toggle",
+    "description": "Setting label for operation toggle gesture"
+  },
+  "settingToggleTitle": {
+    "message": "Toggle media control ON/OFF with a two-hand sign",
+    "description": "Tooltip for toggle gesture setting"
+  },
+  "settingPreferredHandLabel": {
+    "message": "Preferred Hand",
+    "description": "Setting label for preferred hand"
+  },
+  "settingPreferredHandTitle": {
+    "message": "When both hands are detected, prioritize signs from the selected hand",
+    "description": "Tooltip for preferred hand setting"
+  },
+  "settingHoldTimeLabel": {
+    "message": "Hold Time",
+    "description": "Setting label for gesture hold time"
+  },
+  "settingHoldTimeTitle": {
+    "message": "How long a sign must be held to confirm. Shorter = faster response, longer = fewer mistakes",
+    "description": "Tooltip for hold time setting"
+  },
+  "settingRepeatIntervalLabel": {
+    "message": "🔁 Interval",
+    "description": "Setting label for repeat interval"
+  },
+  "settingRepeatIntervalTitle": {
+    "message": "Repeat interval for continuous actions like volume and seek",
+    "description": "Tooltip for repeat interval setting"
+  },
+  "settingInferenceFpsLabel": {
+    "message": "Inference FPS",
+    "description": "Setting label for inference FPS"
+  },
+  "settingInferenceFpsTitle": {
+    "message": "Hand sign inference frequency. Lower values reduce CPU usage but slow down response",
+    "description": "Tooltip for inference FPS setting"
+  },
+  "settingNotifyVolumeLabel": {
+    "message": "Notify Volume",
+    "description": "Setting label for notification volume"
+  },
+  "settingNotifyVolumeTitle": {
+    "message": "Volume for wake and toggle sounds. Set to 0 to mute",
+    "description": "Tooltip for notification volume setting"
+  },
+  "settingUiScaleLabel": {
+    "message": "Display Size",
+    "description": "Setting label for UI scale"
+  },
+  "settingUiScaleTitle": {
+    "message": "Adjust the overall display size of the side panel",
+    "description": "Tooltip for UI scale setting"
+  },
+  "settingPipFontScaleLabel": {
+    "message": "PiP Text Size",
+    "description": "Setting label for PiP font scale"
+  },
+  "settingPipFontScaleTitle": {
+    "message": "Adjust the text size of hand signs and target name in PiP / popup window",
+    "description": "Tooltip for PiP font scale setting"
+  },
+
+  "optionWakeOpen": {
+    "message": "🖐️ Open Hand",
+    "description": "Wake gesture option: open hand"
+  },
+  "optionWakeNone": {
+    "message": "⚡ None (Always)",
+    "description": "Wake gesture option: always active"
+  },
+  "optionToggleFrame": {
+    "message": "🖼️ Frame",
+    "description": "Toggle gesture option: frame"
+  },
+  "optionToggleBothPeace": {
+    "message": "✌️✌️ Double Peace",
+    "description": "Toggle gesture option: both hands peace"
+  },
+  "optionTogglePeaceFist": {
+    "message": "✌️✊ Peace & Fist",
+    "description": "Toggle gesture option: peace and fist"
+  },
+  "optionToggleNone": {
+    "message": "⛔ None (Manual)",
+    "description": "Toggle gesture option: manual only"
+  },
+  "optionHandAuto": {
+    "message": "🤲 Either",
+    "description": "Preferred hand option: auto"
+  },
+  "optionHandRight": {
+    "message": "🫱 Right",
+    "description": "Preferred hand option: right"
+  },
+  "optionHandLeft": {
+    "message": "🫲 Left",
+    "description": "Preferred hand option: left"
+  },
+  "optionEyeconSetup": {
+    "message": "🕶️ Smart glasses camera setup",
+    "description": "Camera dropdown option to navigate to EyeCon"
+  },
+
+  "gestureFist": {
+    "message": "Fist",
+    "description": "Hand sign name: fist"
+  },
+  "gesturePeace": {
+    "message": "Peace",
+    "description": "Hand sign name: peace / scissors"
+  },
+  "gestureOk": {
+    "message": "OK",
+    "description": "Hand sign name: OK sign"
+  },
+  "gestureAloha": {
+    "message": "Aloha",
+    "description": "Hand sign name: aloha / shaka"
+  },
+  "gesturePointRight": {
+    "message": "Right",
+    "description": "Hand sign name: point right"
+  },
+  "gesturePointLeft": {
+    "message": "Left",
+    "description": "Hand sign name: point left"
+  },
+  "gestureThumbsup": {
+    "message": "Thumbs Up",
+    "description": "Hand sign name: thumbs up"
+  },
+  "gestureThumbsdown": {
+    "message": "Thumbs Down",
+    "description": "Hand sign name: thumbs down"
+  },
+  "gestureOpen": {
+    "message": "Open Hand",
+    "description": "Hand sign name: open hand"
+  },
+  "gestureUnknown": {
+    "message": "Unknown",
+    "description": "Hand sign name: unknown gesture"
+  },
+
+  "actionPlayPause": {
+    "message": "▶⏸ Play/Pause",
+    "description": "Media action: toggle play/pause"
+  },
+  "actionPlay": {
+    "message": "▶ Play",
+    "description": "Media action: play"
+  },
+  "actionPause": {
+    "message": "⏸ Pause",
+    "description": "Media action: pause"
+  },
+  "actionVolumeUp": {
+    "message": "🔊 Volume+ 🔁",
+    "description": "Media action: volume up (repeatable)"
+  },
+  "actionVolumeDown": {
+    "message": "🔉 Volume− 🔁",
+    "description": "Media action: volume down (repeatable)"
+  },
+  "actionMute": {
+    "message": "🔇 Mute",
+    "description": "Media action: toggle mute"
+  },
+  "actionNextTrack": {
+    "message": "⏭ Next Track",
+    "description": "Media action: next track"
+  },
+  "actionPrevTrack": {
+    "message": "⏮ Prev Track",
+    "description": "Media action: previous track"
+  },
+  "actionSeekForward": {
+    "message": "⏩ +10s 🔁",
+    "description": "Media action: seek forward 10 seconds (repeatable)"
+  },
+  "actionSeekBackward": {
+    "message": "⏪ −10s 🔁",
+    "description": "Media action: seek backward 10 seconds (repeatable)"
+  },
+  "actionNone": {
+    "message": "— None",
+    "description": "Media action: no action assigned"
+  },
+
+  "metaGestureFrame": {
+    "message": "Frame",
+    "description": "Meta gesture display name: frame"
+  },
+  "metaGestureBothPeace": {
+    "message": "Double Peace",
+    "description": "Meta gesture display name: both peace"
+  },
+  "metaGesturePeaceFist": {
+    "message": "Peace & Fist",
+    "description": "Meta gesture display name: peace and fist"
+  },
+
+  "hintNoCamera": {
+    "message": "No camera detected. Please connect a USB camera.<br>For smart glasses, enable via <a href=\"#\" id=\"link-eyecon\">EyeCon Setup Page</a>.",
+    "description": "Hint shown when no cameras are detected"
+  },
+  "hintPermissionRequired": {
+    "message": "📷 <strong>Camera permission required</strong><br>Press \"Grant Permission & Start\", or go to <a href=\"#\" id=\"link-ext-settings\">Extension Settings</a> → Site Permissions → Camera → Allow",
+    "description": "Hint shown when camera permission is needed"
+  },
+  "hintWakeAlwaysActive": {
+    "message": "⚡ Always Active: all hand signs are immediately recognized",
+    "description": "Wake hint for always-active mode"
+  },
+  "hintWakeWithTimeout": {
+    "message": "🖐️ $1 to wake → sign to control ($2s, or returns to idle after 1 action)",
+    "description": "Wake hint with timeout info",
+    "placeholders": {
+      "1": { "content": "$1", "example": "Open Hand" },
+      "2": { "content": "$2", "example": "5.0" }
+    }
+  },
+
+  "logAppStartup": {
+    "message": "NyandSign v$1 started",
+    "description": "Log message on app startup",
+    "placeholders": {
+      "1": { "content": "$1", "example": "3.0.28" }
+    }
+  },
+  "logCameraAcquired": {
+    "message": "Camera acquired: $1",
+    "description": "Log when camera is obtained",
+    "placeholders": {
+      "1": { "content": "$1", "example": "USB Camera" }
+    }
+  },
+  "logXrealMirrorAuto": {
+    "message": "Smart glasses camera: mirror auto OFF",
+    "description": "Log when mirror is auto-disabled for glasses camera"
+  },
+  "logCameraStarted": {
+    "message": "Camera & hand tracking started",
+    "description": "Log when camera and tracking begin"
+  },
+  "logCameraDisconnected": {
+    "message": "⚠ Camera disconnected — auto stop",
+    "description": "Log when camera is disconnected"
+  },
+  "logCameraConstraintError": {
+    "message": "⚠ Cannot connect to selected camera",
+    "description": "Log when selected camera fails constraints"
+  },
+  "logCameraError": {
+    "message": "Camera error: $1",
+    "description": "Log for camera errors",
+    "placeholders": {
+      "1": { "content": "$1", "example": "NotReadableError" }
+    }
+  },
+  "logCameraPermissionRequired": {
+    "message": "⚠ Camera permission required",
+    "description": "Log when camera permission is needed"
+  },
+  "logCameraPermissionInstructions": {
+    "message": "→ Allow camera in extension settings, or press \"Grant Permission & Start\"",
+    "description": "Log with camera permission instructions"
+  },
+  "logWakeActivated": {
+    "message": "🖐️ Wake → Active",
+    "description": "Log when wake gesture activates"
+  },
+  "logWakeTimeout": {
+    "message": "Active period ended → Idle",
+    "description": "Log when wake active period expires"
+  },
+  "logGestureAction": {
+    "message": "→ $1 → $2",
+    "description": "Log when gesture triggers action",
+    "placeholders": {
+      "1": { "content": "$1", "example": "Fist" },
+      "2": { "content": "$2", "example": "pause" }
+    }
+  },
+  "logSendError": {
+    "message": "Send error: $1",
+    "description": "Log when action send fails",
+    "placeholders": {
+      "1": { "content": "$1", "example": "No active tab" }
+    }
+  },
+  "logMediaControlOn": {
+    "message": "Media control: ON ✅",
+    "description": "Log when media control is enabled"
+  },
+  "logMediaControlOff": {
+    "message": "Media control: OFF ⛔",
+    "description": "Log when media control is disabled"
+  },
+  "logWakeGestureChanged": {
+    "message": "Wake sign: $1",
+    "description": "Log when wake gesture setting changes",
+    "placeholders": {
+      "1": { "content": "$1", "example": "Open Hand" }
+    }
+  },
+  "logWakeGestureNone": {
+    "message": "Wake sign: None (always active)",
+    "description": "Log when wake is set to always active"
+  },
+  "logToggleGestureChanged": {
+    "message": "Toggle sign: $1",
+    "description": "Log when toggle gesture changes",
+    "placeholders": {
+      "1": { "content": "$1", "example": "Frame" }
+    }
+  },
+  "logPreferredHandAuto": {
+    "message": "Preferred hand: Either",
+    "description": "Log when preferred hand is set to auto"
+  },
+  "logPreferredHandChanged": {
+    "message": "Preferred hand: $1",
+    "description": "Log when preferred hand changes",
+    "placeholders": {
+      "1": { "content": "$1", "example": "Right" }
+    }
+  },
+  "logMappingReset": {
+    "message": "Mapping reset",
+    "description": "Log when sign mapping is reset"
+  },
+  "logSettingsReset": {
+    "message": "Settings reset",
+    "description": "Log when settings are reset"
+  },
+  "logCopySuccess": {
+    "message": "📋 Log copied to clipboard",
+    "description": "Log when clipboard copy succeeds"
+  },
+  "logCopyFailed": {
+    "message": "⚠️ Copy failed: $1",
+    "description": "Log when clipboard copy fails",
+    "placeholders": {
+      "1": { "content": "$1", "example": "NotAllowedError" }
+    }
+  },
+
+  "formatSeconds": {
+    "message": "$1s",
+    "description": "Time format in seconds",
+    "placeholders": {
+      "1": { "content": "$1", "example": "5.0" }
+    }
+  },
+  "formatImmediate": {
+    "message": "Instant",
+    "description": "Hold time value when set to 0"
+  },
+  "formatFps": {
+    "message": "$1fps",
+    "description": "FPS display format",
+    "placeholders": {
+      "1": { "content": "$1", "example": "15" }
+    }
+  },
+  "formatVolumeOff": {
+    "message": "OFF",
+    "description": "Volume display when muted"
+  },
+  "formatPercent": {
+    "message": "$1%",
+    "description": "Percentage display format",
+    "placeholders": {
+      "1": { "content": "$1", "example": "30" }
+    }
+  },
+  "cameraFallbackName": {
+    "message": "Camera $1",
+    "description": "Fallback camera name when label is empty",
+    "placeholders": {
+      "1": { "content": "$1", "example": "1" }
+    }
+  },
+  "logMediaPipe": {
+    "message": "MediaPipe: $1",
+    "description": "MediaPipe loading status log",
+    "placeholders": {
+      "1": { "content": "$1", "example": "Loading model..." }
+    }
+  },
+  "logCameraPermissionViaSetup": {
+    "message": "Opening camera setup page...",
+    "description": "Log when opening setup page for camera permission"
+  },
+  "logCameraPermissionReceived": {
+    "message": "✅ Camera permission received",
+    "description": "Log when camera permission is granted via setup page"
+  },
+
+  "btnPip": {
+    "message": "📌 PiP",
+    "description": "Button to enter Picture-in-Picture mode"
+  },
+  "btnExitPip": {
+    "message": "Exit PiP",
+    "description": "Button to exit Picture-in-Picture mode"
+  },
+  "titlePipButton": {
+    "message": "Switch to a small popup window so the side panel won't block fullscreen video while keeping hand gesture control active",
+    "description": "Tooltip for PiP button"
+  },
+  "pipActiveMessage": {
+    "message": "PiP mode active",
+    "description": "Message shown in side panel when PiP is active"
+  },
+  "logPipEnter": {
+    "message": "📌 PiP mode started",
+    "description": "Log when PiP mode is activated"
+  },
+  "logPipExit": {
+    "message": "📌 PiP mode ended",
+    "description": "Log when PiP mode is deactivated"
+  },
+  "logPipError": {
+    "message": "⚠ PiP error: $1",
+    "description": "Log when PiP fails",
+    "placeholders": {
+      "1": { "content": "$1", "example": "NotAllowedError" }
+    }
+  },
+
+  "setupTitle": {
+    "message": "Camera Setup",
+    "description": "Title on camera setup page"
+  },
+  "setupDescription": {
+    "message": "NyandSign needs camera access to detect hand signs. Press the button below and select \"Allow every time\" to enable camera access.",
+    "description": "Description on camera setup page"
+  },
+  "setupBtnAllow": {
+    "message": "📷 Allow Camera",
+    "description": "Button to request camera permission"
+  },
+  "setupBtnLoading": {
+    "message": "⏳ Requesting...",
+    "description": "Button text while requesting permission"
+  },
+  "setupSuccess": {
+    "message": "✅ Camera permission granted! This tab will close automatically...",
+    "description": "Success message after camera permission is granted"
+  },
+  "setupErrorDenied": {
+    "message": "Camera permission was denied. Please click the camera icon in the address bar, or go to chrome://settings/content/camera to allow access for this extension.",
+    "description": "Error message when camera permission is denied"
+  },
+  "setupErrorGeneric": {
+    "message": "Camera error: $1",
+    "description": "Generic camera error on setup page",
+    "placeholders": {
+      "1": { "content": "$1", "example": "NotReadableError" }
+    }
+  }
+}

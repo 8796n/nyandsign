@@ -1,0 +1,449 @@
+{
+  "extensionName": {
+    "message": "NyandSign — Hand Sign Media Controller"
+  },
+  "extensionDescription": {
+    "message": "ハンドサインを検出しメディア再生を操作する"
+  },
+
+  "btnStartCamera": {
+    "message": "▶ カメラ開始"
+  },
+  "btnStopCamera": {
+    "message": "⏹ 停止"
+  },
+  "btnCameraLoading": {
+    "message": "⏳ 起動中..."
+  },
+  "btnRequestPermission": {
+    "message": "📷 権限を許可して開始"
+  },
+  "btnOpenEyecon": {
+    "message": "🕶️ EyeCon を開く"
+  },
+  "btnResetMapping": {
+    "message": "リセット"
+  },
+  "btnResetSettings": {
+    "message": "リセット"
+  },
+  "btnCopyLog": {
+    "message": "📋 コピー"
+  },
+  "btnClearLog": {
+    "message": "クリア"
+  },
+
+  "headerMediaControl": {
+    "message": "メディア操作"
+  },
+  "titleMediaControlToggle": {
+    "message": "メディアコントロール有効/無効"
+  },
+
+  "sectionHandTracking": {
+    "message": "ハンドトラッキング"
+  },
+  "sectionCurrentSign": {
+    "message": "認識中のハンドサイン"
+  },
+  "sectionHandSigns": {
+    "message": "ハンドサイン"
+  },
+  "sectionSettings": {
+    "message": "設定"
+  },
+  "sectionLog": {
+    "message": "ログ"
+  },
+
+  "settingMirrorLabel": {
+    "message": "左右反転"
+  },
+  "settingMirrorTitle": {
+    "message": "カメラ映像を左右反転して表示します（自撮りカメラ向け）"
+  },
+  "settingSkeletonLabel": {
+    "message": "骨格のみ"
+  },
+  "settingSkeletonTitle": {
+    "message": "カメラ映像を非表示にし、手の骨格のみ表示します"
+  },
+  "settingWakeLabel": {
+    "message": "ウェイク"
+  },
+  "settingWakeTitle": {
+    "message": "メディア操作を開始するためのハンドサイン。検出後、待機時間内にコマンドサインを行います"
+  },
+  "settingWakeTimeoutLabel": {
+    "message": "待機時間"
+  },
+  "settingWakeTimeoutTitle": {
+    "message": "ウェイク後にコマンドサインを受け付ける時間"
+  },
+  "settingToggleLabel": {
+    "message": "操作トグル"
+  },
+  "settingToggleTitle": {
+    "message": "両手サインでメディア操作のON/OFFを切り替えます"
+  },
+  "settingPreferredHandLabel": {
+    "message": "優先する手"
+  },
+  "settingPreferredHandTitle": {
+    "message": "両手が認識された場合に設定された手のハンドサインを優先します"
+  },
+  "settingHoldTimeLabel": {
+    "message": "判定待機"
+  },
+  "settingHoldTimeTitle": {
+    "message": "ハンドサインが確定するまでの持続時間。短いほど反応が速く、長いほど誤操作が減ります"
+  },
+  "settingRepeatIntervalLabel": {
+    "message": "🔁 間隔"
+  },
+  "settingRepeatIntervalTitle": {
+    "message": "音量やシークなど継続操作のリピート間隔"
+  },
+  "settingInferenceFpsLabel": {
+    "message": "推論FPS"
+  },
+  "settingInferenceFpsTitle": {
+    "message": "ハンドサイン推論の頻度。低いほどCPU負荷が減りますが反応が遅くなります"
+  },
+  "settingNotifyVolumeLabel": {
+    "message": "通知音量"
+  },
+  "settingNotifyVolumeTitle": {
+    "message": "ウェイク起動音やトグル切替音の音量。0で無音になります"
+  },
+  "settingUiScaleLabel": {
+    "message": "表示サイズ"
+  },
+  "settingUiScaleTitle": {
+    "message": "サイドパネル全体の表示サイズを調整します"
+  },
+  "settingPipFontScaleLabel": {
+    "message": "PiP 文字サイズ"
+  },
+  "settingPipFontScaleTitle": {
+    "message": "PiP / ポップアップのハンドサインやターゲット名の文字サイズを調整します"
+  },
+
+  "optionWakeOpen": {
+    "message": "🖐️ パー"
+  },
+  "optionWakeNone": {
+    "message": "⚡ なし（常時）"
+  },
+  "optionToggleFrame": {
+    "message": "🖼️ フレーム"
+  },
+  "optionToggleBothPeace": {
+    "message": "✌️✌️ 両手ピース"
+  },
+  "optionTogglePeaceFist": {
+    "message": "✌️✊ ピース＆グー"
+  },
+  "optionToggleNone": {
+    "message": "⛔ なし（手動）"
+  },
+  "optionHandAuto": {
+    "message": "🤲 どちらでも"
+  },
+  "optionHandRight": {
+    "message": "🫱 右手"
+  },
+  "optionHandLeft": {
+    "message": "🫲 左手"
+  },
+  "optionEyeconSetup": {
+    "message": "🕶️ メガネのカメラ利用はこちら"
+  },
+
+  "gestureFist": {
+    "message": "グー"
+  },
+  "gesturePeace": {
+    "message": "チョキ"
+  },
+  "gestureOk": {
+    "message": "OK"
+  },
+  "gestureAloha": {
+    "message": "アロハ"
+  },
+  "gesturePointRight": {
+    "message": "右"
+  },
+  "gesturePointLeft": {
+    "message": "左"
+  },
+  "gestureThumbsup": {
+    "message": "サムズアップ"
+  },
+  "gestureThumbsdown": {
+    "message": "サムズダウン"
+  },
+  "gestureOpen": {
+    "message": "パー"
+  },
+  "gestureUnknown": {
+    "message": "不明"
+  },
+
+  "actionPlayPause": {
+    "message": "▶⏸ 再生/一時停止"
+  },
+  "actionPlay": {
+    "message": "▶ 再生"
+  },
+  "actionPause": {
+    "message": "⏸ 一時停止"
+  },
+  "actionVolumeUp": {
+    "message": "🔊 音量+ 🔁"
+  },
+  "actionVolumeDown": {
+    "message": "🔉 音量− 🔁"
+  },
+  "actionMute": {
+    "message": "🔇 ミュート"
+  },
+  "actionNextTrack": {
+    "message": "⏭ 次のトラック"
+  },
+  "actionPrevTrack": {
+    "message": "⏮ 前のトラック"
+  },
+  "actionSeekForward": {
+    "message": "⏩ 10秒進む 🔁"
+  },
+  "actionSeekBackward": {
+    "message": "⏪ 10秒戻る 🔁"
+  },
+  "actionNone": {
+    "message": "— なし"
+  },
+
+  "metaGestureFrame": {
+    "message": "フレーム"
+  },
+  "metaGestureBothPeace": {
+    "message": "両手ピース"
+  },
+  "metaGesturePeaceFist": {
+    "message": "ピース＆グー"
+  },
+
+  "hintNoCamera": {
+    "message": "カメラが検出されません。USB カメラを接続してください。<br>電気メガネの場合は <a href=\"#\" id=\"link-eyecon\">EyeCon セットアップページ</a>で有効化してください。"
+  },
+  "hintPermissionRequired": {
+    "message": "📷 <strong>カメラ権限が必要です</strong><br>「権限を許可して開始」を押すか、<a href=\"#\" id=\"link-ext-settings\">拡張の設定</a> → サイトの権限 → カメラ → 許可"
+  },
+  "hintWakeAlwaysActive": {
+    "message": "⚡ 常時アクティブ: すべてのハンドサインが即座に反映されます"
+  },
+  "hintWakeWithTimeout": {
+    "message": "🖐️ $1 で起動 → サインで操作（$2秒 or 1回で待機に戻る）",
+    "placeholders": {
+      "1": { "content": "$1" },
+      "2": { "content": "$2" }
+    }
+  },
+
+  "logAppStartup": {
+    "message": "NyandSign v$1 起動",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logCameraAcquired": {
+    "message": "カメラ取得: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logXrealMirrorAuto": {
+    "message": "メガネカメラ: ミラー自動OFF"
+  },
+  "logCameraStarted": {
+    "message": "カメラ & ハンドトラッキング開始"
+  },
+  "logCameraDisconnected": {
+    "message": "⚠ カメラが切断されました — 自動停止"
+  },
+  "logCameraConstraintError": {
+    "message": "⚠ 選択されたカメラに接続できません"
+  },
+  "logCameraError": {
+    "message": "カメラエラー: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logCameraPermissionRequired": {
+    "message": "⚠ カメラ権限が必要です"
+  },
+  "logCameraPermissionInstructions": {
+    "message": "→ 拡張の設定でカメラを許可するか、「権限を許可して開始」を押してください"
+  },
+  "logWakeActivated": {
+    "message": "🖐️ ウェイク → アクティブ"
+  },
+  "logWakeTimeout": {
+    "message": "アクティブ期間終了 → 待機中"
+  },
+  "logGestureAction": {
+    "message": "→ $1 → $2",
+    "placeholders": {
+      "1": { "content": "$1" },
+      "2": { "content": "$2" }
+    }
+  },
+  "logSendError": {
+    "message": "送信エラー: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logMediaControlOn": {
+    "message": "メディア操作: ON ✅"
+  },
+  "logMediaControlOff": {
+    "message": "メディア操作: OFF ⛔"
+  },
+  "logWakeGestureChanged": {
+    "message": "ウェイクサイン: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logWakeGestureNone": {
+    "message": "ウェイクサイン: なし（常時アクティブ）"
+  },
+  "logToggleGestureChanged": {
+    "message": "操作トグル: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logPreferredHandAuto": {
+    "message": "優先する手: どちらでも"
+  },
+  "logPreferredHandChanged": {
+    "message": "優先する手: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logMappingReset": {
+    "message": "マッピングをリセット"
+  },
+  "logSettingsReset": {
+    "message": "設定をリセット"
+  },
+  "logCopySuccess": {
+    "message": "📋 ログをクリップボードにコピーしました"
+  },
+  "logCopyFailed": {
+    "message": "⚠️ コピー失敗: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+
+  "formatSeconds": {
+    "message": "$1秒",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "formatImmediate": {
+    "message": "即時"
+  },
+  "formatFps": {
+    "message": "$1fps",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "formatVolumeOff": {
+    "message": "OFF"
+  },
+  "formatPercent": {
+    "message": "$1%",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "cameraFallbackName": {
+    "message": "カメラ $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logMediaPipe": {
+    "message": "MediaPipe: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logCameraPermissionViaSetup": {
+    "message": "カメラセットアップページを開いています..."
+  },
+  "logCameraPermissionReceived": {
+    "message": "✅ カメラ権限を取得しました"
+  },
+
+  "btnPip": {
+    "message": "📌 PiP"
+  },
+  "btnExitPip": {
+    "message": "PiP を終了"
+  },
+  "titlePipButton": {
+    "message": "フルスクリーン再生時にサイドパネルが邪魔になる場合、小さなポップアップウィンドウに切り替えてハンドサイン操作を継続できます"
+  },
+  "pipActiveMessage": {
+    "message": "PiP モードで実行中"
+  },
+  "logPipEnter": {
+    "message": "📌 PiP モード開始"
+  },
+  "logPipExit": {
+    "message": "📌 PiP モード終了"
+  },
+  "logPipError": {
+    "message": "⚠ PiP エラー: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+
+  "setupTitle": {
+    "message": "カメラセットアップ"
+  },
+  "setupDescription": {
+    "message": "NyandSign はハンドサイン検出にカメラへのアクセスが必要です。下のボタンを押して、表示されるダイアログで「サイトへのアクセス時は常に許可する」を選択してください。"
+  },
+  "setupBtnAllow": {
+    "message": "📷 カメラを許可"
+  },
+  "setupBtnLoading": {
+    "message": "⏳ リクエスト中..."
+  },
+  "setupSuccess": {
+    "message": "✅ カメラ権限を取得しました！このタブは自動的に閉じます..."
+  },
+  "setupErrorDenied": {
+    "message": "カメラのアクセスが拒否されました。アドレスバーのカメラアイコンをクリックするか、chrome://settings/content/camera でこの拡張へのアクセスを許可してください。"
+  },
+  "setupErrorGeneric": {
+    "message": "カメラエラー: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  }
+}

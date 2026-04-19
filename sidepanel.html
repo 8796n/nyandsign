@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NyandSign</title>
+<link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+
+<!-- ヘッダー（常時表示） -->
+<div class="header">
+    <div class="header-controls is-hidden" id="camera-controls">
+        <select id="sel-camera"></select>
+        <div class="header-actions">
+            <button class="btn btn-primary btn-sm" id="btn-start-camera" data-i18n="btnStartCamera">▶ Start Camera</button>
+            <button class="btn btn-danger btn-sm is-hidden" id="btn-stop-camera" data-i18n="btnStopCamera">⏹ Stop</button>
+            <button class="btn btn-secondary btn-sm is-hidden" id="btn-pip" data-i18n="btnPip" data-i18n-title="titlePipButton">📌 PiP</button>
+            <span class="spacer"></span>
+            <span class="header-label" data-i18n="headerMediaControl">Media Control</span>
+            <label class="toggle-switch" title="Enable/disable media control" data-i18n-title="titleMediaControlToggle">
+                <input type="checkbox" id="chk-enabled" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+    <div class="info-box" id="setup-hint">
+        No camera detected. Connect a USB camera.<br>
+        For smart glasses, enable via <a href="#" id="link-eyecon">EyeCon setup page</a>.
+    </div>
+</div>
+
+<!-- カメラプレビュー（カメラ開始後に表示） -->
+<div class="section is-hidden" id="camera-section">
+    <div class="section-title" data-i18n="sectionHandTracking">Hand Tracking</div>
+    <div id="camera-container">
+        <video id="camera-video" autoplay playsinline muted></video>
+        <canvas id="hand-canvas"></canvas>
+    </div>
+</div>
+
+<!-- PiP モード実行中（PiP 使用時に表示） -->
+<div class="section is-hidden" id="pip-active-section">
+    <div class="pip-active-info">
+        <span class="pip-active-icon">📌</span>
+        <span data-i18n="pipActiveMessage">PiP モードで実行中</span>
+        <button class="btn btn-secondary btn-sm" id="btn-exit-pip" data-i18n="btnExitPip">PiP を終了</button>
+    </div>
+</div>
+
+<!-- ハンドサイン表示 -->
+<div class="section is-hidden" id="gesture-section">
+    <div class="section-title" data-i18n="sectionCurrentSign">Current Hand Sign</div>
+    <div id="gesture-display" class="state-idle">
+        <span class="gesture-emoji">—</span>
+        <span class="gesture-name"></span>
+    </div>
+    <div class="info-box" id="wake-hint"></div>
+</div>
+
+<!-- ハンドサインマッピング（折りたたみ） -->
+<details class="collapsible" id="section-gestures" open>
+    <summary data-i18n="sectionHandSigns">Hand Signs</summary>
+    <div class="collapsible-body">
+        <div id="mapping-list"></div>
+        <div class="mapping-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-reset-mapping" data-i18n="btnResetMapping">Reset</button>
+        </div>
+    </div>
+</details>
+
+<!-- 設定（折りたたみ） -->
+<details class="collapsible" id="section-settings" open>
+    <summary data-i18n="sectionSettings">Settings</summary>
+    <div class="collapsible-body">
+        <div class="setting-row" title="Mirror camera view horizontally (for front-facing cameras)" data-i18n-title="settingMirrorTitle">
+            <span data-i18n="settingMirrorLabel">Mirror</span>
+            <div class="setting-control">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="chk-mirror">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+        <div class="setting-row" title="Hide camera feed and show only hand skeleton" data-i18n-title="settingSkeletonTitle">
+            <span data-i18n="settingSkeletonLabel">Skeleton only</span>
+            <div class="setting-control">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="chk-skeleton-only">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+        <div class="setting-row" title="Hand sign to activate media control. After detection, perform a command sign within the timeout" data-i18n-title="settingWakeTitle">
+            <span data-i18n="settingWakeLabel">Wake</span>
+            <div class="setting-control">
+                <select id="sel-wake-gesture">
+                    <option value="open" data-i18n="optionWakeOpen">🖐️ Open hand</option>
+                    <option value="none" data-i18n="optionWakeNone">⚡ None (always)</option>
+                </select>
+            </div>
+        </div>
+        <div class="setting-row" id="row-wake-timeout" title="Time to accept command signs after wake" data-i18n-title="settingWakeTimeoutTitle">
+            <span data-i18n="settingWakeTimeoutLabel">Timeout</span>
+            <div class="setting-control">
+                <input type="range" id="rng-wake-timeout" min="1" max="10" step="0.5" value="5">
+                <span class="setting-value" id="wake-timeout-value">5.0s</span>
+            </div>
+        </div>
+        <div class="setting-row" title="Toggle media control ON/OFF with two-hand signs" data-i18n-title="settingToggleTitle">
+            <span data-i18n="settingToggleLabel">Toggle</span>
+            <div class="setting-control">
+                <select id="sel-toggle-gesture">
+                    <option value="frame" data-i18n="optionToggleFrame">🖼️ Frame</option>
+                    <option value="both-peace" data-i18n="optionToggleBothPeace">✌️✌️ Both peace</option>
+                    <option value="peace-fist" data-i18n="optionTogglePeaceFist">✌️✊ Peace & fist</option>
+                    <option value="none" data-i18n="optionToggleNone">⛔ None (manual)</option>
+                </select>
+            </div>
+        </div>
+        <div class="setting-row" title="Prefer this hand's sign when both hands are detected" data-i18n-title="settingPreferredHandTitle">
+            <span data-i18n="settingPreferredHandLabel">Preferred hand</span>
+            <div class="setting-control">
+                <select id="sel-preferred-hand">
+                    <option value="auto" data-i18n="optionHandAuto">🤲 Either</option>
+                    <option value="Right" data-i18n="optionHandRight">🫱 Right</option>
+                    <option value="Left" data-i18n="optionHandLeft">🫲 Left</option>
+                </select>
+            </div>
+        </div>
+        <div class="setting-row" title="Duration a sign must be held to confirm. Shorter = faster, longer = fewer mistakes" data-i18n-title="settingHoldTimeTitle">
+            <span data-i18n="settingHoldTimeLabel">Hold time</span>
+            <div class="setting-control">
+                <input type="range" id="rng-hold-time" min="0" max="500" step="50" value="300">
+                <span class="setting-value" id="hold-time-value">0.3s</span>
+            </div>
+        </div>
+        <div class="setting-row" title="Repeat interval for continuous actions like volume and seek" data-i18n-title="settingRepeatIntervalTitle">
+            <span data-i18n="settingRepeatIntervalLabel">🔁 Interval</span>
+            <div class="setting-control">
+                <input type="range" id="rng-repeat-interval" min="200" max="1000" step="100" value="1000">
+                <span class="setting-value" id="repeat-interval-value">1.0s</span>
+            </div>
+        </div>
+        <div class="setting-row" title="Hand sign inference frequency. Lower = less CPU, but slower response" data-i18n-title="settingInferenceFpsTitle">
+            <span data-i18n="settingInferenceFpsLabel">Inference FPS</span>
+            <div class="setting-control">
+                <input type="range" id="rng-inference-fps" min="5" max="30" step="5" value="15">
+                <span class="setting-value" id="inference-fps-value">15fps</span>
+            </div>
+        </div>
+        <div class="setting-row" title="Volume for wake activation and toggle sounds. 0 = silent" data-i18n-title="settingNotifyVolumeTitle">
+            <span data-i18n="settingNotifyVolumeLabel">Notify volume</span>
+            <div class="setting-control">
+                <input type="range" id="rng-notify-volume" min="0" max="100" step="10" value="30">
+                <span class="setting-value" id="notify-volume-value">30%</span>
+            </div>
+        </div>
+        <div class="setting-row" title="Adjust overall display size of the side panel" data-i18n-title="settingUiScaleTitle">
+            <span data-i18n="settingUiScaleLabel">Display size</span>
+            <div class="setting-control">
+                <input type="range" id="rng-ui-scale" min="80" max="150" step="10" value="100">
+                <span class="setting-value" id="ui-scale-value">100%</span>
+            </div>
+        </div>
+        <div class="setting-row" title="Adjust the text size in PiP / popup window" data-i18n-title="settingPipFontScaleTitle">
+            <span data-i18n="settingPipFontScaleLabel">PiP Text Size</span>
+            <div class="setting-control">
+                <input type="range" id="rng-pip-font-scale" min="50" max="200" step="10" value="100">
+                <span class="setting-value" id="pip-font-scale-value">100%</span>
+            </div>
+        </div>
+        <div class="mapping-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-reset-settings" data-i18n="btnResetSettings">Reset</button>
+        </div>
+    </div>
+</details>
+
+<!-- ログ（折りたたみ、デフォルト閉） -->
+<details class="collapsible" id="section-log">
+    <summary>
+        <span data-i18n="sectionLog">Log</span>
+    </summary>
+    <div class="collapsible-body">
+        <div id="log"></div>
+        <div class="log-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-copy-log" data-i18n="btnCopyLog">📋 Copy</button>
+            <button class="btn btn-secondary btn-sm" id="btn-clear-log" data-i18n="btnClearLog">Clear</button>
+        </div>
+    </div>
+</details>
+
+<!-- フッター -->
+<div class="footer">
+    <span class="version">v1.0.37</span>
+    <a href="https://megane.8796.jp" target="_blank" rel="noopener">&copy; 8796.jp</a>
+</div>
+
+<script src="hand-tracker.js"></script>
+<script src="sidepanel.js"></script>
+</body>
+</html>
