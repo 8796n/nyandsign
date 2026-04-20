@@ -1135,7 +1135,7 @@ async function loadMapping() {
     } catch (_) {}
     try {
         const result = await chrome.storage.sync.get('mirrorCamera');
-        if (result.mirrorCamera === true) applyMirror(true);
+        if (result.mirrorCamera !== false) applyMirror(true);
     } catch (_) {}
     try {
         const result = await chrome.storage.sync.get('inferenceFps');
@@ -1400,7 +1400,7 @@ el.btnReset.addEventListener('click', () => {
 $('btn-reset-settings').addEventListener('click', () => {
     // デフォルト値
     const defaults = {
-        mirrorCamera: false, skeletonOnly: false,
+        mirrorCamera: true, skeletonOnly: false,
         wakeGestureType: 'open', wakeActiveDuration: 5000,
         toggleGestureType: 'frame', preferredHand: 'auto',
         gestureHoldTime: 300, actionRepeatInterval: 1000,

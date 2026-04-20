@@ -120,7 +120,7 @@ let wakeActive = false;
 
 // カメラ
 let cameraStream = null;
-let mirrorCamera = false;
+let mirrorCamera = true;
 let pipActive = false;
 
 // ターゲットタブ（ジェスチャーアクションの送信先 — アクティブタブに自動追従）
