@@ -1,4 +1,4 @@
-# NyandSign — Hand Sign Media Controller
+# <img src="https://github.com/8796n/nyandsign/blob/main/icons/icon128.png?raw=true" width="48" alt="NyandSign Icon"> NyandSign — Hand Sign Media Controller
 
 Detect hand signs via your webcam and control media playback hands-free — play, pause, volume, seek, and more with simple gestures.
 
