@@ -88,6 +88,16 @@ const DEFAULT_MAPPING = {
     thumbsdown: 'volumeDown',
 };
 
+/** 設定のデフォルト値 — 設定読み込み・リセット両方で参照する唯一の定義 */
+const DEFAULT_SETTINGS = {
+    mirrorCamera: true, skeletonOnly: false,
+    wakeGestureType: 'open', wakeActiveDuration: 5000,
+    toggleGestureType: 'frame', preferredHand: 'auto',
+    gestureHoldTime: 300, actionRepeatInterval: 1000,
+    inferenceFps: 15, notifyVolume: 0.3,
+    uiScale: 100, pipFontScale: 100,
+};
+
 const GESTURABLE_TYPES = [
     'fist', 'peace', 'ok', 'aloha', 'point-right', 'point-left',
     'thumbsup', 'thumbsdown',
@@ -118,23 +128,22 @@ let hadXrealCamera = false;          // 前回ポーリング時に電気メガ�
 const WAKE_STATE = { IDLE: 'idle', ACTIVE: 'active' };
 let wakeState = WAKE_STATE.IDLE;
 let wakeTimeout = null;
-const WAKE_ACTIVE_DURATION = 5000;   // ACTIVE 持続時間デフォルト (ms)
-let wakeActiveDuration = WAKE_ACTIVE_DURATION;
+let wakeActiveDuration = DEFAULT_SETTINGS.wakeActiveDuration;
 // ウェイクサイン種別: 'open' | 'none'
-let wakeGestureType = 'open';
+let wakeGestureType = DEFAULT_SETTINGS.wakeGestureType;
 // サイン確定待機: 同じサインが holdTime 以上持続して初めてアクション発火
-let gestureHoldTime = 300;          // デフォルト 0.3秒
+let gestureHoldTime = DEFAULT_SETTINGS.gestureHoldTime;
 let pendingActionTimer = null;
 let pendingGesture = null;
 // リピート: 継続的なアクション（音量・シーク）のインターバル
-let actionRepeatInterval = 1000;    // デフォルト 1.0秒
+let actionRepeatInterval = DEFAULT_SETTINGS.actionRepeatInterval;
 let repeatTimer = null;
 let repeatingGesture = null;
-let notifyVolume = 0.3;             // 通知音量 (0.0〜1.0)
-let uiScale = 100;                  // 表示サイズ (80〜150%)
+let notifyVolume = DEFAULT_SETTINGS.notifyVolume;
+let uiScale = DEFAULT_SETTINGS.uiScale;
 
 // --- メタサイン（操作トグル）---
-let toggleGestureType = 'frame';    // 'frame' | 'both-peace' | 'peace-fist' | 'none'
+let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
 let metaGestureActive = false;
 let metaGestureStartTime = 0;
 // メガネカメラ使用時のミラー自動OFF用
@@ -1073,129 +1082,97 @@ async function loadMapping() {
         }
     } catch (_) {}
     try {
-        const result = await chrome.storage.sync.get('wakeGestureType');
-        if (result.wakeGestureType !== undefined) {
-            // 移行: 旧モーション系ウェイクは廃止 → open にフォールバック
-            const valid = ['open', 'none'];
-            wakeGestureType = valid.includes(result.wakeGestureType)
-                ? result.wakeGestureType : 'open';
-        }
-        const sel = $('sel-wake-gesture');
-        if (sel) sel.value = wakeGestureType;
-        // 初期状態を反映
+        const d = DEFAULT_SETTINGS;
+        const result = await chrome.storage.sync.get(Object.keys(d));
+
+        applyMirror(result.mirrorCamera ?? d.mirrorCamera);
+        applySkeletonOnly(result.skeletonOnly ?? d.skeletonOnly);
+
+        const validWake = ['open', 'none'];
+        wakeGestureType = validWake.includes(result.wakeGestureType) ? result.wakeGestureType : d.wakeGestureType;
+        const selWake = $('sel-wake-gesture');
+        if (selWake) selWake.value = wakeGestureType;
         setWakeState(WAKE_STATE.IDLE);
-    } catch (_) {}
-    try {
-        const result = await chrome.storage.sync.get('wakeActiveDuration');
-        if (result.wakeActiveDuration !== undefined) {
-            wakeActiveDuration = Math.max(1000, Math.min(10000, Number(result.wakeActiveDuration) || WAKE_ACTIVE_DURATION));
-        }
-        const rng = $('rng-wake-timeout');
-        if (rng) {
-            rng.value = wakeActiveDuration / 1000;
+
+        wakeActiveDuration = result.wakeActiveDuration !== undefined
+            ? Math.max(1000, Math.min(10000, Number(result.wakeActiveDuration) || d.wakeActiveDuration))
+            : d.wakeActiveDuration;
+        const rngWake = $('rng-wake-timeout');
+        if (rngWake) {
+            rngWake.value = wakeActiveDuration / 1000;
             $('wake-timeout-value').textContent = fmtSeconds(wakeActiveDuration);
         }
         updateWakeUI();
-    } catch (_) {}
-    try {
-        const result = await chrome.storage.sync.get('toggleGestureType');
-        if (result.toggleGestureType !== undefined) {
-            const valid = ['frame', 'both-peace', 'peace-fist', 'none'];
-            toggleGestureType = valid.includes(result.toggleGestureType)
-                ? result.toggleGestureType : 'frame';
-        }
-        const sel = $('sel-toggle-gesture');
-        if (sel) sel.value = toggleGestureType;
-    } catch (_) {}
-    try {
-        const result = await chrome.storage.sync.get('gestureHoldTime');
-        if (result.gestureHoldTime !== undefined) {
-            gestureHoldTime = Math.max(0, Math.min(500, Number(result.gestureHoldTime) || 0));
-        }
-        const rng = $('rng-hold-time');
-        if (rng) {
-            rng.value = gestureHoldTime;
+
+        const validToggle = ['frame', 'both-peace', 'peace-fist', 'none'];
+        toggleGestureType = validToggle.includes(result.toggleGestureType) ? result.toggleGestureType : d.toggleGestureType;
+        const selToggle = $('sel-toggle-gesture');
+        if (selToggle) selToggle.value = toggleGestureType;
+
+        gestureHoldTime = result.gestureHoldTime !== undefined
+            ? Math.max(0, Math.min(500, Number(result.gestureHoldTime) || 0))
+            : d.gestureHoldTime;
+        const rngHold = $('rng-hold-time');
+        if (rngHold) {
+            rngHold.value = gestureHoldTime;
             $('hold-time-value').textContent = fmtSeconds(gestureHoldTime);
         }
-    } catch (_) {}
-    try {
-        const result = await chrome.storage.sync.get('actionRepeatInterval');
-        if (result.actionRepeatInterval !== undefined) {
-            actionRepeatInterval = Math.max(200, Math.min(1000, Number(result.actionRepeatInterval) || 500));
-        }
-        const rng = $('rng-repeat-interval');
-        if (rng) {
-            rng.value = actionRepeatInterval;
+
+        actionRepeatInterval = result.actionRepeatInterval !== undefined
+            ? Math.max(200, Math.min(1000, Number(result.actionRepeatInterval) || d.actionRepeatInterval))
+            : d.actionRepeatInterval;
+        const rngRepeat = $('rng-repeat-interval');
+        if (rngRepeat) {
+            rngRepeat.value = actionRepeatInterval;
             $('repeat-interval-value').textContent = fmtSeconds(actionRepeatInterval);
         }
-    } catch (_) {}
-    try {
-        const result = await chrome.storage.sync.get('skeletonOnly');
-        if (result.skeletonOnly === true) applySkeletonOnly(true);
-    } catch (_) {}
-    try {
-        const result = await chrome.storage.sync.get('mirrorCamera');
-        if (result.mirrorCamera !== false) applyMirror(true);
-    } catch (_) {}
-    try {
-        const result = await chrome.storage.sync.get('inferenceFps');
-        if (result.inferenceFps !== undefined) {
-            const fps = Math.max(5, Math.min(30, Number(result.inferenceFps) || 15));
-            tracker.targetFps = fps;
-            const rng = $('rng-inference-fps');
-            if (rng) {
-                rng.value = fps;
-                $('inference-fps-value').textContent = fmtFps(fps);
-            }
+
+        const fps = result.inferenceFps !== undefined
+            ? Math.max(5, Math.min(30, Number(result.inferenceFps) || d.inferenceFps))
+            : d.inferenceFps;
+        tracker.targetFps = fps;
+        const rngFps = $('rng-inference-fps');
+        if (rngFps) {
+            rngFps.value = fps;
+            $('inference-fps-value').textContent = fmtFps(fps);
         }
-    } catch (_) {}
-    try {
-        const result = await chrome.storage.sync.get('notifyVolume');
-        if (result.notifyVolume !== undefined) {
-            notifyVolume = Math.max(0, Math.min(1, Number(result.notifyVolume)));
-        }
-        const rng = $('rng-notify-volume');
-        if (rng) {
-            rng.value = Math.round(notifyVolume * 100);
+
+        notifyVolume = result.notifyVolume !== undefined
+            ? Math.max(0, Math.min(1, Number(result.notifyVolume)))
+            : d.notifyVolume;
+        const rngVol = $('rng-notify-volume');
+        if (rngVol) {
+            rngVol.value = Math.round(notifyVolume * 100);
             $('notify-volume-value').textContent = fmtVolume(notifyVolume);
         }
-    } catch (_) {}
-    // 表示サイズ
-    try {
-        const result = await chrome.storage.sync.get('uiScale');
-        if (result.uiScale !== undefined) {
-            uiScale = Math.max(80, Math.min(150, Number(result.uiScale)));
-        }
+
+        uiScale = result.uiScale !== undefined
+            ? Math.max(80, Math.min(150, Number(result.uiScale)))
+            : d.uiScale;
         document.body.style.zoom = uiScale / 100;
-        const rng = $('rng-ui-scale');
-        if (rng) {
-            rng.value = uiScale;
+        const rngUi = $('rng-ui-scale');
+        if (rngUi) {
+            rngUi.value = uiScale;
             $('ui-scale-value').textContent = fmtPercent(uiScale);
         }
-    } catch (_) {}
-    // PiP 文字サイズ
-    try {
-        const result = await chrome.storage.sync.get('pipFontScale');
-        if (result.pipFontScale !== undefined) {
-            const v = Math.max(50, Math.min(200, Number(result.pipFontScale)));
-            const rng = $('rng-pip-font-scale');
-            if (rng) {
-                rng.value = v;
-                $('pip-font-scale-value').textContent = fmtPercent(v);
-            }
+
+        const pipFont = result.pipFontScale !== undefined
+            ? Math.max(50, Math.min(200, Number(result.pipFontScale)))
+            : d.pipFontScale;
+        const rngPip = $('rng-pip-font-scale');
+        if (rngPip) {
+            rngPip.value = pipFont;
+            $('pip-font-scale-value').textContent = fmtPercent(pipFont);
         }
+
+        const ph = result.preferredHand || d.preferredHand;
+        tracker.preferredHand = ph;
+        const selHand = $('sel-preferred-hand');
+        if (selHand) selHand.value = ph;
     } catch (_) {}
     try {
         const result = await chrome.storage.local.get('selectedCameraId');
         if (result.selectedCameraId) selectedCameraId = result.selectedCameraId;
-    } catch (_) {}
-    try {
-        const result = await chrome.storage.sync.get('preferredHand');
-        if (result.preferredHand) {
-            tracker.preferredHand = result.preferredHand;
-            const sel = $('sel-preferred-hand');
-            if (sel) sel.value = result.preferredHand;
-        }
     } catch (_) {}
     // 折りたたみセクションの開閉状態を復元
     try {
@@ -1398,52 +1375,44 @@ el.btnReset.addEventListener('click', () => {
 });
 
 $('btn-reset-settings').addEventListener('click', () => {
-    // デフォルト値
-    const defaults = {
-        mirrorCamera: true, skeletonOnly: false,
-        wakeGestureType: 'open', wakeActiveDuration: 5000,
-        toggleGestureType: 'frame', preferredHand: 'auto',
-        gestureHoldTime: 300, actionRepeatInterval: 1000,
-        inferenceFps: 15, notifyVolume: 0.3,
-        uiScale: 100, pipFontScale: 100,
-    };
+    const d = DEFAULT_SETTINGS;
 
     // 状態変数を復元
-    wakeGestureType = defaults.wakeGestureType;
-    wakeActiveDuration = defaults.wakeActiveDuration;
-    toggleGestureType = defaults.toggleGestureType;
-    tracker.preferredHand = defaults.preferredHand;
-    gestureHoldTime = defaults.gestureHoldTime;
-    actionRepeatInterval = defaults.actionRepeatInterval;
-    tracker.targetFps = defaults.inferenceFps;
-    notifyVolume = defaults.notifyVolume;
-    uiScale = defaults.uiScale;
+    wakeGestureType = d.wakeGestureType;
+    wakeActiveDuration = d.wakeActiveDuration;
+    toggleGestureType = d.toggleGestureType;
+    tracker.preferredHand = d.preferredHand;
+    gestureHoldTime = d.gestureHoldTime;
+    actionRepeatInterval = d.actionRepeatInterval;
+    tracker.targetFps = d.inferenceFps;
+    notifyVolume = d.notifyVolume;
+    uiScale = d.uiScale;
 
     // UIを復元
-    $('chk-mirror').checked = defaults.mirrorCamera; applyMirror(defaults.mirrorCamera);
-    $('chk-skeleton-only').checked = false; applySkeletonOnly(false);
-    $('sel-wake-gesture').value = defaults.wakeGestureType;
-    $('rng-wake-timeout').value = defaults.wakeActiveDuration / 1000;
-    $('wake-timeout-value').textContent = fmtSeconds(defaults.wakeActiveDuration);
+    $('chk-mirror').checked = d.mirrorCamera; applyMirror(d.mirrorCamera);
+    $('chk-skeleton-only').checked = d.skeletonOnly; applySkeletonOnly(d.skeletonOnly);
+    $('sel-wake-gesture').value = d.wakeGestureType;
+    $('rng-wake-timeout').value = d.wakeActiveDuration / 1000;
+    $('wake-timeout-value').textContent = fmtSeconds(d.wakeActiveDuration);
     updateWakeUI();
-    $('sel-toggle-gesture').value = defaults.toggleGestureType;
-    $('sel-preferred-hand').value = defaults.preferredHand;
-    $('rng-hold-time').value = defaults.gestureHoldTime;
-    $('hold-time-value').textContent = fmtSeconds(defaults.gestureHoldTime);
-    $('rng-repeat-interval').value = defaults.actionRepeatInterval;
-    $('repeat-interval-value').textContent = fmtSeconds(defaults.actionRepeatInterval);
-    $('rng-inference-fps').value = defaults.inferenceFps;
-    $('inference-fps-value').textContent = fmtFps(defaults.inferenceFps);
-    $('rng-notify-volume').value = Math.round(defaults.notifyVolume * 100);
-    $('notify-volume-value').textContent = fmtVolume(defaults.notifyVolume);
-    $('rng-ui-scale').value = defaults.uiScale;
-    $('ui-scale-value').textContent = fmtPercent(defaults.uiScale);
-    $('rng-pip-font-scale').value = defaults.pipFontScale;
-    $('pip-font-scale-value').textContent = fmtPercent(defaults.pipFontScale);
-    document.body.style.zoom = 1;
+    $('sel-toggle-gesture').value = d.toggleGestureType;
+    $('sel-preferred-hand').value = d.preferredHand;
+    $('rng-hold-time').value = d.gestureHoldTime;
+    $('hold-time-value').textContent = fmtSeconds(d.gestureHoldTime);
+    $('rng-repeat-interval').value = d.actionRepeatInterval;
+    $('repeat-interval-value').textContent = fmtSeconds(d.actionRepeatInterval);
+    $('rng-inference-fps').value = d.inferenceFps;
+    $('inference-fps-value').textContent = fmtFps(d.inferenceFps);
+    $('rng-notify-volume').value = Math.round(d.notifyVolume * 100);
+    $('notify-volume-value').textContent = fmtVolume(d.notifyVolume);
+    $('rng-ui-scale').value = d.uiScale;
+    $('ui-scale-value').textContent = fmtPercent(d.uiScale);
+    $('rng-pip-font-scale').value = d.pipFontScale;
+    $('pip-font-scale-value').textContent = fmtPercent(d.pipFontScale);
+    document.body.style.zoom = d.uiScale / 100;
 
     // ストレージに保存
-    chrome.storage.sync.set(defaults);
+    chrome.storage.sync.set(d);
     log(msg('logSettingsReset'));
 });
 
