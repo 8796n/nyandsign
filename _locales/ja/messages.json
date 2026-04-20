@@ -484,6 +484,22 @@
     "message": "⚠ 別のウィンドウで認識が開始されたため停止しました"
   },
 
+  "pipBtnStartPip": {
+    "message": "📌 PiP モードを開始"
+  },
+  "pipActiveTitle": {
+    "message": "📌 PiP モード実行中"
+  },
+  "pipActiveHint": {
+    "message": "このウィンドウは最小化できます。PiP を閉じるとプレビューに戻ります。"
+  },
+  "pipBtnBack": {
+    "message": "↩ サイドパネルに戻る"
+  },
+  "pipBtnBackTitle": {
+    "message": "サイドパネルに戻る"
+  },
+
   "setupTitle": {
     "message": "カメラセットアップ"
   },

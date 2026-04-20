@@ -621,6 +621,27 @@
     "description": "Log when another window takes over recognition"
   },
 
+  "pipBtnStartPip": {
+    "message": "📌 Start PiP Mode",
+    "description": "Button to start Picture-in-Picture mode"
+  },
+  "pipActiveTitle": {
+    "message": "📌 PiP Mode Active",
+    "description": "Heading shown when PiP is active"
+  },
+  "pipActiveHint": {
+    "message": "You can minimize this window. Close PiP to return to preview.",
+    "description": "Hint shown when PiP is active"
+  },
+  "pipBtnBack": {
+    "message": "↩ Back to Side Panel",
+    "description": "Button to return from popup to side panel"
+  },
+  "pipBtnBackTitle": {
+    "message": "Back to side panel",
+    "description": "Tooltip for back button"
+  },
+
   "setupTitle": {
     "message": "Camera Setup",
     "description": "Title on camera setup page"

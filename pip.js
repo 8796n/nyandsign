@@ -51,6 +51,16 @@ function actionLabel(key) {
 function msg(key, subs) {
     return chrome.i18n.getMessage(key, subs) || key;
 }
+function applyI18n() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const text = msg(el.dataset.i18n);
+        if (text) el.textContent = text;
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const text = msg(el.dataset.i18nTitle);
+        if (text) el.title = text;
+    });
+}
 
 /* ============================================================
  * DOM 参照
@@ -887,6 +897,7 @@ window.addEventListener('beforeunload', (e) => {
 
 // 起動
 (async () => {
+    applyI18n();
     await loadSettings();
     // ウェイク初期状態
     wakeActive = wakeGestureType === 'none';

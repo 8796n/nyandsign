@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <title>NyandSign PiP</title>
@@ -142,9 +142,9 @@
 
 <!-- カメラプレビュー（PiP 開始前） -->
 <div id="preview-container">
-    <span id="status">準備中...</span>
+    <span id="status" data-i18n="pipStatusPreparing">Preparing...</span>
     <canvas id="preview-canvas"></canvas>
-    <button id="btn-start-pip" disabled>📌 PiP モードを開始</button>
+    <button id="btn-start-pip" disabled data-i18n="pipBtnStartPip">📌 Start PiP Mode</button>
     <!-- ターゲットタブ情報バー -->
     <div id="target-tab-bar">
         <span class="target-icon">🎯</span>
@@ -155,12 +155,12 @@
 
 <!-- PiP アクティブ時 -->
 <div id="pip-active-msg">
-    <h3>📌 PiP モード実行中</h3>
-    <p>このウィンドウは最小化できます。<br>PiP を閉じるとプレビューに戻ります。</p>
+    <h3 data-i18n="pipActiveTitle">📌 PiP Mode Active</h3>
+    <p data-i18n="pipActiveHint">You can minimize this window.<br>Close PiP to return to preview.</p>
 </div>
 
 <!-- 共通: サイドパネルに戻るボタン -->
-<button id="btn-back" title="サイドパネルに戻る">↩ サイドパネルに戻る</button>
+<button id="btn-back" data-i18n="pipBtnBack" data-i18n-title="pipBtnBackTitle">↩ Back to Side Panel</button>
 
 <script src="hand-tracker.js"></script>
 <script src="pip.js"></script>
