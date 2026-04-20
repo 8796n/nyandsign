@@ -11,6 +11,7 @@
     const msg = (key, subs) => chrome.i18n.getMessage(key, subs) || key;
 
     // i18n 適用
+    document.documentElement.lang = chrome.i18n.getUILanguage();
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const text = msg(el.dataset.i18n);
         if (text && text !== el.dataset.i18n) el.textContent = text;

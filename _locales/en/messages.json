@@ -502,13 +502,6 @@
       "1": { "content": "$1", "example": "1" }
     }
   },
-  "logMediaPipe": {
-    "message": "MediaPipe: $1",
-    "description": "MediaPipe loading status log",
-    "placeholders": {
-      "1": { "content": "$1", "example": "Loading model..." }
-    }
-  },
   "logCameraPermissionViaSetup": {
     "message": "Opening camera setup page...",
     "description": "Log when opening setup page for camera permission"
@@ -640,6 +633,11 @@
   "pipBtnBackTitle": {
     "message": "Back to side panel",
     "description": "Tooltip for back button"
+  },
+
+  "pipOverlayOff": {
+    "message": "⛔ OFF",
+    "description": "Overlay text shown on PiP canvas when media control is disabled"
   },
 
   "setupTitle": {

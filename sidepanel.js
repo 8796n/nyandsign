@@ -27,6 +27,7 @@ function msg(key, subs) {
 
 /** data-i18n / data-i18n-title 属性を走査して翻訳を適用 */
 function applyI18n() {
+    document.documentElement.lang = chrome.i18n.getUILanguage();
     for (const el of document.querySelectorAll('[data-i18n]')) {
         const text = msg(el.dataset.i18n);
         if (text) el.textContent = text;
@@ -191,7 +192,7 @@ const el = {
  * ログ
  * ============================================================ */
 function log(text) {
-    const ts = new Date().toLocaleTimeString('ja-JP', { hour12: false });
+    const ts = new Date().toLocaleTimeString(undefined, { hour12: false });
     el.log.textContent += `[${ts}] ${text}\n`;
     el.log.scrollTop = el.log.scrollHeight;
     console.log(`[GW] ${text}`);
@@ -1384,7 +1385,9 @@ const selPreferredHand = $('sel-preferred-hand');
 selPreferredHand.addEventListener('change', () => {
     tracker.preferredHand = selPreferredHand.value;
     chrome.storage.sync.set({ preferredHand: selPreferredHand.value });
-    log(selPreferredHand.value === 'auto' ? msg('logPreferredHandAuto') : msg('logPreferredHandChanged', [selPreferredHand.value]));
+    log(selPreferredHand.value === 'auto'
+        ? msg('logPreferredHandAuto')
+        : msg('logPreferredHandChanged', [msg(selPreferredHand.value === 'Right' ? 'optionHandRight' : 'optionHandLeft')]));
 });
 
 el.btnReset.addEventListener('click', () => {

@@ -391,12 +391,6 @@
       "1": { "content": "$1" }
     }
   },
-  "logMediaPipe": {
-    "message": "MediaPipe: $1",
-    "placeholders": {
-      "1": { "content": "$1" }
-    }
-  },
   "logCameraPermissionViaSetup": {
     "message": "カメラセットアップページを開いています..."
   },
@@ -498,6 +492,10 @@
   },
   "pipBtnBackTitle": {
     "message": "サイドパネルに戻る"
+  },
+
+  "pipOverlayOff": {
+    "message": "⛔ OFF"
   },
 
   "setupTitle": {

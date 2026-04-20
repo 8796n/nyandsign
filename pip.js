@@ -572,6 +572,7 @@ function compositeFrame(ctx, canvas) {
 
     // 操作 OFF 時の表示
     if (!controlEnabled) {
+        const offLabel = msg('pipOverlayOff');
         ctx.save();
         const fontSize = Math.max(16, Math.round(vh * 0.05 * pipFontScale));
         ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
@@ -580,8 +581,8 @@ function compositeFrame(ctx, canvas) {
         ctx.fillStyle = 'rgba(255, 80, 80, 0.9)';
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.lineWidth = 2;
-        ctx.strokeText('⛔ OFF', vw / 2, 8);
-        ctx.fillText('⛔ OFF', vw / 2, 8);
+        ctx.strokeText(offLabel, vw / 2, 8);
+        ctx.fillText(offLabel, vw / 2, 8);
         ctx.restore();
     }
 
