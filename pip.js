@@ -48,6 +48,9 @@ function actionLabel(key) {
     }
     return key || '';
 }
+function msg(key, subs) {
+    return chrome.i18n.getMessage(key, subs) || key;
+}
 
 /* ============================================================
  * DOM 参照
@@ -193,7 +196,7 @@ const targetTabBar = $('target-tab-bar');
 /** ターゲットタブの情報を表示更新 */
 function updateTargetTabInfo(tab) {
     if (!tab) return;
-    const title = tab.title || tab.url || '(不明)';
+    const title = tab.title || tab.url || msg('pipTabTitleUnknown');
     targetTitleEl.textContent = title;
     targetTabTitle = title;
     targetTabAlive = true;
@@ -209,7 +212,7 @@ function updateTargetTabInfo(tab) {
 /** ターゲットタブが閉じられた時の処理 */
 function onTargetTabLost() {
     targetTabAlive = false;
-    const lostMsg = '⚠ 操作対象のタブが閉じられました';
+    const lostMsg = msg('pipTabLost');
     targetTitleEl.textContent = lostMsg;
     targetTabTitle = lostMsg;
     targetFaviconEl.style.display = 'none';
@@ -251,7 +254,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 if (targetTabId) {
     chrome.tabs.get(targetTabId).then(updateTargetTabInfo).catch(() => onTargetTabLost());
 } else {
-    const fallbackMsg = 'アクティブなタブに操作';
+    const fallbackMsg = msg('pipTabFallback');
     targetTitleEl.textContent = fallbackMsg;
     targetTabTitle = fallbackMsg;
 }
@@ -627,7 +630,7 @@ function stopPipComposite() {
  * カメラ起動
  * ============================================================ */
 async function startCamera() {
-    statusEl.textContent = '準備中...';
+    statusEl.textContent = msg('pipStatusPreparing');
 
     // URL パラメータからカメラ ID を取得
     const params = new URLSearchParams(location.search);
@@ -636,12 +639,12 @@ async function startCamera() {
     try {
         // MediaPipe モデルロード
         if (!tracker.loaded) {
-            statusEl.textContent = 'MediaPipe ロード中...';
-            await tracker.loadModel((m) => { statusEl.textContent = m; });
+            statusEl.textContent = msg('mediaPipeLoading');
+            await tracker.loadModel((key) => { statusEl.textContent = msg(key); });
         }
 
         // カメラ取得
-        statusEl.textContent = 'カメラ接続中...';
+        statusEl.textContent = msg('pipStatusConnecting');
         const constraints = {
             video: cameraId
                 ? { deviceId: { exact: cameraId }, width: { ideal: 1280 }, height: { ideal: 720 } }
@@ -680,7 +683,7 @@ async function startCamera() {
             previewCanvas.style.display = 'none';
             $('btn-start-pip').style.display = 'none';
             $('target-tab-bar').style.display = 'none';
-            $('status').textContent = '⚠️ カメラが切断されました';
+            $('status').textContent = msg('pipStatusCameraDisconnected');
             $('status').style.position = 'static';
             $('status').style.transform = 'none';
             $('status').style.fontSize = '15px';
@@ -704,14 +707,14 @@ async function startCamera() {
             skeletonOnly: tracker.skeletonOnly,
         });
 
-        statusEl.textContent = '✅ カメラ準備完了';
+        statusEl.textContent = msg('pipStatusCameraReady');
         btnStartPip.disabled = false;
 
         // プレビュー描画開始
         previewLoop();
 
     } catch (e) {
-        statusEl.textContent = `❌ ${e?.message || String(e)}`;
+        statusEl.textContent = msg('pipStatusError', [e?.message || String(e)]);
         console.error('[PiP] Camera error:', e);
     }
 }
@@ -778,7 +781,7 @@ async function enterPiP() {
         pipCanvas = null;
         pipCanvasCtx = null;
 
-        statusEl.textContent = `❌ PiP エラー: ${e?.message || String(e)}`;
+        statusEl.textContent = msg('pipStatusPipError', [e?.message || String(e)]);
         console.error('[PiP] Error:', e);
         btnStartPip.disabled = false;
     }

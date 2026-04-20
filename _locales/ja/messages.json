@@ -429,6 +429,61 @@
     }
   },
 
+  "mediaPipeLoading": {
+    "message": "MediaPipe ロード中..."
+  },
+  "mediaPipeWasm": {
+    "message": "WASM 初期化中..."
+  },
+  "mediaPipeModel": {
+    "message": "モデルロード中..."
+  },
+  "mediaPipeGpuFallback": {
+    "message": "GPU失敗、CPUで再試行..."
+  },
+  "mediaPipeReady": {
+    "message": "準備完了"
+  },
+  "pipTabTitleUnknown": {
+    "message": "(不明)"
+  },
+  "pipTabLost": {
+    "message": "⚠ 操作対象のタブが閉じられました"
+  },
+  "pipTabFallback": {
+    "message": "アクティブなタブに操作"
+  },
+  "pipStatusPreparing": {
+    "message": "準備中..."
+  },
+  "pipStatusConnecting": {
+    "message": "カメラ接続中..."
+  },
+  "pipStatusCameraDisconnected": {
+    "message": "⚠️ カメラが切断されました"
+  },
+  "pipStatusCameraReady": {
+    "message": "✅ カメラ準備完了"
+  },
+  "pipStatusError": {
+    "message": "❌ $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "pipStatusPipError": {
+    "message": "❌ PiP エラー: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logPipReturned": {
+    "message": "📌 ポップアップから復帰 — カメラを再開します"
+  },
+  "logOtherWindowStarted": {
+    "message": "⚠ 別のウィンドウで認識が開始されたため停止しました"
+  },
+
   "setupTitle": {
     "message": "カメラセットアップ"
   },

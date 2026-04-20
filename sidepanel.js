@@ -397,7 +397,7 @@ async function startCamera() {
 
         // MediaPipe ロード（初回のみ）
         if (!tracker.loaded) {
-            await tracker.loadModel((m) => log(msg('logMediaPipe', [m])));
+            await tracker.loadModel((key) => log(msg(key)));
         }
 
         // getUserMedia — 選択カメラ or 任意カメラ（権限取得用）
@@ -532,7 +532,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
             show(el.cameraControls);
         }
         if (flag.cameraId) selectedCameraId = flag.cameraId;
-        log('📌 ポップアップから復帰 — カメラを再開します');
+        log(msg('logPipReturned'));
         startCamera();
     }
 });
@@ -726,7 +726,7 @@ chrome.runtime.onMessage.addListener((message) => {
         show(el.btnStartCam);
         el.btnStartCam.disabled = false;
         el.btnStartCam.textContent = msg('btnStartCamera');
-        log('⚠ 別のウィンドウで認識が開始されたため停止しました');
+        log(msg('logOtherWindowStarted'));
     }
 });
 
@@ -1536,7 +1536,7 @@ async function init() {
             if (pipReturnToSidepanel.cameraId) {
                 selectedCameraId = pipReturnToSidepanel.cameraId;
             }
-            log('📌 ポップアップから復帰 — カメラを再開します');
+            log(msg('logPipReturned'));
             startCamera();
         }
     } catch (_) {}

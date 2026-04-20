@@ -550,6 +550,77 @@
     }
   },
 
+  "mediaPipeLoading": {
+    "message": "Loading MediaPipe...",
+    "description": "MediaPipe loading status: initial load"
+  },
+  "mediaPipeWasm": {
+    "message": "Initializing WASM...",
+    "description": "MediaPipe loading status: WASM init"
+  },
+  "mediaPipeModel": {
+    "message": "Loading model...",
+    "description": "MediaPipe loading status: model load"
+  },
+  "mediaPipeGpuFallback": {
+    "message": "GPU failed, retrying with CPU...",
+    "description": "MediaPipe loading status: GPU fallback"
+  },
+  "mediaPipeReady": {
+    "message": "Ready",
+    "description": "MediaPipe loading status: ready"
+  },
+  "pipTabTitleUnknown": {
+    "message": "(Unknown)",
+    "description": "Placeholder when tab title is unavailable"
+  },
+  "pipTabLost": {
+    "message": "⚠ Target tab was closed",
+    "description": "Status message when the target tab is closed"
+  },
+  "pipTabFallback": {
+    "message": "Controlling active tab",
+    "description": "Status message when falling back to active tab"
+  },
+  "pipStatusPreparing": {
+    "message": "Preparing...",
+    "description": "PiP/popup status: preparing"
+  },
+  "pipStatusConnecting": {
+    "message": "Connecting camera...",
+    "description": "PiP/popup status: connecting to camera"
+  },
+  "pipStatusCameraDisconnected": {
+    "message": "⚠️ Camera disconnected",
+    "description": "PiP/popup status: camera disconnected"
+  },
+  "pipStatusCameraReady": {
+    "message": "✅ Camera ready",
+    "description": "PiP/popup status: camera ready"
+  },
+  "pipStatusError": {
+    "message": "❌ $1",
+    "description": "PiP/popup generic error status",
+    "placeholders": {
+      "1": { "content": "$1", "example": "NotReadableError" }
+    }
+  },
+  "pipStatusPipError": {
+    "message": "❌ PiP error: $1",
+    "description": "PiP-specific error status",
+    "placeholders": {
+      "1": { "content": "$1", "example": "NotAllowedError" }
+    }
+  },
+  "logPipReturned": {
+    "message": "📌 Returned from popup — restarting camera",
+    "description": "Log when returning from PiP/popup to sidepanel"
+  },
+  "logOtherWindowStarted": {
+    "message": "⚠ Stopped: recognition started in another window",
+    "description": "Log when another window takes over recognition"
+  },
+
   "setupTitle": {
     "message": "Camera Setup",
     "description": "Title on camera setup page"

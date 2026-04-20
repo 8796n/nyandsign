@@ -64,20 +64,20 @@ class HandTracker extends EventTarget {
     async loadModel(onProgress) {
         if (this.handLandmarker) return;
 
-        onProgress?.('MediaPipe ロード中...');
+        onProgress?.('mediaPipeLoading');
         const bundleUrl = chrome.runtime?.getURL
             ? chrome.runtime.getURL('lib/mediapipe/vision_bundle.mjs')
             : 'lib/mediapipe/vision_bundle.mjs';
         const vision = await import(bundleUrl);
         const { HandLandmarker, FilesetResolver } = vision;
 
-        onProgress?.('WASM 初期化中...');
+        onProgress?.('mediaPipeWasm');
         const wasmPath = chrome.runtime?.getURL
             ? chrome.runtime.getURL('lib/mediapipe/wasm')
             : 'lib/mediapipe/wasm';
         const wasmFileset = await FilesetResolver.forVisionTasks(wasmPath);
 
-        onProgress?.('モデルロード中...');
+        onProgress?.('mediaPipeModel');
         const modelPath = chrome.runtime?.getURL
             ? chrome.runtime.getURL('lib/mediapipe/models/hand_landmarker.task')
             : 'lib/mediapipe/models/hand_landmarker.task';
@@ -93,7 +93,7 @@ class HandTracker extends EventTarget {
             });
         } catch (e) {
             // GPU 失敗時は CPU にフォールバック
-            onProgress?.('GPU失敗、CPUで再試行...');
+            onProgress?.('mediaPipeGpuFallback');
             this.handLandmarker = await HandLandmarker.createFromOptions(wasmFileset, {
                 baseOptions: {
                     modelAssetPath: modelPath,
@@ -104,7 +104,7 @@ class HandTracker extends EventTarget {
             });
         }
 
-        onProgress?.('準備完了');
+        onProgress?.('mediaPipeReady');
     }
 
     /**
@@ -114,7 +114,7 @@ class HandTracker extends EventTarget {
      * @param {object} options - { width, height, skeletonOnly }
      */
     async start(videoEl, canvasEl, options = {}) {
-        if (!this.handLandmarker) throw new Error('モデル未ロード');
+        if (!this.handLandmarker) throw new Error('model not loaded');
 
         this.videoEl = videoEl;
         this.canvasEl = canvasEl;
