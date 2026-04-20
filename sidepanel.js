@@ -1420,7 +1420,7 @@ $('btn-reset-settings').addEventListener('click', () => {
     uiScale = defaults.uiScale;
 
     // UIを復元
-    $('chk-mirror').checked = false; applyMirror(false);
+    $('chk-mirror').checked = defaults.mirrorCamera; applyMirror(defaults.mirrorCamera);
     $('chk-skeleton-only').checked = false; applySkeletonOnly(false);
     $('sel-wake-gesture').value = defaults.wakeGestureType;
     $('rng-wake-timeout').value = defaults.wakeActiveDuration / 1000;
