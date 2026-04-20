@@ -257,7 +257,7 @@ async function checkCamera() {
                 selectedCameraId = xreal.deviceId;
                 $('sel-camera').value = selectedCameraId;
                 saveSelectedCamera();
-                log('🕶️ 電気メガネカメラを検出 — 自動選択');
+                log(msg('logXrealDetected'));
             }
         }
 
@@ -300,7 +300,7 @@ function populateCameraSelect(cameras) {
         opt.value = cam.deviceId;
         const prefix = isXrealCamera(cam) ? '🕶️ ' : '📷 ';
         const label = isXrealCamera(cam)
-            ? '電気メガネカメラ'
+            ? msg('xrealCameraLabel')
             : (cam.label || msg('cameraFallbackName', [String(cameras.indexOf(cam) + 1)]));
         opt.textContent = prefix + label;
         sel.appendChild(opt);

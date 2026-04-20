@@ -351,6 +351,10 @@
     "message": "Smart glasses camera: mirror auto OFF",
     "description": "Log when mirror is auto-disabled for glasses camera"
   },
+  "logXrealDetected": {
+    "message": "🕶️ AR glasses camera detected — auto selected",
+    "description": "Log when AR glasses camera is detected and auto-selected"
+  },
   "logCameraStarted": {
     "message": "Camera & hand tracking started",
     "description": "Log when camera and tracking begin"
@@ -486,6 +490,10 @@
     "placeholders": {
       "1": { "content": "$1", "example": "30" }
     }
+  },
+  "xrealCameraLabel": {
+    "message": "AR Glasses Camera",
+    "description": "Label for XREAL AR glasses camera in camera selector"
   },
   "cameraFallbackName": {
     "message": "Camera $1",

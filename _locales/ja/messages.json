@@ -268,6 +268,9 @@
   "logXrealMirrorAuto": {
     "message": "メガネカメラ: ミラー自動OFF"
   },
+  "logXrealDetected": {
+    "message": "🕶️ 電気メガネカメラを検出 — 自動選択"
+  },
   "logCameraStarted": {
     "message": "カメラ & ハンドトラッキング開始"
   },
@@ -377,6 +380,10 @@
     "placeholders": {
       "1": { "content": "$1" }
     }
+  },
+  "xrealCameraLabel": {
+    "message": "電気メガネカメラ",
+    "description": "Label for XREAL AR glasses camera in camera selector"
   },
   "cameraFallbackName": {
     "message": "カメラ $1",
