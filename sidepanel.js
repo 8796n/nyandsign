@@ -157,6 +157,9 @@ const META_GRACE_MS = 150;          // 一時的未検出の許容時間
 let pipWindowId = null;             // PiP ポップアップウィンドウの ID
 let pipTargetTabId = null;          // PiP 開始時のアクティブタブ ID
 
+// --- ターゲットタブ固定 ---
+let lockedTargetTabId = null;       // null = アクティブタブ追従, 数値 = 固定タブID
+
 // --- 単一インスタンス制御 ---
 const instanceId = `sp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 let takenOver = false;              // 別のインスタンスに所有権を奪われた
@@ -1026,7 +1029,9 @@ tracker.addEventListener('frame', (e) => {
 
 async function sendAction(action) {
     try {
-        await chrome.runtime.sendMessage({ type: 'gesture-action', action });
+        const payload = { type: 'gesture-action', action };
+        if (lockedTargetTabId) payload.targetTabId = lockedTargetTabId;
+        await chrome.runtime.sendMessage(payload);
     } catch (e) {
         log(msg('logSendError', [e?.message || String(e)]));
     }
@@ -1267,6 +1272,47 @@ function setControlEnabled(enabled) {
     log(enabled ? msg('logMediaControlOn') : msg('logMediaControlOff'));
 }
 
+/** ターゲットタブを現在のアクティブタブに固定 */
+async function lockCurrentTab() {
+    try {
+        // サイドパネルの親ウィンドウを基準にアクティブタブを取得
+        const win = await chrome.windows.getCurrent();
+        let tabs = await chrome.tabs.query({ active: true, windowId: win.id });
+        // サイドパネルの親ウィンドウが通常ウィンドウでない場合（念のため）、通常ウィンドウを探す
+        if (!tabs.length || (await chrome.windows.get(tabs[0].windowId)).type !== 'normal') {
+            const allTabs = await chrome.tabs.query({ active: true });
+            for (const t of allTabs) {
+                const w = await chrome.windows.get(t.windowId);
+                if (w.type === 'normal') { tabs = [t]; break; }
+            }
+        }
+        if (!tabs.length) return;
+        const tab = tabs[0];
+        lockedTargetTabId = tab.id;
+        const nameEl = $('target-tab-name');
+        const title = tab.title || tab.url || String(tab.id);
+        nameEl.textContent = title;
+        nameEl.title = title;
+        nameEl.classList.add('is-locked');
+        show($('btn-unlock-tab'));
+        hide($('btn-lock-tab'));
+        log(msg('logTargetTabLocked', [title]));
+    } catch (e) {
+        log(msg('logSendError', [e?.message || String(e)]));
+    }
+}
+
+/** ターゲットタブ固定を解除 */
+function unlockTab() {
+    lockedTargetTabId = null;
+    const nameEl = $('target-tab-name');
+    nameEl.textContent = msg('targetTabActive');
+    nameEl.title = '';
+    nameEl.classList.remove('is-locked');
+    show($('btn-lock-tab'));
+    hide($('btn-unlock-tab'));
+}
+
 const selWakeGesture = $('sel-wake-gesture');
 /** ウェイク設定変更時にUI連動（待機時間行の表示・wake-hintテキスト） */
 function updateWakeUI() {
@@ -1372,6 +1418,24 @@ el.btnReset.addEventListener('click', () => {
     saveMapping();
     buildMappingUI();
     log(msg('logMappingReset'));
+});
+
+/* ターゲットタブ固定 */
+$('btn-lock-tab').addEventListener('click', lockCurrentTab);
+$('btn-unlock-tab').addEventListener('click', unlockTab);
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+    if (lockedTargetTabId === tabId) {
+        unlockTab();
+        log(msg('logTargetTabClosed'));
+    }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (lockedTargetTabId === tabId && changeInfo.title !== undefined) {
+        $('target-tab-name').textContent = tab.title || String(tab.id);
+        $('target-tab-name').title = tab.title || String(tab.id);
+    }
 });
 
 $('btn-reset-settings').addEventListener('click', () => {

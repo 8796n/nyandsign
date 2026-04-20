@@ -521,5 +521,27 @@
     "placeholders": {
       "1": { "content": "$1" }
     }
+  },
+
+  "labelTargetTab": {
+    "message": "🎯 操作対象:"
+  },
+  "targetTabActive": {
+    "message": "アクティブなタブ"
+  },
+  "btnLockTab": {
+    "message": "📌 固定"
+  },
+  "btnUnlockTab": {
+    "message": "🔓 解除"
+  },
+  "logTargetTabLocked": {
+    "message": "🎯 タブを固定: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logTargetTabClosed": {
+    "message": "操作対象タブが閉じられたためアクティブタブに戻しました"
   }
 }

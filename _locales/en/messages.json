@@ -670,5 +670,33 @@
     "placeholders": {
       "1": { "content": "$1", "example": "NotReadableError" }
     }
+  },
+
+  "labelTargetTab": {
+    "message": "🎯 Target:",
+    "description": "Label for the target tab row in the gesture section"
+  },
+  "targetTabActive": {
+    "message": "Active tab",
+    "description": "Shown when no specific tab is locked (follows active tab)"
+  },
+  "btnLockTab": {
+    "message": "📌 Pin",
+    "description": "Button to pin/lock the current active tab as the gesture target"
+  },
+  "btnUnlockTab": {
+    "message": "🔓 Unpin",
+    "description": "Button to unpin and revert to active tab tracking"
+  },
+  "logTargetTabLocked": {
+    "message": "🎯 Pinned tab: $1",
+    "description": "Log when a tab is pinned as gesture target",
+    "placeholders": {
+      "1": { "content": "$1", "example": "YouTube" }
+    }
+  },
+  "logTargetTabClosed": {
+    "message": "Target tab was closed — reverted to active tab",
+    "description": "Log when the pinned target tab is closed"
   }
 }

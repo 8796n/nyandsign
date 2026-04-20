@@ -201,6 +201,19 @@ details.collapsible > .collapsible-body { padding: 0 12px 10px; }
 #gesture-display.state-always { background: var(--color-success-bg); opacity: 0.8; }
 #wake-hint { margin-top: 6px; font-size: 10px; }
 
+/* ターゲットタブ行 */
+.target-tab-row {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 8px; font-size: 11px; color: var(--color-text-muted);
+}
+.target-tab-row .target-tab-label { flex-shrink: 0; }
+.target-tab-name {
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--color-text);
+}
+.target-tab-name.is-locked { font-weight: bold; color: var(--color-accent, var(--color-text)); }
+.target-tab-row .btn { flex-shrink: 0; }
+
 /* 設定コントロール */
 .setting-control input[type="range"] {
     width: 90px; accent-color: var(--color-accent);
