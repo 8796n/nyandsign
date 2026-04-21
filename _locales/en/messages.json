@@ -306,6 +306,18 @@
     "message": "⏪ −10s 🔁",
     "description": "Media action: seek backward 10 seconds (repeatable)"
   },
+  "actionSpeedUp": {
+    "message": "⏫ Speed+ 🔁",
+    "description": "Media action: increase playback rate (repeatable)"
+  },
+  "actionSpeedDown": {
+    "message": "⏬ Speed− 🔁",
+    "description": "Media action: decrease playback rate (repeatable)"
+  },
+  "actionFullscreen": {
+    "message": "⛶ Fullscreen",
+    "description": "Media action: toggle fullscreen"
+  },
   "actionNone": {
     "message": "— None",
     "description": "Media action: no action assigned"

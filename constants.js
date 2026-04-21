@@ -32,6 +32,8 @@ const ACTION_I18N_KEYS = {
     volumeUp: 'actionVolumeUp', volumeDown: 'actionVolumeDown', mute: 'actionMute',
     nextTrack: 'actionNextTrack', prevTrack: 'actionPrevTrack',
     seekForward: 'actionSeekForward', seekBackward: 'actionSeekBackward',
+    speedUp: 'actionSpeedUp', speedDown: 'actionSpeedDown',
+    fullscreen: 'actionFullscreen',
     none: 'actionNone',
 };
 
@@ -39,7 +41,7 @@ function actionLabel(key) {
     return msg(ACTION_I18N_KEYS[key] ?? 'actionNone');
 }
 
-const REPEATABLE_ACTIONS = new Set(['volumeUp', 'volumeDown', 'seekForward', 'seekBackward']);
+const REPEATABLE_ACTIONS = new Set(['volumeUp', 'volumeDown', 'seekForward', 'seekBackward', 'speedUp', 'speedDown']);
 
 const DEFAULT_MAPPING = {
     fist: 'pause',

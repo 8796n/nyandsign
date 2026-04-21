@@ -231,6 +231,15 @@
   "actionSeekBackward": {
     "message": "⏪ 10秒戻る 🔁"
   },
+  "actionSpeedUp": {
+    "message": "⏫ 速度+ 🔁"
+  },
+  "actionSpeedDown": {
+    "message": "⏬ 速度− 🔁"
+  },
+  "actionFullscreen": {
+    "message": "⛶ フルスクリーン"
+  },
   "actionNone": {
     "message": "— なし"
   },

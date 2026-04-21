@@ -97,6 +97,25 @@
                 if (media) media.currentTime = Math.max(0, media.currentTime - 10);
                 break;
 
+            case 'speedUp':
+                if (media) media.playbackRate = Math.min(4, Math.round((media.playbackRate + 0.25) * 100) / 100);
+                break;
+
+            case 'speedDown':
+                if (media) media.playbackRate = Math.max(0.25, Math.round((media.playbackRate - 0.25) * 100) / 100);
+                break;
+
+            case 'fullscreen':
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(() => {});
+                } else {
+                    const opts = { key: 'f', code: 'KeyF', bubbles: true, cancelable: true };
+                    document.dispatchEvent(new KeyboardEvent('keydown', opts));
+                    document.dispatchEvent(new KeyboardEvent('keyup', opts));
+                    if (media) media.requestFullscreen().catch(() => {});
+                }
+                break;
+
             case 'nextTrack':
                 if (isYouTube() && youtubeNavigate('next')) break;
                 // 汎用: MediaSession の nexttrack に頼る or キーイベント
@@ -138,7 +157,9 @@
         seekBackward:  '⏪',
         nextTrack:     '⏭',
         previousTrack: '⏮',
-
+        speedUp:       '⏫',
+        speedDown:     '⏬',
+        fullscreen:    '⛶',
     };
 
     let overlayTimer = null;
