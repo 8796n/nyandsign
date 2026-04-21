@@ -45,13 +45,13 @@ const REPEATABLE_ACTIONS = new Set(['volumeUp', 'volumeDown', 'seekForward', 'se
 const DEFAULT_MAPPING = {
     fist: 'pause',
     peace: 'playPause',
+    three: 'nextTrack',
+    four: 'prevTrack',
     ok: 'mute',
     aloha: 'play',
+    rock: 'resetSpeed',
     'point-right': 'seekForward',
     'point-left': 'seekBackward',
-    thumbsup: 'volumeUp',
-    thumbsdown: 'volumeDown',
-    three: 'nextTrack',
-    rock: 'prevTrack',
-    four: 'none',
+    thumbsup: 'speedUp',
+    thumbsdown: 'speedDown',
 };
