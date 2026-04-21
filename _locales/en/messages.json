@@ -314,9 +314,9 @@
     "message": "⏬ Speed− 🔁",
     "description": "Media action: decrease playback rate (repeatable)"
   },
-  "actionFullscreen": {
-    "message": "⛶ Fullscreen",
-    "description": "Media action: toggle fullscreen"
+  "actionResetSpeed": {
+    "message": "🔄 Reset Speed",
+    "description": "Media action: reset playback rate to 1x"
   },
   "actionNone": {
     "message": "— None",

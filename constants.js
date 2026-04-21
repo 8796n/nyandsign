@@ -32,8 +32,7 @@ const ACTION_I18N_KEYS = {
     volumeUp: 'actionVolumeUp', volumeDown: 'actionVolumeDown', mute: 'actionMute',
     nextTrack: 'actionNextTrack', prevTrack: 'actionPrevTrack',
     seekForward: 'actionSeekForward', seekBackward: 'actionSeekBackward',
-    speedUp: 'actionSpeedUp', speedDown: 'actionSpeedDown',
-    fullscreen: 'actionFullscreen',
+    speedUp: 'actionSpeedUp', speedDown: 'actionSpeedDown', resetSpeed: 'actionResetSpeed',
     none: 'actionNone',
 };
 

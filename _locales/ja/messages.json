@@ -237,8 +237,8 @@
   "actionSpeedDown": {
     "message": "⏬ 速度− 🔁"
   },
-  "actionFullscreen": {
-    "message": "⛶ フルスクリーン"
+  "actionResetSpeed": {
+    "message": "🔄 速度リセット"
   },
   "actionNone": {
     "message": "— なし"

@@ -105,15 +105,8 @@
                 if (media) media.playbackRate = Math.max(0.25, Math.round((media.playbackRate - 0.25) * 100) / 100);
                 break;
 
-            case 'fullscreen':
-                if (document.fullscreenElement) {
-                    document.exitFullscreen().catch(() => {});
-                } else {
-                    const opts = { key: 'f', code: 'KeyF', bubbles: true, cancelable: true };
-                    document.dispatchEvent(new KeyboardEvent('keydown', opts));
-                    document.dispatchEvent(new KeyboardEvent('keyup', opts));
-                    if (media) media.requestFullscreen().catch(() => {});
-                }
+            case 'resetSpeed':
+                if (media) media.playbackRate = 1;
                 break;
 
             case 'nextTrack':
@@ -159,7 +152,7 @@
         previousTrack: '⏮',
         speedUp:       '⏫',
         speedDown:     '⏬',
-        fullscreen:    '⛶',
+        resetSpeed:    '🔄',
     };
 
     let overlayTimer = null;
