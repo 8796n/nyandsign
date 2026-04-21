@@ -19,6 +19,7 @@ $includes = @(
     '_locales'
     'camera-setup.html'
     'camera-setup.js'
+    'constants.js'
     'content-script.js'
     'hand-tracker.js'
     'icons'
