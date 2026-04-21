@@ -185,6 +185,15 @@
   "gestureThumbsdown": {
     "message": "サムズダウン"
   },
+  "gestureThree": {
+    "message": "3本指"
+  },
+  "gestureRock": {
+    "message": "ロック"
+  },
+  "gestureFour": {
+    "message": "4本指"
+  },
   "gestureOpen": {
     "message": "パー"
   },

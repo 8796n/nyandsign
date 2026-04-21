@@ -606,7 +606,7 @@ class HandTracker extends EventTarget {
     /* ============================================================
      * ハンドサイン判定（距離ベース）
      *
-     * 判定順: ok → aloha → thumbsup/down → fist → point-left/right → peace → open
+     * 判定順: ok → aloha → rock → thumbsup/down → fist → point-left/right → three → peace → four → open
      * 距離は palmSize で正規化 → カメラ距離・手の大きさに非依存
      * ============================================================ */
 
@@ -643,14 +643,22 @@ class HandTracker extends EventTarget {
             return 'aloha';
         }
 
-        // 3) thumbsup / thumbsdown: 親指が孤立 + 4本指が畳まれている
+        // 3) rock 🤘: 人差し指 + 小指が伸び、中指・薬指が畳まれている
+        //    小指は短指のため !curled で緩和（aloha と同流儀）
+        //    aloha との分離は index.extended、OK との分離は thumbIndexTipDist
+        if (index.extended && middle.curled && ring.curled && !pinky.curled &&
+            thumb.thumbIndexTipDist > 0.35) {
+            return 'rock';
+        }
+
+        // 4) thumbsup / thumbsdown: 親指が孤立 + 4本指が畳まれている
         //    pinky.curled を明示的にチェックしてアロハとの誤判定を防ぐ
         if (curledCount >= 3 && !index.extended && !middle.extended && pinky.curled && thumb.extendedAway) {
             if (thumb.aboveWrist) return 'thumbsup';
             if (thumb.belowWrist) return 'thumbsdown';
         }
 
-        // 4) fist: 4本指が掌に収まっている + 親指が掌近傍
+        // 5) fist: 4本指が掌に収まっている + 親指が掌近傍
         //    curledCount >= 3 で1本曖昧でも許容、ただし extended は不可
         if (
             curledCount >= 3 &&
@@ -662,21 +670,35 @@ class HandTracker extends EventTarget {
             return 'fist';
         }
 
-        // 5) point-left/right: 人差し指が横を向いている
+        // 6) point-left/right: 人差し指が横を向いている
         if (index.extended && middle.curled && ring.curled && pinky.curled &&
             thumb.thumbIndexTipDist > 0.35) {
             const direction = this._getPointDirection(lm, palmSize2D);
             if (direction) return direction;
         }
 
-        // 6) peace: 人差し指 + 中指が伸びている
+        // 7) three: 人差し指 + 中指 + 薬指が伸び、小指が畳まれている
+        //    長指3本 extended + 小指 curled で peace/open と自然に分離
+        //    OK との衝突は index.extended で自動排除
+        if (index.extended && middle.extended && ring.extended && pinky.curled) {
+            return 'three';
+        }
+
+        // 8) peace: 人差し指 + 中指が伸びている
         const indexMiddleSpread = this._dist(g[8], g[12]) / palmSize;
         if (index.extended && middle.extended && ring.curled && pinky.curled &&
             indexMiddleSpread > 0.35) {
             return 'peace';
         }
 
-        // 7) open: 指が広がっている
+        // 9) four: 4本指が伸び、親指は掌に折りたたまれている
+        //    open との分離は thumb.folded、three との分離は !pinky.curled
+        if (index.extended && middle.extended && ring.extended && !pinky.curled &&
+            thumb.folded) {
+            return 'four';
+        }
+
+        // 10) open: 指が広がっている
         //    OK との衝突を避けるため、親指と人差し指が十分離れているときのみ open にする
         if (extendedCount >= 3 && avgTipDist > 1.05 && thumb.thumbIndexTipDist >= 0.50) {
             return 'open';

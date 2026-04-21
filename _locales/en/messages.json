@@ -245,6 +245,18 @@
     "message": "Thumbs Down",
     "description": "Hand sign name: thumbs down"
   },
+  "gestureThree": {
+    "message": "Three",
+    "description": "Hand sign name: three fingers (index + middle + ring extended)"
+  },
+  "gestureRock": {
+    "message": "Rock",
+    "description": "Hand sign name: rock / horns (index + pinky extended)"
+  },
+  "gestureFour": {
+    "message": "Four",
+    "description": "Hand sign name: four fingers (thumb folded, others extended)"
+  },
   "gestureOpen": {
     "message": "Open Hand",
     "description": "Hand sign name: open hand"
