@@ -11,58 +11,6 @@
  */
 
 /* ============================================================
- * 定数・マッピング
- * ============================================================ */
-
-const DEFAULT_MAPPING = {
-    fist: 'pause',
-    peace: 'playPause',
-    ok: 'mute',
-    aloha: 'play',
-    'point-right': 'seekForward',
-    'point-left': 'seekBackward',
-    thumbsup: 'volumeUp',
-    thumbsdown: 'volumeDown',
-};
-
-const REPEATABLE_ACTIONS = new Set(['volumeUp', 'volumeDown', 'seekForward', 'seekBackward']);
-
-const GESTURE_ICONS = {
-    fist: '✊', ok: '👌', aloha: '🤙', 'point-left': '👈', 'point-right': '👉', peace: '✌️',
-    thumbsup: '👍', thumbsdown: '👎', open: '🖐️', unknown: '❓',
-};
-
-/** アクション表示名 — i18n キーへのマッピング */
-const ACTION_I18N_KEYS = {
-    playPause: 'actionPlayPause', play: 'actionPlay', pause: 'actionPause',
-    volumeUp: 'actionVolumeUp', volumeDown: 'actionVolumeDown', mute: 'actionMute',
-    nextTrack: 'actionNextTrack', prevTrack: 'actionPrevTrack',
-    seekForward: 'actionSeekForward', seekBackward: 'actionSeekBackward',
-    none: 'actionNone',
-};
-function actionLabel(key) {
-    const i18nKey = ACTION_I18N_KEYS[key];
-    if (i18nKey) {
-        const translated = chrome.i18n.getMessage(i18nKey);
-        if (translated) return translated;
-    }
-    return key || '';
-}
-function msg(key, subs) {
-    return chrome.i18n.getMessage(key, subs) || key;
-}
-function applyI18n() {
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-        const text = msg(el.dataset.i18n);
-        if (text) el.textContent = text;
-    });
-    document.querySelectorAll('[data-i18n-title]').forEach(el => {
-        const text = msg(el.dataset.i18nTitle);
-        if (text) el.title = text;
-    });
-}
-
-/* ============================================================
  * DOM 参照
  * ============================================================ */
 const $ = (id) => document.getElementById(id);

@@ -20,24 +20,6 @@ window.addEventListener('unhandledrejection', (e) => {
  * 定数
  * ============================================================ */
 
-/** i18n ヘルパー — chrome.i18n.getMessage のショートカット */
-function msg(key, subs) {
-    return chrome.i18n.getMessage(key, subs) || key;
-}
-
-/** data-i18n / data-i18n-title 属性を走査して翻訳を適用 */
-function applyI18n() {
-    document.documentElement.lang = chrome.i18n.getUILanguage();
-    for (const el of document.querySelectorAll('[data-i18n]')) {
-        const text = msg(el.dataset.i18n);
-        if (text) el.textContent = text;
-    }
-    for (const el of document.querySelectorAll('[data-i18n-title]')) {
-        const text = msg(el.dataset.i18nTitle);
-        if (text) el.title = text;
-    }
-}
-
 /** スライダー値の i18n フォーマットヘルパー */
 function fmtSeconds(ms) {
     return ms === 0 ? msg('formatImmediate') : msg('formatSeconds', [(ms / 1000).toFixed(1)]);
@@ -46,47 +28,17 @@ function fmtFps(fps) { return msg('formatFps', [String(fps)]); }
 function fmtPercent(n) { return msg('formatPercent', [String(n)]); }
 function fmtVolume(v) { return v <= 0 ? msg('formatVolumeOff') : fmtPercent(Math.round(v * 100)); }
 
-const GESTURE_ICONS = {
-    fist: '✊', ok: '👌', aloha: '🤙', 'point-left': '👈', 'point-right': '👉', peace: '✌️',
-    thumbsup: '👍', thumbsdown: '👎', open: '🖐️',
-    unknown: '❓',
-};
-
 /* ハンドサイン表示名 — i18n メッセージから取得 */
 const GESTURE_I18N_KEYS = {
     fist: 'gestureFist', peace: 'gesturePeace', ok: 'gestureOk', aloha: 'gestureAloha',
     'point-right': 'gesturePointRight', 'point-left': 'gesturePointLeft',
     thumbsup: 'gestureThumbsup', thumbsdown: 'gestureThumbsdown',
+    three: 'gestureThree', rock: 'gestureRock', four: 'gestureFour',
     open: 'gestureOpen', unknown: 'gestureUnknown',
 };
 function gestureLabel(key) {
     return msg(GESTURE_I18N_KEYS[key] ?? 'gestureUnknown');
 }
-
-/** アクション表示名 — i18n キーへのマッピング */
-const ACTION_I18N_KEYS = {
-    playPause: 'actionPlayPause', play: 'actionPlay', pause: 'actionPause',
-    volumeUp: 'actionVolumeUp', volumeDown: 'actionVolumeDown', mute: 'actionMute',
-    nextTrack: 'actionNextTrack', prevTrack: 'actionPrevTrack',
-    seekForward: 'actionSeekForward', seekBackward: 'actionSeekBackward',
-    none: 'actionNone',
-};
-function actionLabel(key) {
-    return msg(ACTION_I18N_KEYS[key] ?? 'actionNone');
-}
-
-const REPEATABLE_ACTIONS = new Set(['volumeUp', 'volumeDown', 'seekForward', 'seekBackward']);
-
-const DEFAULT_MAPPING = {
-    fist: 'pause',
-    peace: 'playPause',
-    ok: 'mute',
-    aloha: 'play',
-    'point-right': 'seekForward',
-    'point-left': 'seekBackward',
-    thumbsup: 'volumeUp',
-    thumbsdown: 'volumeDown',
-};
 
 /** 設定のデフォルト値 — 設定読み込み・リセット両方で参照する唯一の定義 */
 const DEFAULT_SETTINGS = {
@@ -99,8 +51,8 @@ const DEFAULT_SETTINGS = {
 };
 
 const GESTURABLE_TYPES = [
-    'fist', 'peace', 'ok', 'aloha', 'point-right', 'point-left',
-    'thumbsup', 'thumbsdown',
+    'fist', 'peace', 'three', 'four', 'ok', 'aloha', 'rock',
+    'point-right', 'point-left', 'thumbsup', 'thumbsdown',
 ];
 
 const CAMERA_POLL_INTERVAL = 3000;
