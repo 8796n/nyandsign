@@ -366,8 +366,7 @@ tracker.addEventListener('gesture', (e) => {
         if (wakeState === WAKE_STATE.IDLE) {
             setWakeState(WAKE_STATE.ACTIVE);
         }
-        // ウェイクサイン発動時はコマンド名を表示
-        gestureText = `${icon} ${actionLabel(mappedAction)}`;
+        gestureText = icon;
         return;
     }
 
@@ -534,13 +533,19 @@ function compositeFrame(ctx, canvas) {
         ctx.restore();
     }
 
-    // 操作状態を示す縁取り（ON: 緑、OFF: 赤）
+    // 操作状態を示す縁取り（ACTIVE: 太い明緑、IDLE: 薄緑、OFF: 赤）
     const borderWidth = Math.max(3, Math.round(Math.min(vw, vh) * 0.006));
     ctx.save();
-    ctx.strokeStyle = controlEnabled
-        ? 'rgba(0, 220, 80, 0.8)'
-        : 'rgba(255, 60, 60, 0.8)';
-    ctx.lineWidth = borderWidth * 2;
+    if (!controlEnabled) {
+        ctx.strokeStyle = 'rgba(255, 60, 60, 0.8)';
+        ctx.lineWidth = borderWidth * 2;
+    } else if (wakeActive) {
+        ctx.strokeStyle = 'rgba(80, 255, 120, 0.95)';
+        ctx.lineWidth = borderWidth * 4;
+    } else {
+        ctx.strokeStyle = 'rgba(0, 220, 80, 0.4)';
+        ctx.lineWidth = borderWidth * 2;
+    }
     ctx.strokeRect(0, 0, vw, vh);
     ctx.restore();
 
