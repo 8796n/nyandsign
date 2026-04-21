@@ -698,5 +698,89 @@
   "logTargetTabClosed": {
     "message": "Target tab was closed — reverted to active tab",
     "description": "Log when the pinned target tab is closed"
+  },
+
+  "tutorialStep1Title": {
+    "message": "Welcome 🎉",
+    "description": "Tutorial step 1 title: welcome"
+  },
+  "tutorialStep1Body": {
+    "message": "NyandSign detects hand signs via your camera and controls media playback in the browser. Let's walk through the basics in 6 steps.",
+    "description": "Tutorial step 1 body: intro"
+  },
+  "tutorialStep2Title": {
+    "message": "Select a Camera & Start",
+    "description": "Tutorial step 2 title: start camera"
+  },
+  "tutorialStep2Body": {
+    "message": "Choose a camera from the top and press \"▶ Start Camera\". Smart glasses cameras are auto-detected. This step advances automatically once the camera starts.",
+    "description": "Tutorial step 2 body"
+  },
+  "tutorialStep3Title": {
+    "message": "Wake Sign",
+    "description": "Tutorial step 3 title: wake sign"
+  },
+  "tutorialStep3Body": {
+    "message": "Show an Open Hand 🖐️ to activate media control. When this area turns green, perform a command sign within 5 seconds. This step advances automatically on wake.",
+    "description": "Tutorial step 3 body"
+  },
+  "tutorialStep4Title": {
+    "message": "Command Signs",
+    "description": "Tutorial step 4 title: command signs"
+  },
+  "tutorialStep4Body": {
+    "message": "Default mapping:\n✌️ Play/Pause  ✊ Pause  🤙 Play\n👌 Mute\n👍 Vol+  👎 Vol−\n👉 +10s  👈 −10s\n\nTo try it out: \"Open Hand 🖐️ → command sign\" (wake returns to idle after 5s). You can remap signs in the \"Hand Signs\" section below.",
+    "description": "Tutorial step 4 body: default mapping"
+  },
+  "tutorialStep5Title": {
+    "message": "Media Control Toggle & Key Settings",
+    "description": "Tutorial step 5 title"
+  },
+  "tutorialStep5Body": {
+    "message": "The \"Media Control\" toggle in the header, when OFF, keeps recognition running but stops sending actions to the media (to prevent accidental triggers).\nYou can also switch it ON/OFF with the two-hand sign \"$1\".\nIn Settings, \"Mirror\", \"Skeleton only\", and \"Wake\" type are the most useful controls.",
+    "description": "Tutorial step 5 body (with toggle sign)",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "tutorialStep5BodyNoToggle": {
+    "message": "The \"Media Control\" toggle in the header, when OFF, keeps recognition running but stops sending actions to the media (to prevent accidental triggers).\nTwo-hand sign toggling is currently off — you can enable it under Settings > \"Toggle\".\nIn Settings, \"Mirror\", \"Skeleton only\", and \"Wake\" type are the most useful controls.",
+    "description": "Tutorial step 5 body when toggle gesture is disabled"
+  },
+  "tutorialStep6Title": {
+    "message": "Side Panel vs PiP Mode",
+    "description": "Tutorial step 6 title"
+  },
+  "tutorialStep6Body": {
+    "message": "Use the side panel when you want access to settings and logs. If it gets in the way of fullscreen playback, press \"📌 PiP\" to switch to a small popup window that keeps hand sign control going.",
+    "description": "Tutorial step 6 body"
+  },
+  "tutorialBtnNext": {
+    "message": "Next →",
+    "description": "Tutorial: next button"
+  },
+  "tutorialBtnBack": {
+    "message": "← Back",
+    "description": "Tutorial: back button"
+  },
+  "tutorialBtnSkip": {
+    "message": "Skip",
+    "description": "Tutorial: skip button"
+  },
+  "tutorialBtnFinish": {
+    "message": "Finish 🎉",
+    "description": "Tutorial: finish button on last step"
+  },
+  "tutorialStepIndicator": {
+    "message": "$1 / $2",
+    "description": "Tutorial step indicator e.g. 1 / 6",
+    "placeholders": {
+      "1": { "content": "$1", "example": "1" },
+      "2": { "content": "$2", "example": "6" }
+    }
+  },
+  "btnShowTutorial": {
+    "message": "📖 Show Tutorial",
+    "description": "Button to replay the tutorial"
   }
 }

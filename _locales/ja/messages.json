@@ -543,5 +543,70 @@
   },
   "logTargetTabClosed": {
     "message": "操作対象タブが閉じられたためアクティブタブに戻しました"
+  },
+
+  "tutorialStep1Title": {
+    "message": "ようこそ 🎉"
+  },
+  "tutorialStep1Body": {
+    "message": "NyandSignはハンドサインでブラウザのメディア再生を操作する拡張です。基本の使い方を6ステップで案内します。"
+  },
+  "tutorialStep2Title": {
+    "message": "カメラを選んで開始"
+  },
+  "tutorialStep2Body": {
+    "message": "上部からカメラを選んで「▶ カメラ開始」を押してください。電気メガネのカメラも自動検出されます。開始すると自動で次へ進みます。"
+  },
+  "tutorialStep3Title": {
+    "message": "ウェイクサインで起動"
+  },
+  "tutorialStep3Body": {
+    "message": "パー 🖐️ を出すとメディア操作が有効になります。表示エリアが緑色に変わったら、5秒以内にコマンドサインを出してください。検出されると自動で次へ進みます。"
+  },
+  "tutorialStep4Title": {
+    "message": "コマンドサインで操作"
+  },
+  "tutorialStep4Body": {
+    "message": "デフォルトの割り当て:\n✌️ 再生/一時停止　✊ 一時停止　🤙 再生\n👌 ミュート\n👍 音量＋　👎 音量−\n👉 10秒進む　👈 10秒戻る\n\n試すには「パー🖐️ → コマンドサイン」の順で（ウェイクは5秒で待機に戻ります）。下の「ハンドサイン」セクションで割り当ても変更できます。"
+  },
+  "tutorialStep5Title": {
+    "message": "メディア操作トグルと主要設定"
+  },
+  "tutorialStep5Body": {
+    "message": "ヘッダー右の「メディア操作」トグルは、OFFにすると認識は続きますがメディアへの送信だけ止まります（誤操作防止用）。\n両手サイン「$1」でもON/OFFを切り替えられます。\n設定では「左右反転」「骨格のみ表示」「ウェイクの種類」がよく使われます。",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "tutorialStep5BodyNoToggle": {
+    "message": "ヘッダー右の「メディア操作」トグルは、OFFにすると認識は続きますがメディアへの送信だけ止まります（誤操作防止用）。\n現在、両手サインでの切替はOFFですが、設定の「操作トグル」で有効化できます。\n設定では「左右反転」「骨格のみ表示」「ウェイクの種類」がよく使われます。"
+  },
+  "tutorialStep6Title": {
+    "message": "サイドパネル vs PiP モード"
+  },
+  "tutorialStep6Body": {
+    "message": "サイドパネルは設定やログ確認に便利です。フルスクリーン動画などでサイドパネルが邪魔になる場合は「📌 PiP」ボタンで小さなポップアップウィンドウに切り替え、ハンドサイン操作だけを継続できます。"
+  },
+  "tutorialBtnNext": {
+    "message": "次へ →"
+  },
+  "tutorialBtnBack": {
+    "message": "← 戻る"
+  },
+  "tutorialBtnSkip": {
+    "message": "スキップ"
+  },
+  "tutorialBtnFinish": {
+    "message": "完了 🎉"
+  },
+  "tutorialStepIndicator": {
+    "message": "$1 / $2",
+    "placeholders": {
+      "1": { "content": "$1" },
+      "2": { "content": "$2" }
+    }
+  },
+  "btnShowTutorial": {
+    "message": "📖 チュートリアルを再表示"
   }
 }

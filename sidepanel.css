@@ -271,3 +271,45 @@ details.collapsible > .collapsible-body { padding: 0 12px 10px; }
 }
 .pip-active-info .pip-active-icon { font-size: 16px; }
 .pip-active-info .btn { margin-left: auto; flex-shrink: 0; }
+
+/* チュートリアルオーバーレイ */
+#tutorial-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    pointer-events: none;  /* マスクとカードだけが個別に受け取る */
+}
+#tutorial-overlay .tutorial-mask {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    pointer-events: auto;
+    transition: clip-path 0.25s ease;
+}
+#tutorial-overlay .tutorial-card {
+    position: absolute; left: 12px; right: 12px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-accent);
+    border-radius: 8px;
+    padding: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    font-size: 12px; color: var(--color-text);
+    pointer-events: auto;
+    transition: top 0.25s ease;
+}
+.tutorial-step-indicator {
+    font-size: 10px; color: var(--color-text-muted);
+    letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.tutorial-title { font-size: 14px; margin-bottom: 8px; color: var(--color-text); }
+.tutorial-body {
+    line-height: 1.6; margin-bottom: 12px;
+    color: var(--color-text-muted);
+    white-space: pre-wrap;  /* \n を反映 */
+}
+.tutorial-actions { display: flex; gap: 6px; align-items: center; }
+.tutorial-actions .spacer { flex: 1; }
+.tutorial-highlight {
+    position: relative;
+    z-index: 1001;  /* マスクより手前に浮かせる */
+    box-shadow: 0 0 0 2px var(--color-accent), 0 0 12px rgba(233, 69, 96, 0.4);
+    border-radius: 4px;
+    transition: box-shadow 0.25s ease;
+}

@@ -474,6 +474,11 @@ async function startCamera() {
         show(el.cameraSection);
         stopCameraPolling();
         log(msg('logCameraStarted'));
+
+        // チュートリアル: カメラ起動でステップ自動進行
+        if (tutorialActive && tutorialCurrentStep().autoAdvanceOn === 'camera-started') {
+            advanceTutorial();
+        }
     } catch (e) {
         const errMsg = e?.message || e?.name || String(e);
         if (e?.name === 'NotAllowedError') {
@@ -801,6 +806,10 @@ function setWakeState(newState) {
                 setWakeState(WAKE_STATE.IDLE);
                 log(msg('logWakeTimeout'));
             }, wakeActiveDuration);
+            // チュートリアル: ウェイク発火でステップ自動進行
+            if (tutorialActive && tutorialCurrentStep().autoAdvanceOn === 'wake-activated') {
+                advanceTutorial();
+            }
             break;
     }
 }
@@ -1506,6 +1515,158 @@ for (const id of ['section-settings', 'section-gestures']) {
 }
 
 /* ============================================================
+ * チュートリアル（初回起動時のガイド + 再表示ボタン）
+ * ============================================================
+ * モーダル + スポットライト方式。対象要素を clip-path で切り抜いて操作可能に保ち、
+ * Next/Back/Skip + 主要アクション検出（カメラ開始・ウェイク発火）で自動進行。
+ */
+// targets は配列で複数要素を同時にハイライト可能（外接矩形で1つの切抜きにまとめる）
+const TUTORIAL_STEPS = [
+    { id: 'welcome', targets: [],                                       titleKey: 'tutorialStep1Title', bodyKey: 'tutorialStep1Body' },
+    { id: 'camera',  targets: ['#camera-controls'],                     titleKey: 'tutorialStep2Title', bodyKey: 'tutorialStep2Body', autoAdvanceOn: 'camera-started' },
+    { id: 'wake',    targets: ['#camera-section', '#gesture-section'],  titleKey: 'tutorialStep3Title', bodyKey: 'tutorialStep3Body', autoAdvanceOn: 'wake-activated' },
+    { id: 'command', targets: ['#mapping-list'],                        titleKey: 'tutorialStep4Title', bodyKey: 'tutorialStep4Body' },
+    // #chk-enabled は opacity:0 で 0x0。視認できる親ラベル + 「メディア操作」テキストを外接矩形化する
+    { id: 'toggle',  targets: ['.header-label', 'label.toggle-switch:has(#chk-enabled)'], titleKey: 'tutorialStep5Title', bodyKey: 'tutorialStep5Body' },
+    { id: 'pip',     targets: ['#btn-pip'],                             titleKey: 'tutorialStep6Title', bodyKey: 'tutorialStep6Body' },
+];
+let tutorialIndex = 0;
+let tutorialActive = false;
+let tutorialHighlightEls = [];
+
+function tutorialCurrentStep() { return TUTORIAL_STEPS[tutorialIndex]; }
+
+function startTutorial() {
+    tutorialIndex = 0;
+    tutorialActive = true;
+    // チュートリアル中はメディア操作を自動でON（OFFだとウェイクが発火せずステップ進行が止まる）
+    if (!controlEnabled) setControlEnabled(true);
+    const overlay = $('tutorial-overlay');
+    show(overlay);
+    overlay.setAttribute('aria-hidden', 'false');
+    renderTutorialStep();
+}
+
+function endTutorial(markCompleted) {
+    tutorialActive = false;
+    const overlay = $('tutorial-overlay');
+    hide(overlay);
+    overlay.setAttribute('aria-hidden', 'true');
+    clearTutorialHighlight();
+    if (markCompleted) chrome.storage.sync.set({ tutorialCompleted: true });
+}
+
+function advanceTutorial() {
+    if (!tutorialActive) return;
+    if (tutorialIndex < TUTORIAL_STEPS.length - 1) {
+        tutorialIndex++;
+        renderTutorialStep();
+    } else {
+        endTutorial(true);
+    }
+}
+
+function retreatTutorial() {
+    if (!tutorialActive || tutorialIndex === 0) return;
+    tutorialIndex--;
+    renderTutorialStep();
+}
+
+function clearTutorialHighlight() {
+    for (const el of tutorialHighlightEls) el.classList.remove('tutorial-highlight');
+    tutorialHighlightEls = [];
+}
+
+function renderTutorialStep() {
+    const step = tutorialCurrentStep();
+    const total = TUTORIAL_STEPS.length;
+    $('tutorial-indicator').textContent = msg('tutorialStepIndicator', [String(tutorialIndex + 1), String(total)]);
+    $('tutorial-title').textContent = msg(step.titleKey);
+    let bodyText;
+    if (step.id === 'toggle') {
+        if (toggleGestureType === 'none') {
+            bodyText = msg('tutorialStep5BodyNoToggle');
+        } else {
+            const toggleName = msg(TOGGLE_I18N_KEYS[toggleGestureType] || '') || toggleGestureType;
+            bodyText = msg('tutorialStep5Body', [toggleName]);
+        }
+    } else {
+        bodyText = msg(step.bodyKey);
+    }
+    $('tutorial-body').textContent = bodyText;
+
+    const btnNext = $('tutorial-next');
+    btnNext.textContent = (tutorialIndex === total - 1) ? msg('tutorialBtnFinish') : msg('tutorialBtnNext');
+    $('tutorial-back').style.visibility = (tutorialIndex === 0) ? 'hidden' : 'visible';
+
+    clearTutorialHighlight();
+    // 非表示要素（is-hidden 等）はハイライト対象外。存在する要素だけ集める。
+    const els = (step.targets || [])
+        .map(sel => document.querySelector(sel))
+        .filter(el => el && el.offsetParent !== null);
+    tutorialHighlightEls = els;
+    for (const el of els) el.classList.add('tutorial-highlight');
+    if (els.length) els[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+    // レイアウト確定後に配置（scrollIntoView 直後の rect がズレるため次フレームで再配置）
+    requestAnimationFrame(positionTutorialElements);
+}
+
+/** 複数要素の外接矩形を返す。要素が無ければ null。 */
+function unionRect(elements) {
+    if (!elements.length) return null;
+    let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+    for (const el of elements) {
+        const r = el.getBoundingClientRect();
+        if (r.left < left) left = r.left;
+        if (r.top < top) top = r.top;
+        if (r.right > right) right = r.right;
+        if (r.bottom > bottom) bottom = r.bottom;
+    }
+    return { left, top, right, bottom };
+}
+
+function positionTutorialElements() {
+    if (!tutorialActive) return;
+    const mask = document.querySelector('#tutorial-overlay .tutorial-mask');
+    const card = document.querySelector('#tutorial-overlay .tutorial-card');
+    if (!mask || !card) return;
+
+    // body の zoom (表示サイズ設定) を補正。getBoundingClientRect はズーム後座標、
+    // clip-path / card.top は要素ローカル座標なので、ズームで割ってローカル空間に変換する。
+    const zoom = parseFloat(document.body.style.zoom) || 1;
+    const vh = window.innerHeight / zoom;
+    const vw = window.innerWidth / zoom;
+    const rect = unionRect(tutorialHighlightEls);
+
+    if (rect) {
+        const pad = 4;
+        const x1 = Math.max(0, rect.left / zoom - pad);
+        const y1 = Math.max(0, rect.top / zoom - pad);
+        const x2 = Math.min(vw, rect.right / zoom + pad);
+        const y2 = Math.min(vh, rect.bottom / zoom + pad);
+        mask.style.clipPath = `polygon(0 0, 0 100%, ${x1}px 100%, ${x1}px ${y1}px, ${x2}px ${y1}px, ${x2}px ${y2}px, ${x1}px ${y2}px, ${x1}px 100%, 100% 100%, 100% 0)`;
+        const cardHeight = card.offsetHeight || 180;
+        const belowSpace = vh - y2;
+        card.style.top = (belowSpace >= cardHeight + 16)
+            ? `${y2 + 8}px`
+            : `${Math.max(8, y1 - cardHeight - 8)}px`;
+    } else {
+        mask.style.clipPath = 'none';
+        const cardHeight = card.offsetHeight || 180;
+        card.style.top = `${Math.max(16, (vh - cardHeight) / 2)}px`;
+    }
+}
+
+window.addEventListener('resize', positionTutorialElements);
+window.addEventListener('scroll', positionTutorialElements, true);
+
+$('tutorial-next').addEventListener('click', advanceTutorial);
+$('tutorial-back').addEventListener('click', retreatTutorial);
+$('tutorial-skip').addEventListener('click', () => endTutorial(true));
+$('btn-show-tutorial').addEventListener('click', () => startTutorial());
+
+/* ============================================================
  * 初期化
  * ============================================================ */
 async function init() {
@@ -1574,6 +1735,22 @@ async function init() {
             }
             log(msg('logPipReturned'));
             startCamera();
+        }
+    } catch (_) {}
+
+    // 初回起動: チュートリアル未完了ならガイドを表示
+    // PiP 復帰時など他ワークフロー進行中は出さない
+    // 既存ユーザー（カメラ選択済み）にはチュートリアル済みとして印を付けて出さない
+    try {
+        const { tutorialCompleted } = await chrome.storage.sync.get('tutorialCompleted');
+        const isPipActive = !!pipWindowId;
+        if (!tutorialCompleted && !isPipActive) {
+            const { selectedCameraId: storedCam } = await chrome.storage.local.get('selectedCameraId');
+            if (storedCam) {
+                chrome.storage.sync.set({ tutorialCompleted: true });
+            } else {
+                startTutorial();
+            }
         }
     } catch (_) {}
 }

@@ -176,6 +176,7 @@
             </div>
         </div>
         <div class="mapping-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-show-tutorial" data-i18n="btnShowTutorial">📖 Show Tutorial</button>
             <button class="btn btn-secondary btn-sm" id="btn-reset-settings" data-i18n="btnResetSettings">Reset</button>
         </div>
     </div>
@@ -197,8 +198,24 @@
 
 <!-- フッター -->
 <div class="footer">
-    <span class="version">v1.0.45</span>
+    <span class="version">v1.0.51</span>
     <a href="https://megane.8796.jp" target="_blank" rel="noopener">&copy; 8796.jp</a>
+</div>
+
+<!-- チュートリアルオーバーレイ（初回表示 or 再表示時のみ可視） -->
+<div id="tutorial-overlay" class="is-hidden" aria-hidden="true">
+    <div class="tutorial-mask"></div>
+    <div class="tutorial-card" role="dialog" aria-live="polite" aria-labelledby="tutorial-title">
+        <div class="tutorial-step-indicator" id="tutorial-indicator"></div>
+        <h3 class="tutorial-title" id="tutorial-title"></h3>
+        <p class="tutorial-body" id="tutorial-body"></p>
+        <div class="tutorial-actions">
+            <button class="btn btn-secondary btn-sm" id="tutorial-skip" data-i18n="tutorialBtnSkip">Skip</button>
+            <span class="spacer"></span>
+            <button class="btn btn-secondary btn-sm" id="tutorial-back" data-i18n="tutorialBtnBack">← Back</button>
+            <button class="btn btn-primary btn-sm" id="tutorial-next" data-i18n="tutorialBtnNext">Next →</button>
+        </div>
+    </div>
 </div>
 
 <script src="hand-tracker.js"></script>
