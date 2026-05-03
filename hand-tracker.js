@@ -631,7 +631,8 @@ class HandTracker extends EventTarget {
         // 1) ok: 親指と人差し指で輪を作る + 他3指のうち少なくとも2本が伸びている
         //    index.curled ではなく !index.extended を使用: OK の輪では人差し指が
         //    親指側にカーブするが、掌中心には近づかないため curled 判定にならない
-        if (thumb.thumbIndexTipDist < 0.50 && !index.extended && otherExtendedCount >= 2) {
+        //    斜め向きでは親指先と人差し指先が離れて推定されやすいため、パー側分離後は少し緩める
+        if (thumb.thumbIndexTipDist < 0.65 && !index.extended && otherExtendedCount >= 2) {
             return 'ok';
         }
 
