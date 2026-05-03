@@ -700,8 +700,14 @@ class HandTracker extends EventTarget {
 
         // 10) open / open-palm: 指が広がっている
         //    OK との衝突を避けるため、親指と人差し指が十分離れているときのみ open にする
+        //    OK の典型形は人差し指が曲がるため、長指3本の伸展を必須にする
         //    掌向きはウェイクサイン用に別サインとして返し、open 側は互換性のため残す
-        if (extendedCount >= 3 && avgTipDist > 1.05 && thumb.thumbIndexTipDist >= 0.50) {
+        if (
+            index.extended && middle.extended && ring.extended &&
+            extendedCount >= 3 &&
+            avgTipDist > 1.05 &&
+            thumb.thumbIndexTipDist >= 0.50
+        ) {
             return palmFacing ? 'open-palm' : 'open';
         }
 
