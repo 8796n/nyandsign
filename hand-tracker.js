@@ -466,6 +466,20 @@ class HandTracker extends EventTarget {
         return Math.sqrt(v.x * v.x + v.y * v.y + (v.z ?? 0) * (v.z ?? 0));
     }
 
+    _pointSegmentDist(p, a, b) {
+        const ab = this._sub(b, a);
+        const ap = this._sub(p, a);
+        const denom = this._dot(ab, ab);
+        if (denom < 1e-8) return this._dist(p, a);
+        const t = Math.max(0, Math.min(1, this._dot(ap, ab) / denom));
+        const closest = {
+            x: a.x + ab.x * t,
+            y: a.y + ab.y * t,
+            z: (a.z ?? 0) + (ab.z ?? 0) * t,
+        };
+        return this._dist(p, closest);
+    }
+
     _normalize(v) {
         const n = this._vecLen(v);
         if (n < 1e-6) return { x: 0, y: 0, z: 0 };
@@ -547,6 +561,11 @@ class HandTracker extends EventTarget {
         const thumbIndexMcpDist = this._dist(g[4], g[5]) / palmSize;
         const thumbMiddleMcpDist = this._dist(g[4], g[9]) / palmSize;
         const thumbIndexTipDist = this._dist(g[4], g[8]) / palmSize;
+        const thumbIndexSegmentDist = Math.min(
+            this._pointSegmentDist(g[4], g[6], g[7]),
+            this._pointSegmentDist(g[4], g[7], g[8])
+        ) / palmSize;
+        const thumbIndexOkDist = Math.min(thumbIndexTipDist, thumbIndexSegmentDist);
 
         // 手の甲向き: 親指の遮蔽が大きいため閾値を緩和
         const foldPalmTh    = palmFacing ? 0.95 : 1.05;
@@ -568,7 +587,7 @@ class HandTracker extends EventTarget {
         const aboveWrist = (lm[0].y - lm[4].y) > 0.20 * palmSize2D;
         const belowWrist = (lm[4].y - lm[0].y) > 0.20 * palmSize2D;
 
-        return { thumbPalmDist, thumbIndexTipDist, folded, extendedAway, aboveWrist, belowWrist };
+        return { thumbPalmDist, thumbIndexTipDist, thumbIndexOkDist, folded, extendedAway, aboveWrist, belowWrist };
     }
 
     /**
@@ -627,12 +646,15 @@ class HandTracker extends EventTarget {
         const extendedCount = fingers.filter(f => f.extended).length;
         const avgTipDist = fingers.reduce((s, f) => s + f.tipDist, 0) / 4;
         const otherExtendedCount = [middle, ring, pinky].filter(f => f.extended).length;
+        const okPinch = thumb.thumbIndexOkDist < 0.65;
+        const strongOkPinch = thumb.thumbIndexOkDist < 0.45;
 
         // 1) ok: 親指と人差し指で輪を作る + 他3指のうち少なくとも2本が伸びている
         //    index.curled ではなく !index.extended を使用: OK の輪では人差し指が
         //    親指側にカーブするが、掌中心には近づかないため curled 判定にならない
-        //    斜め向きでは親指先と人差し指先が離れて推定されやすいため、パー側分離後は少し緩める
-        if (thumb.thumbIndexTipDist < 0.65 && !index.extended && otherExtendedCount >= 2) {
+        //    斜め向きでは親指先と人差し指先が離れて推定されやすいため、指先側の線分距離も使う
+        //    強い輪が見えている場合は、人差し指の extended ブレを許容する
+        if (okPinch && (!index.extended || strongOkPinch) && otherExtendedCount >= 2) {
             return 'ok';
         }
 
