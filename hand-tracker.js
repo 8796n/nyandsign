@@ -264,7 +264,7 @@ class HandTracker extends EventTarget {
 
         // 優先手がコマンドサインでない場合、
         // もう片方の手の point-left/right を受け付ける
-        const COMMAND_GESTURES = ['ok', 'fist', 'thumbsup', 'thumbsdown', 'peace', 'aloha', 'point-left', 'point-right', 'open'];
+        const COMMAND_GESTURES = ['ok', 'fist', 'thumbsup', 'thumbsdown', 'peace', 'aloha', 'point-left', 'point-right', 'open', 'open-palm'];
         if (!COMMAND_GESTURES.includes(activeGesture)) {
             for (const g of hands) {
                 if (g.idx !== activeIdx && (g.gesture === 'point-left' || g.gesture === 'point-right')) {
@@ -606,7 +606,7 @@ class HandTracker extends EventTarget {
     /* ============================================================
      * ハンドサイン判定（距離ベース）
      *
-     * 判定順: ok → aloha → rock → thumbsup/down → fist → point-left/right → three → peace → four → open
+     * 判定順: ok → aloha → rock → thumbsup/down → fist → point-left/right → three → peace → four → open/open-palm
      * 距離は palmSize で正規化 → カメラ距離・手の大きさに非依存
      * ============================================================ */
 
@@ -698,10 +698,11 @@ class HandTracker extends EventTarget {
             return 'four';
         }
 
-        // 10) open: 指が広がっている
+        // 10) open / open-palm: 指が広がっている
         //    OK との衝突を避けるため、親指と人差し指が十分離れているときのみ open にする
+        //    掌向きはウェイクサイン用に別サインとして返し、open 側は互換性のため残す
         if (extendedCount >= 3 && avgTipDist > 1.05 && thumb.thumbIndexTipDist >= 0.50) {
-            return 'open';
+            return palmFacing ? 'open-palm' : 'open';
         }
 
         return 'unknown';

@@ -173,8 +173,12 @@
   },
 
   "optionWakeOpen": {
-    "message": "🖐️ Open Hand",
-    "description": "Wake gesture option: open hand"
+    "message": "🖐️ Open Hand (Either Side)",
+    "description": "Wake gesture option: open hand from either palm or back of hand"
+  },
+  "optionWakeOpenPalm": {
+    "message": "🖐️ Open Hand (Palm Only)",
+    "description": "Wake gesture option: open hand with palm facing the camera"
   },
   "optionWakeNone": {
     "message": "⚡ None (Always)",
@@ -260,6 +264,10 @@
   "gestureOpen": {
     "message": "Open Hand",
     "description": "Hand sign name: open hand"
+  },
+  "gestureOpenPalm": {
+    "message": "Open Hand (Palm)",
+    "description": "Hand sign name: open hand with palm facing the camera"
   },
   "gestureUnknown": {
     "message": "Unknown",

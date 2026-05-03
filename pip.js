@@ -341,6 +341,11 @@ function confirmAction(gesture, action) {
     }
 }
 
+function isWakeGesture(gesture) {
+    if (wakeGestureType === 'open') return gesture === 'open' || gesture === 'open-palm';
+    return gesture === wakeGestureType;
+}
+
 // ジェスチャーイベント
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
@@ -360,8 +365,8 @@ tracker.addEventListener('gesture', (e) => {
     if (metaGestureActive) return;
     if (!controlEnabled) return;
 
-    // open ウェイクモード
-    if (wakeGestureType === 'open' && gesture === 'open') {
+    // ウェイクサイン検出で ACTIVE に遷移
+    if (wakeGestureType !== 'none' && isWakeGesture(gesture)) {
         stopAllGestureActions();
         if (wakeState === WAKE_STATE.IDLE) {
             setWakeState(WAKE_STATE.ACTIVE);

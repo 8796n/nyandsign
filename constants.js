@@ -22,7 +22,7 @@ function applyI18n() {
 
 const GESTURE_ICONS = {
     fist: '✊', ok: '👌', aloha: '🤙', 'point-left': '👈', 'point-right': '👉', peace: '✌️',
-    thumbsup: '👍', thumbsdown: '👎', open: '🖐️',
+    thumbsup: '👍', thumbsdown: '👎', open: '🖐️', 'open-palm': '🖐️',
     three: '3️⃣', rock: '🤘', four: '4️⃣', unknown: '❓',
 };
 

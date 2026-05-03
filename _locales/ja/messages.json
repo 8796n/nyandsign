@@ -131,7 +131,10 @@
   },
 
   "optionWakeOpen": {
-    "message": "🖐️ パー"
+    "message": "🖐️ パー（表裏）"
+  },
+  "optionWakeOpenPalm": {
+    "message": "🖐️ パー（掌のみ）"
   },
   "optionWakeNone": {
     "message": "⚡ なし（常時）"
@@ -196,6 +199,9 @@
   },
   "gestureOpen": {
     "message": "パー"
+  },
+  "gestureOpenPalm": {
+    "message": "パー（掌）"
   },
   "gestureUnknown": {
     "message": "不明"
