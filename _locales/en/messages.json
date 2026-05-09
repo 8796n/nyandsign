@@ -90,6 +90,10 @@
     "message": "Current Hand Sign",
     "description": "Section title for recognized sign display"
   },
+  "sectionOperationMode": {
+    "message": "Operation Mode",
+    "description": "Section title for operation mode switch"
+  },
   "sectionHandSigns": {
     "message": "Hand Signs",
     "description": "Collapsible section title for sign mapping"

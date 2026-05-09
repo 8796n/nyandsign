@@ -68,6 +68,9 @@
   "sectionCurrentSign": {
     "message": "認識中のハンドサイン"
   },
+  "sectionOperationMode": {
+    "message": "操作モード"
+  },
   "sectionHandSigns": {
     "message": "ハンドサイン"
   },

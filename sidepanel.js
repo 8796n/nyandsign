@@ -65,7 +65,6 @@ const tracker = new HandTracker();
 let mediaMapping = { ...DEFAULT_MEDIA_MAPPING };
 let browserMapping = { ...DEFAULT_BROWSER_MAPPING };
 let currentMapping = { ...DEFAULT_MEDIA_MAPPING };
-let mappingEditMode = OPERATION_MODES.MEDIA;
 let operationMode = DEFAULT_SETTINGS.operationMode;
 let controlEnabled = true;
 let cameraStream = null;
@@ -777,7 +776,8 @@ function updateOperationModeUI() {
     }
     if (el.chkEnabled) el.chkEnabled.checked = controlEnabled;
     document.querySelectorAll('.mode-tab').forEach((tab) => {
-        tab.classList.toggle('is-active', tab.dataset.mode === mappingEditMode);
+        tab.classList.toggle('is-active', tab.dataset.mode === operationMode);
+        tab.setAttribute('aria-selected', tab.dataset.mode === operationMode ? 'true' : 'false');
     });
 }
 
@@ -789,7 +789,6 @@ function setOperationMode(mode, options = {}) {
     }
     stopAllGestureActions();
     operationMode = nextMode;
-    mappingEditMode = nextMode;
     updateOperationModeUI();
     if (options.save !== false) chrome.storage.sync.set({ operationMode });
     if (options.log !== false) log(msg('logOperationModeChanged', [modeLabel(operationMode)]));
@@ -1176,8 +1175,8 @@ async function sendAction(action, data) {
  * ============================================================ */
 function buildMappingUI() {
     el.mappingList.innerHTML = '';
-    const editMapping = getMappingForMode(mappingEditMode);
-    const actionKeys = getActionKeysForMode(mappingEditMode);
+    const editMapping = getMappingForMode(operationMode);
+    const actionKeys = getActionKeysForMode(operationMode);
     updateOperationModeUI();
 
     for (const gesture of GESTURABLE_TYPES) {
@@ -1263,7 +1262,6 @@ async function loadMapping() {
 
         if (result.operationMode === OPERATION_MODES.BROWSER || result.operationMode === OPERATION_MODES.MEDIA) {
             operationMode = result.operationMode;
-            mappingEditMode = operationMode;
         }
 
         if (result.controlEnabled !== undefined) {
@@ -1478,10 +1476,10 @@ function setControlEnabled(enabled) {
 
 document.querySelectorAll('.mode-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-        mappingEditMode = tab.dataset.mode === OPERATION_MODES.BROWSER
+        const nextMode = tab.dataset.mode === OPERATION_MODES.BROWSER
             ? OPERATION_MODES.BROWSER
             : OPERATION_MODES.MEDIA;
-        buildMappingUI();
+        setOperationMode(nextMode);
     });
 });
 
@@ -1615,7 +1613,7 @@ selPreferredHand.addEventListener('change', () => {
 });
 
 el.btnReset.addEventListener('click', () => {
-    if (mappingEditMode === OPERATION_MODES.BROWSER) {
+    if (operationMode === OPERATION_MODES.BROWSER) {
         browserMapping = { ...DEFAULT_BROWSER_MAPPING };
     } else {
         mediaMapping = { ...DEFAULT_MEDIA_MAPPING };
@@ -1651,7 +1649,6 @@ $('btn-reset-settings').addEventListener('click', () => {
     wakeGestureType = d.wakeGestureType;
     wakeActiveDuration = d.wakeActiveDuration;
     operationMode = d.operationMode;
-    mappingEditMode = operationMode;
     toggleGestureType = d.toggleGestureType;
     metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
     tracker.preferredHand = d.preferredHand;

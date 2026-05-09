@@ -63,14 +63,19 @@
     </div>
 </div>
 
+<!-- 操作モード切り替え -->
+<div class="section" id="operation-mode-section">
+    <div class="section-title" data-i18n="sectionOperationMode">Operation Mode</div>
+    <div class="mode-tabs" role="tablist" aria-label="Operation mode">
+        <button class="mode-tab is-active" id="tab-media-mapping" type="button" data-mode="media" data-i18n="tabMediaActions">Media</button>
+        <button class="mode-tab" id="tab-browser-mapping" type="button" data-mode="browser" data-i18n="tabBrowserActions">Browser</button>
+    </div>
+</div>
+
 <!-- ハンドサインマッピング（折りたたみ） -->
 <details class="collapsible" id="section-gestures" open>
     <summary data-i18n="sectionHandSigns">Hand Signs</summary>
     <div class="collapsible-body">
-        <div class="mode-tabs" role="tablist" aria-label="Operation mode mapping">
-            <button class="mode-tab is-active" id="tab-media-mapping" type="button" data-mode="media" data-i18n="tabMediaActions">Media</button>
-            <button class="mode-tab" id="tab-browser-mapping" type="button" data-mode="browser" data-i18n="tabBrowserActions">Browser</button>
-        </div>
         <div id="mapping-list"></div>
         <div class="mapping-actions">
             <button class="btn btn-secondary btn-sm" id="btn-reset-mapping" data-i18n="btnResetMapping">Reset</button>
@@ -194,7 +199,7 @@
 
 <!-- フッター -->
 <div class="footer">
-    <span class="version">v1.0.62</span>
+    <span class="version">v1.0.63</span>
     <a href="https://megane.8796.jp" target="_blank" rel="noopener">&copy; 8796.jp</a>
 </div>
 
