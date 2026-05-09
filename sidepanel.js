@@ -44,6 +44,7 @@ function gestureLabel(key) {
 const DEFAULT_SETTINGS = {
     mirrorCamera: true, skeletonOnly: false,
     wakeGestureType: 'open', wakeActiveDuration: 5000,
+    operationMode: OPERATION_MODES.MEDIA,
     toggleGestureType: 'frame', preferredHand: 'auto',
     gestureHoldTime: 300, actionRepeatInterval: 1000,
     inferenceFps: 15, notifyVolume: 0.3,
@@ -61,7 +62,11 @@ const CAMERA_POLL_INTERVAL = 3000;
  * 状態
  * ============================================================ */
 const tracker = new HandTracker();
-let currentMapping = { ...DEFAULT_MAPPING };
+let mediaMapping = { ...DEFAULT_MEDIA_MAPPING };
+let browserMapping = { ...DEFAULT_BROWSER_MAPPING };
+let currentMapping = { ...DEFAULT_MEDIA_MAPPING };
+let mappingEditMode = OPERATION_MODES.MEDIA;
+let operationMode = DEFAULT_SETTINGS.operationMode;
 let controlEnabled = true;
 let cameraStream = null;
 let lastActionTime = 0;
@@ -94,8 +99,9 @@ let repeatingGesture = null;
 let notifyVolume = DEFAULT_SETTINGS.notifyVolume;
 let uiScale = DEFAULT_SETTINGS.uiScale;
 
-// --- メタサイン（操作トグル）---
+// --- メタサイン（NyandSign 自体の操作）---
 let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
+let metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
 let metaGestureActive = false;
 let metaGestureStartTime = 0;
 // メガネカメラ使用時のミラー自動OFF用
@@ -104,6 +110,14 @@ let metaGestureLastSeen = 0;
 let lastToggleTime = 0;
 const META_COOLDOWN_MS = 2000;      // トグル後のクールダウン
 const META_GRACE_MS = 150;          // 一時的未検出の許容時間
+
+// --- 方向スクロール ---
+let lastFrameHands = [];
+let directionalScrollState = null;  // { gesture, origin, lastSentAt }
+const DIRECTIONAL_SCROLL_INTERVAL_MS = 80;
+const DIRECTIONAL_SCROLL_DEADZONE = 0.045;
+const DIRECTIONAL_SCROLL_MAX_OFFSET = 0.28;
+const DIRECTIONAL_SCROLL_MAX_PIXELS = 180;
 
 // --- PiP (Picture-in-Picture) ---
 let pipWindowId = null;             // PiP ポップアップウィンドウの ID
@@ -145,6 +159,8 @@ const el = {
     gestureName:     document.querySelector('#gesture-display .gesture-name'),
 
     mappingList:     $('mapping-list'),
+    metaMappingList: $('meta-mapping-list'),
+    operationModeLabel: $('operation-mode-label'),
     chkEnabled:      $('chk-enabled'),
     btnReset:        $('btn-reset-mapping'),
 
@@ -733,12 +749,66 @@ function playBeep(freq = 880, duration = 0.12) {
 }
 
 /* ============================================================
+ * 操作モード
+ * ============================================================ */
+function modeLabel(mode) {
+    return mode === OPERATION_MODES.BROWSER ? msg('operationModeBrowser') : msg('operationModeMedia');
+}
+
+function getMappingForMode(mode) {
+    return mode === OPERATION_MODES.BROWSER ? browserMapping : mediaMapping;
+}
+
+function getActionKeysForMode(mode) {
+    return mode === OPERATION_MODES.BROWSER ? BROWSER_ACTION_KEYS : MEDIA_ACTION_KEYS;
+}
+
+function refreshCurrentMapping() {
+    currentMapping = getMappingForMode(operationMode);
+}
+
+function updateOperationModeUI() {
+    refreshCurrentMapping();
+    document.body.classList.toggle('mode-media', operationMode === OPERATION_MODES.MEDIA);
+    document.body.classList.toggle('mode-browser', operationMode === OPERATION_MODES.BROWSER);
+    if (el.operationModeLabel) {
+        el.operationModeLabel.textContent = modeLabel(operationMode);
+        el.operationModeLabel.title = controlEnabled ? msg('titleOperationToggle') : msg('titleOperationToggleOff');
+    }
+    if (el.chkEnabled) el.chkEnabled.checked = controlEnabled;
+    document.querySelectorAll('.mode-tab').forEach((tab) => {
+        tab.classList.toggle('is-active', tab.dataset.mode === mappingEditMode);
+    });
+}
+
+function setOperationMode(mode, options = {}) {
+    const nextMode = mode === OPERATION_MODES.BROWSER ? OPERATION_MODES.BROWSER : OPERATION_MODES.MEDIA;
+    if (operationMode === nextMode && !options.force) {
+        updateOperationModeUI();
+        return;
+    }
+    stopAllGestureActions();
+    operationMode = nextMode;
+    mappingEditMode = nextMode;
+    updateOperationModeUI();
+    if (options.save !== false) chrome.storage.sync.set({ operationMode });
+    if (options.log !== false) log(msg('logOperationModeChanged', [modeLabel(operationMode)]));
+    if (options.beep !== false) playBeep(operationMode === OPERATION_MODES.BROWSER ? 660 : 880, 0.18);
+    buildMappingUI();
+}
+
+function toggleOperationMode() {
+    setOperationMode(operationMode === OPERATION_MODES.MEDIA ? OPERATION_MODES.BROWSER : OPERATION_MODES.MEDIA);
+}
+
+/* ============================================================
  * ウェイクサイン状態マシン
  * ============================================================ */
 function setWakeState(newState) {
     wakeState = newState;
     if (wakeTimeout) { clearTimeout(wakeTimeout); wakeTimeout = null; }
     cancelPendingAction();
+    stopDirectionalScroll();
     stopRepeat();
 
     const gd = el.gestureDisplay;
@@ -792,6 +862,72 @@ function stopRepeat() {
     repeatingGesture = null;
 }
 
+function handPosition(hand) {
+    if (!hand?.landmarks) return null;
+    const lm = hand.landmarks;
+    const points = [lm[0], lm[5], lm[9], lm[13], lm[17]].filter(Boolean);
+    if (!points.length) return null;
+    const sum = points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
+    return { x: sum.x / points.length, y: sum.y / points.length };
+}
+
+function findHandForGesture(gesture, hands = lastFrameHands) {
+    const candidates = hands.filter(h => h.gesture === gesture);
+    if (!candidates.length) return null;
+    if (tracker.preferredHand !== 'auto') {
+        return candidates.find(h => h.hand === tracker.preferredHand) || candidates[0];
+    }
+    return candidates[0];
+}
+
+function startDirectionalScroll(gesture) {
+    const hand = findHandForGesture(gesture);
+    const origin = handPosition(hand);
+    if (!origin) return false;
+    directionalScrollState = { gesture, origin, lastSentAt: 0 };
+    repeatingGesture = gesture;
+    return true;
+}
+
+function stopDirectionalScroll() {
+    directionalScrollState = null;
+}
+
+function directionalAmount(delta) {
+    const sign = Math.sign(delta);
+    const distance = Math.abs(delta);
+    if (distance <= DIRECTIONAL_SCROLL_DEADZONE) return 0;
+    const ratio = Math.min(
+        1,
+        (distance - DIRECTIONAL_SCROLL_DEADZONE) / (DIRECTIONAL_SCROLL_MAX_OFFSET - DIRECTIONAL_SCROLL_DEADZONE)
+    );
+    return Math.round(sign * ratio * DIRECTIONAL_SCROLL_MAX_PIXELS);
+}
+
+function updateDirectionalScroll(hands, now) {
+    if (!directionalScrollState || !controlEnabled) return;
+    const hand = findHandForGesture(directionalScrollState.gesture, hands);
+    const pos = handPosition(hand);
+    if (!pos) {
+        stopAllGestureActions();
+        return;
+    }
+
+    if (now - directionalScrollState.lastSentAt < DIRECTIONAL_SCROLL_INTERVAL_MS) return;
+
+    let dx = pos.x - directionalScrollState.origin.x;
+    const dy = pos.y - directionalScrollState.origin.y;
+    if (tracker.displayMirrored) dx = -dx;
+
+    const left = directionalAmount(dx);
+    const top = directionalAmount(dy);
+    if (!left && !top) return;
+
+    directionalScrollState.lastSentAt = now;
+    sendAction('directionalScroll', { left, top });
+    extendWakeTimeout();
+}
+
 /** holdTime 経過後にアクションを確定発火する */
 function confirmAction(gesture, action) {
     const now = Date.now();
@@ -799,6 +935,10 @@ function confirmAction(gesture, action) {
     lastActionTime = now;
 
     log(msg('logGestureAction', [gestureLabel(gesture), actionLabel(action)]));
+    if (DIRECTIONAL_ACTIONS.has(action)) {
+        if (startDirectionalScroll(gesture)) return;
+    }
+
     sendAction(action);
 
     // リピート対応アクション → インターバル開始（ウェイク IDLE にしない）
@@ -820,7 +960,8 @@ function confirmAction(gesture, action) {
 /** サイン変化時: 保留 + リピートを停止し、必要なら IDLE に戻す */
 function stopAllGestureActions() {
     cancelPendingAction();
-    const wasRepeating = repeatingGesture !== null;
+    const wasRepeating = repeatingGesture !== null || directionalScrollState !== null;
+    stopDirectionalScroll();
     stopRepeat();
     if (wasRepeating && wakeGestureType !== 'none') {
         setWakeState(WAKE_STATE.IDLE);
@@ -923,41 +1064,62 @@ function detectFrameGesture(hands) {
     return false;
 }
 
-/** メタサイン検出（両手の組み合わせ） */
-function detectMetaGesture(hands) {
-    if (toggleGestureType === 'none' || hands.length < 2) return false;
-
-    switch (toggleGestureType) {
-        case 'frame':
-            return detectFrameGesture(hands);
-        case 'both-peace':
-            return hands.filter(h => h.gesture === 'peace').length >= 2;
-        case 'peace-fist':
-            return hands.some(h => h.gesture === 'peace') &&
-                   hands.some(h => h.gesture === 'fist');
-        default:
-            return false;
-    }
-}
-
 const META_GESTURE_DISPLAY = {
     frame: { emoji: '🖼️', i18nKey: 'metaGestureFrame' },
     'both-peace': { emoji: '✌️✌️', i18nKey: 'metaGestureBothPeace' },
     'peace-fist': { emoji: '✌️✊', i18nKey: 'metaGesturePeaceFist' },
 };
 
-/** frame イベント: メタサインの検出とトグル */
+/** メタサイン検出（両手の組み合わせ） */
+function detectMetaGestureType(hands) {
+    if (hands.length < 2) return null;
+    if (detectFrameGesture(hands)) return 'frame';
+    if (hands.filter(h => h.gesture === 'peace').length >= 2) return 'both-peace';
+    if (hands.some(h => h.gesture === 'peace') && hands.some(h => h.gesture === 'fist')) return 'peace-fist';
+    return null;
+}
+
+function metaGestureLabel(type) {
+    const disp = META_GESTURE_DISPLAY[type];
+    return disp ? `${disp.emoji} ${msg(disp.i18nKey)}` : type;
+}
+
+function executeMetaAction(action) {
+    switch (action) {
+        case 'toggleEnabled':
+            setControlEnabled(!controlEnabled);
+            break;
+        case 'toggleMode':
+            toggleOperationMode();
+            break;
+        case 'setModeMedia':
+            setOperationMode(OPERATION_MODES.MEDIA);
+            break;
+        case 'setModeBrowser':
+            setOperationMode(OPERATION_MODES.BROWSER);
+            break;
+        default:
+            return false;
+    }
+    return true;
+}
+
+/** frame イベント: メタサインの検出と方向スクロール */
 tracker.addEventListener('frame', (e) => {
     const { gestures: hands } = e.detail;
     const now = Date.now();
+    lastFrameHands = hands;
 
     // クールダウン中はスキップ
     if (now - lastToggleTime < META_COOLDOWN_MS) {
         metaGestureActive = false;
+        updateDirectionalScroll(hands, now);
         return;
     }
 
-    const detected = detectMetaGesture(hands);
+    const detectedType = detectMetaGestureType(hands);
+    const metaAction = detectedType ? metaGestureMapping[detectedType] : 'none';
+    const detected = detectedType && metaAction && metaAction !== 'none';
 
     if (detected) {
         if (!metaGestureActive) {
@@ -966,21 +1128,24 @@ tracker.addEventListener('frame', (e) => {
             metaGestureLastSeen = now;
             // 通常アクションの保留をキャンセル
             cancelPendingAction();
+            stopDirectionalScroll();
             stopRepeat();
         }
         metaGestureLastSeen = now;
 
         // メタサインを表示に反映
-        const disp = META_GESTURE_DISPLAY[toggleGestureType];
+        const disp = META_GESTURE_DISPLAY[detectedType];
         if (disp) {
-            setGestureText(disp.emoji, msg(disp.i18nKey));
+            setGestureText(disp.emoji, metaActionLabel(metaAction));
         }
 
-        // 判定待機時間経過 → トグル
+        // 判定待機時間経過 → メタアクション実行
         const holdMs = Math.max(gestureHoldTime, 200);
         if (now - metaGestureStartTime >= holdMs) {
-            setControlEnabled(!controlEnabled);
-            lastToggleTime = now;
+            if (executeMetaAction(metaAction)) {
+                log(msg('logMetaGestureAction', [metaGestureLabel(detectedType), metaActionLabel(metaAction)]));
+                lastToggleTime = now;
+            }
             metaGestureActive = false;
             metaGestureStartTime = 0;
         }
@@ -990,12 +1155,15 @@ tracker.addEventListener('frame', (e) => {
             metaGestureActive = false;
             metaGestureStartTime = 0;
         }
+    } else {
+        updateDirectionalScroll(hands, now);
     }
 });
 
-async function sendAction(action) {
+async function sendAction(action, data) {
     try {
         const payload = { type: 'gesture-action', action };
+        if (data) payload.data = data;
         if (lockedTargetTabId) payload.targetTabId = lockedTargetTabId;
         await chrome.runtime.sendMessage(payload);
     } catch (e) {
@@ -1008,6 +1176,10 @@ async function sendAction(action) {
  * ============================================================ */
 function buildMappingUI() {
     el.mappingList.innerHTML = '';
+    const editMapping = getMappingForMode(mappingEditMode);
+    const actionKeys = getActionKeysForMode(mappingEditMode);
+    updateOperationModeUI();
+
     for (const gesture of GESTURABLE_TYPES) {
         const row = document.createElement('div');
         row.className = 'mapping-row';
@@ -1017,40 +1189,99 @@ function buildMappingUI() {
         label.textContent = `${GESTURE_ICONS[gesture]} ${gestureLabel(gesture)}`;
 
         const select = document.createElement('select');
-        for (const [value] of Object.entries(ACTION_I18N_KEYS)) {
+        for (const value of actionKeys) {
             const opt = document.createElement('option');
             opt.value = value;
             opt.textContent = actionLabel(value);
-            if (currentMapping[gesture] === value) opt.selected = true;
+            if (editMapping[gesture] === value) opt.selected = true;
             select.appendChild(opt);
         }
         select.addEventListener('change', () => {
-            currentMapping[gesture] = select.value;
+            editMapping[gesture] = select.value;
             saveMapping();
+            refreshCurrentMapping();
         });
 
         row.appendChild(label);
         row.appendChild(select);
         el.mappingList.appendChild(row);
     }
+    buildMetaMappingUI();
+}
+
+function buildMetaMappingUI() {
+    if (!el.metaMappingList) return;
+    el.metaMappingList.innerHTML = '';
+    const actions = Object.keys(META_ACTION_I18N_KEYS);
+    for (const type of META_GESTURE_TYPES) {
+        const row = document.createElement('div');
+        row.className = 'mapping-row';
+
+        const label = document.createElement('span');
+        label.className = 'gesture-label';
+        label.textContent = metaGestureLabel(type);
+
+        const select = document.createElement('select');
+        for (const value of actions) {
+            const opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = metaActionLabel(value);
+            if ((metaGestureMapping[type] || 'none') === value) opt.selected = true;
+            select.appendChild(opt);
+        }
+        select.addEventListener('change', () => {
+            metaGestureMapping[type] = select.value;
+            chrome.storage.sync.set({ metaGestureMapping });
+        });
+
+        row.appendChild(label);
+        row.appendChild(select);
+        el.metaMappingList.appendChild(row);
+    }
 }
 
 async function loadMapping() {
     try {
-        const result = await chrome.storage.sync.get('gestureMapping');
-        if (result.gestureMapping) {
-            const saved = { ...result.gestureMapping };
+        const result = await chrome.storage.sync.get([
+            'gestureMapping', 'mediaGestureMapping', 'browserGestureMapping',
+            'operationMode', 'controlEnabled', 'metaGestureMapping', 'toggleGestureType',
+        ]);
+
+        const savedMedia = result.mediaGestureMapping || result.gestureMapping;
+        if (savedMedia) {
+            const saved = { ...savedMedia };
             // 移行: open は通常サインから除外されたため削除
             delete saved.open;
-            currentMapping = { ...DEFAULT_MAPPING, ...saved };
+            mediaMapping = { ...DEFAULT_MEDIA_MAPPING, ...saved };
         }
-    } catch (_) {}
-    try {
-        const result = await chrome.storage.sync.get('controlEnabled');
+
+        if (result.browserGestureMapping) {
+            const saved = { ...result.browserGestureMapping };
+            delete saved.open;
+            browserMapping = { ...DEFAULT_BROWSER_MAPPING, ...saved };
+        }
+
+        if (result.operationMode === OPERATION_MODES.BROWSER || result.operationMode === OPERATION_MODES.MEDIA) {
+            operationMode = result.operationMode;
+            mappingEditMode = operationMode;
+        }
+
         if (result.controlEnabled !== undefined) {
             controlEnabled = result.controlEnabled;
             el.chkEnabled.checked = controlEnabled;
         }
+
+        if (result.metaGestureMapping) {
+            metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING, ...result.metaGestureMapping };
+        } else if (result.toggleGestureType) {
+            metaGestureMapping = Object.fromEntries(META_GESTURE_TYPES.map(type => [type, 'none']));
+            if (META_GESTURE_TYPES.includes(result.toggleGestureType)) {
+                metaGestureMapping[result.toggleGestureType] = 'toggleEnabled';
+            }
+        }
+
+        refreshCurrentMapping();
+        updateOperationModeUI();
     } catch (_) {}
     try {
         const d = DEFAULT_SETTINGS;
@@ -1077,8 +1308,6 @@ async function loadMapping() {
 
         const validToggle = ['frame', 'both-peace', 'peace-fist', 'none'];
         toggleGestureType = validToggle.includes(result.toggleGestureType) ? result.toggleGestureType : d.toggleGestureType;
-        const selToggle = $('sel-toggle-gesture');
-        if (selToggle) selToggle.value = toggleGestureType;
 
         gestureHoldTime = result.gestureHoldTime !== undefined
             ? Math.max(0, Math.min(500, Number(result.gestureHoldTime) || 0))
@@ -1156,7 +1385,13 @@ async function loadMapping() {
 }
 
 async function saveMapping() {
-    try { await chrome.storage.sync.set({ gestureMapping: currentMapping }); } catch (_) {}
+    try {
+        await chrome.storage.sync.set({
+            gestureMapping: mediaMapping,
+            mediaGestureMapping: mediaMapping,
+            browserGestureMapping: browserMapping,
+        });
+    } catch (_) {}
 }
 
 /* ============================================================
@@ -1230,13 +1465,25 @@ function setControlEnabled(enabled) {
     controlEnabled = enabled;
     el.chkEnabled.checked = enabled;
     chrome.storage.sync.set({ controlEnabled });
+    updateOperationModeUI();
     if (!enabled) {
         stopAllGestureActions();
         setWakeState(WAKE_STATE.IDLE);
     }
     playBeep(enabled ? 880 : 440, 0.2);
-    log(enabled ? msg('logMediaControlOn') : msg('logMediaControlOff'));
+    log(enabled
+        ? msg('logOperationEnabledOn', [modeLabel(operationMode)])
+        : msg('logOperationEnabledOff', [modeLabel(operationMode)]));
 }
+
+document.querySelectorAll('.mode-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+        mappingEditMode = tab.dataset.mode === OPERATION_MODES.BROWSER
+            ? OPERATION_MODES.BROWSER
+            : OPERATION_MODES.MEDIA;
+        buildMappingUI();
+    });
+});
 
 /** ターゲットタブを現在のアクティブタブに固定 */
 async function lockCurrentTab() {
@@ -1310,18 +1557,6 @@ rngWakeTimeout.addEventListener('input', () => {
     updateWakeUI();
 });
 
-/** 操作トグル変更時のログ用 i18n キーマッピング */
-const TOGGLE_I18N_KEYS = {
-    frame: 'optionToggleFrame', 'both-peace': 'optionToggleBothPeace',
-    'peace-fist': 'optionTogglePeaceFist', none: 'optionToggleNone'
-};
-const selToggleGesture = $('sel-toggle-gesture');
-selToggleGesture.addEventListener('change', () => {
-    toggleGestureType = selToggleGesture.value;
-    chrome.storage.sync.set({ toggleGestureType });
-    log(msg('logToggleGestureChanged', [msg(TOGGLE_I18N_KEYS[toggleGestureType] || toggleGestureType)]));
-});
-
 const rngHoldTime = $('rng-hold-time');
 rngHoldTime.addEventListener('input', () => {
     gestureHoldTime = Number(rngHoldTime.value);
@@ -1380,7 +1615,12 @@ selPreferredHand.addEventListener('change', () => {
 });
 
 el.btnReset.addEventListener('click', () => {
-    currentMapping = { ...DEFAULT_MAPPING };
+    if (mappingEditMode === OPERATION_MODES.BROWSER) {
+        browserMapping = { ...DEFAULT_BROWSER_MAPPING };
+    } else {
+        mediaMapping = { ...DEFAULT_MEDIA_MAPPING };
+    }
+    refreshCurrentMapping();
     saveMapping();
     buildMappingUI();
     log(msg('logMappingReset'));
@@ -1410,7 +1650,10 @@ $('btn-reset-settings').addEventListener('click', () => {
     // 状態変数を復元
     wakeGestureType = d.wakeGestureType;
     wakeActiveDuration = d.wakeActiveDuration;
+    operationMode = d.operationMode;
+    mappingEditMode = operationMode;
     toggleGestureType = d.toggleGestureType;
+    metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
     tracker.preferredHand = d.preferredHand;
     gestureHoldTime = d.gestureHoldTime;
     actionRepeatInterval = d.actionRepeatInterval;
@@ -1425,7 +1668,8 @@ $('btn-reset-settings').addEventListener('click', () => {
     $('rng-wake-timeout').value = d.wakeActiveDuration / 1000;
     $('wake-timeout-value').textContent = fmtSeconds(d.wakeActiveDuration);
     updateWakeUI();
-    $('sel-toggle-gesture').value = d.toggleGestureType;
+    updateOperationModeUI();
+    buildMappingUI();
     $('sel-preferred-hand').value = d.preferredHand;
     $('rng-hold-time').value = d.gestureHoldTime;
     $('hold-time-value').textContent = fmtSeconds(d.gestureHoldTime);
@@ -1442,7 +1686,7 @@ $('btn-reset-settings').addEventListener('click', () => {
     document.body.style.zoom = d.uiScale / 100;
 
     // ストレージに保存
-    chrome.storage.sync.set(d);
+    chrome.storage.sync.set({ ...d, metaGestureMapping });
     log(msg('logSettingsReset'));
 });
 
@@ -1541,11 +1785,15 @@ function renderTutorialStep() {
     $('tutorial-title').textContent = msg(step.titleKey);
     let bodyText;
     if (step.id === 'toggle') {
-        if (toggleGestureType === 'none') {
+        const toggleEntry = Object.entries(metaGestureMapping)
+            .find(([, action]) => action && action !== 'none');
+        if (!toggleEntry) {
             bodyText = msg('tutorialStep5BodyNoToggle');
         } else {
-            const toggleName = msg(TOGGLE_I18N_KEYS[toggleGestureType] || '') || toggleGestureType;
-            bodyText = msg('tutorialStep5Body', [toggleName]);
+            bodyText = msg('tutorialStep5Body', [
+                metaGestureLabel(toggleEntry[0]),
+                metaActionLabel(toggleEntry[1]),
+            ]);
         }
     } else {
         bodyText = msg(step.bodyKey);

@@ -33,6 +33,14 @@ const ACTION_I18N_KEYS = {
     nextTrack: 'actionNextTrack', prevTrack: 'actionPrevTrack',
     seekForward: 'actionSeekForward', seekBackward: 'actionSeekBackward',
     speedUp: 'actionSpeedUp', speedDown: 'actionSpeedDown', resetSpeed: 'actionResetSpeed',
+    directionalScroll: 'actionDirectionalScroll',
+    scrollDown: 'actionScrollDown', scrollUp: 'actionScrollUp',
+    scrollRight: 'actionScrollRight', scrollLeft: 'actionScrollLeft',
+    pageTop: 'actionPageTop', pageBottom: 'actionPageBottom',
+    historyBack: 'actionHistoryBack', historyForward: 'actionHistoryForward',
+    nextTab: 'actionNextTab', previousTab: 'actionPreviousTab',
+    reload: 'actionReload',
+    zoomIn: 'actionZoomIn', zoomOut: 'actionZoomOut', resetZoom: 'actionResetZoom',
     none: 'actionNone',
 };
 
@@ -40,7 +48,32 @@ function actionLabel(key) {
     return msg(ACTION_I18N_KEYS[key] ?? 'actionNone');
 }
 
-const REPEATABLE_ACTIONS = new Set(['volumeUp', 'volumeDown', 'seekForward', 'seekBackward', 'speedUp', 'speedDown']);
+const MEDIA_ACTION_KEYS = [
+    'playPause', 'play', 'pause',
+    'volumeUp', 'volumeDown', 'mute',
+    'nextTrack', 'prevTrack',
+    'seekForward', 'seekBackward',
+    'speedUp', 'speedDown', 'resetSpeed',
+    'none',
+];
+
+const BROWSER_ACTION_KEYS = [
+    'directionalScroll',
+    'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft',
+    'pageTop', 'pageBottom',
+    'historyBack', 'historyForward',
+    'nextTab', 'previousTab',
+    'reload',
+    'zoomIn', 'zoomOut', 'resetZoom',
+    'none',
+];
+
+const REPEATABLE_ACTIONS = new Set([
+    'volumeUp', 'volumeDown', 'seekForward', 'seekBackward', 'speedUp', 'speedDown',
+    'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'zoomIn', 'zoomOut',
+]);
+
+const DIRECTIONAL_ACTIONS = new Set(['directionalScroll']);
 
 const DEFAULT_MAPPING = {
     fist: 'pause',
@@ -55,3 +88,44 @@ const DEFAULT_MAPPING = {
     thumbsup: 'speedUp',
     thumbsdown: 'speedDown',
 };
+
+const DEFAULT_MEDIA_MAPPING = DEFAULT_MAPPING;
+
+const DEFAULT_BROWSER_MAPPING = {
+    fist: 'none',
+    peace: 'none',
+    three: 'historyForward',
+    four: 'historyBack',
+    ok: 'directionalScroll',
+    aloha: 'none',
+    rock: 'resetZoom',
+    'point-right': 'scrollDown',
+    'point-left': 'scrollUp',
+    thumbsup: 'nextTab',
+    thumbsdown: 'previousTab',
+};
+
+const OPERATION_MODES = {
+    MEDIA: 'media',
+    BROWSER: 'browser',
+};
+
+const META_GESTURE_TYPES = ['frame', 'both-peace', 'peace-fist'];
+
+const META_ACTION_I18N_KEYS = {
+    toggleEnabled: 'metaActionToggleEnabled',
+    toggleMode: 'metaActionToggleMode',
+    setModeMedia: 'metaActionSetModeMedia',
+    setModeBrowser: 'metaActionSetModeBrowser',
+    none: 'metaActionNone',
+};
+
+const DEFAULT_META_GESTURE_MAPPING = {
+    frame: 'toggleEnabled',
+    'both-peace': 'toggleMode',
+    'peace-fist': 'none',
+};
+
+function metaActionLabel(key) {
+    return msg(META_ACTION_I18N_KEYS[key] ?? 'metaActionNone');
+}

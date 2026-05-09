@@ -26,7 +26,10 @@ const statusEl      = $('status');
  * 状態
  * ============================================================ */
 const tracker = new HandTracker();
-let currentMapping = { ...DEFAULT_MAPPING };
+let mediaMapping = { ...DEFAULT_MEDIA_MAPPING };
+let browserMapping = { ...DEFAULT_BROWSER_MAPPING };
+let currentMapping = { ...DEFAULT_MEDIA_MAPPING };
+let operationMode = OPERATION_MODES.MEDIA;
 let controlEnabled = true;
 let notifyVolume = 0.3;            // 通知音量 (0.0〜1.0)
 let pipFontScale = 1.0;            // PiP 文字サイズ倍率
@@ -52,12 +55,21 @@ let repeatingGesture = null;
 
 // メタサイン
 let toggleGestureType = 'frame';
+let metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
 let metaGestureActive = false;
 let metaGestureStartTime = 0;
 let metaGestureLastSeen = 0;
 let lastToggleTime = 0;
 const META_COOLDOWN_MS = 2000;
 const META_GRACE_MS = 150;
+
+// 方向スクロール
+let lastFrameHands = [];
+let directionalScrollState = null;
+const DIRECTIONAL_SCROLL_INTERVAL_MS = 80;
+const DIRECTIONAL_SCROLL_DEADZONE = 0.045;
+const DIRECTIONAL_SCROLL_MAX_OFFSET = 0.28;
+const DIRECTIONAL_SCROLL_MAX_PIXELS = 180;
 
 // PiP 合成
 let pipCanvas = null;
@@ -95,22 +107,46 @@ let lifecyclePort = null;
 let targetTabAlive = true;
 let targetTabTitle = '';           // PiP canvas 描画用
 
+function modeLabel(mode) {
+    return mode === OPERATION_MODES.BROWSER ? msg('operationModeBrowser') : msg('operationModeMedia');
+}
+
+function getMappingForMode(mode) {
+    return mode === OPERATION_MODES.BROWSER ? browserMapping : mediaMapping;
+}
+
+function refreshCurrentMapping() {
+    currentMapping = getMappingForMode(operationMode);
+}
+
 /* ============================================================
  * 設定の読み込み
  * ============================================================ */
 async function loadSettings() {
     try {
         const result = await chrome.storage.sync.get([
-            'gestureMapping', 'controlEnabled', 'wakeGestureType',
+            'gestureMapping', 'mediaGestureMapping', 'browserGestureMapping',
+            'operationMode', 'controlEnabled', 'wakeGestureType',
             'wakeActiveDuration', 'toggleGestureType', 'gestureHoldTime',
             'actionRepeatInterval', 'skeletonOnly', 'mirrorCamera',
             'inferenceFps', 'preferredHand', 'notifyVolume', 'pipFontScale',
+            'metaGestureMapping',
         ]);
-        if (result.gestureMapping) currentMapping = { ...DEFAULT_MAPPING, ...result.gestureMapping };
+        const savedMedia = result.mediaGestureMapping || result.gestureMapping;
+        if (savedMedia) mediaMapping = { ...DEFAULT_MEDIA_MAPPING, ...savedMedia };
+        if (result.browserGestureMapping) browserMapping = { ...DEFAULT_BROWSER_MAPPING, ...result.browserGestureMapping };
+        if (result.operationMode === OPERATION_MODES.BROWSER || result.operationMode === OPERATION_MODES.MEDIA) operationMode = result.operationMode;
+        refreshCurrentMapping();
         if (result.controlEnabled !== undefined) controlEnabled = result.controlEnabled;
         if (result.wakeGestureType) wakeGestureType = result.wakeGestureType;
         if (result.wakeActiveDuration) wakeActiveDuration = result.wakeActiveDuration;
         if (result.toggleGestureType) toggleGestureType = result.toggleGestureType;
+        if (result.metaGestureMapping) {
+            metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING, ...result.metaGestureMapping };
+        } else if (result.toggleGestureType && META_GESTURE_TYPES.includes(result.toggleGestureType)) {
+            metaGestureMapping = Object.fromEntries(META_GESTURE_TYPES.map(type => [type, 'none']));
+            metaGestureMapping[result.toggleGestureType] = 'toggleEnabled';
+        }
         if (result.gestureHoldTime !== undefined) gestureHoldTime = result.gestureHoldTime;
         if (result.actionRepeatInterval) actionRepeatInterval = result.actionRepeatInterval;
         if (result.skeletonOnly) tracker.skeletonOnly = result.skeletonOnly;
@@ -124,11 +160,30 @@ async function loadSettings() {
 
 // 設定変更のリアルタイム反映
 chrome.storage.onChanged.addListener((changes) => {
-    if (changes.gestureMapping) currentMapping = { ...DEFAULT_MAPPING, ...changes.gestureMapping.newValue };
-    if (changes.controlEnabled) controlEnabled = changes.controlEnabled.newValue;
+    if (changes.gestureMapping || changes.mediaGestureMapping) {
+        const value = changes.mediaGestureMapping?.newValue || changes.gestureMapping?.newValue || {};
+        mediaMapping = { ...DEFAULT_MEDIA_MAPPING, ...value };
+        refreshCurrentMapping();
+    }
+    if (changes.browserGestureMapping) {
+        browserMapping = { ...DEFAULT_BROWSER_MAPPING, ...changes.browserGestureMapping.newValue };
+        refreshCurrentMapping();
+    }
+    if (changes.operationMode) {
+        operationMode = changes.operationMode.newValue === OPERATION_MODES.BROWSER
+            ? OPERATION_MODES.BROWSER
+            : OPERATION_MODES.MEDIA;
+        refreshCurrentMapping();
+        stopAllGestureActions();
+    }
+    if (changes.controlEnabled) {
+        controlEnabled = changes.controlEnabled.newValue;
+        if (!controlEnabled) stopAllGestureActions();
+    }
     if (changes.wakeGestureType) wakeGestureType = changes.wakeGestureType.newValue;
     if (changes.wakeActiveDuration) wakeActiveDuration = changes.wakeActiveDuration.newValue;
     if (changes.toggleGestureType) toggleGestureType = changes.toggleGestureType.newValue;
+    if (changes.metaGestureMapping) metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING, ...changes.metaGestureMapping.newValue };
     if (changes.gestureHoldTime) gestureHoldTime = changes.gestureHoldTime.newValue;
     if (changes.actionRepeatInterval) actionRepeatInterval = changes.actionRepeatInterval.newValue;
     if (changes.notifyVolume) notifyVolume = Math.max(0, Math.min(1, Number(changes.notifyVolume.newValue)));
@@ -265,6 +320,7 @@ function setWakeState(newState) {
     wakeState = newState;
     if (wakeTimeout) { clearTimeout(wakeTimeout); wakeTimeout = null; }
     cancelPendingAction();
+    stopDirectionalScroll();
     stopRepeat();
 
     if (newState === WAKE_STATE.ACTIVE) {
@@ -299,22 +355,89 @@ function stopRepeat() {
     repeatingGesture = null;
 }
 
+function handPosition(hand) {
+    if (!hand?.landmarks) return null;
+    const lm = hand.landmarks;
+    const points = [lm[0], lm[5], lm[9], lm[13], lm[17]].filter(Boolean);
+    if (!points.length) return null;
+    const sum = points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
+    return { x: sum.x / points.length, y: sum.y / points.length };
+}
+
+function findHandForGesture(gesture, hands = lastFrameHands) {
+    const candidates = hands.filter(h => h.gesture === gesture);
+    if (!candidates.length) return null;
+    if (tracker.preferredHand !== 'auto') {
+        return candidates.find(h => h.hand === tracker.preferredHand) || candidates[0];
+    }
+    return candidates[0];
+}
+
+function startDirectionalScroll(gesture) {
+    const hand = findHandForGesture(gesture);
+    const origin = handPosition(hand);
+    if (!origin) return false;
+    directionalScrollState = { gesture, origin, lastSentAt: 0 };
+    repeatingGesture = gesture;
+    return true;
+}
+
+function stopDirectionalScroll() {
+    directionalScrollState = null;
+}
+
+function directionalAmount(delta) {
+    const sign = Math.sign(delta);
+    const distance = Math.abs(delta);
+    if (distance <= DIRECTIONAL_SCROLL_DEADZONE) return 0;
+    const ratio = Math.min(
+        1,
+        (distance - DIRECTIONAL_SCROLL_DEADZONE) / (DIRECTIONAL_SCROLL_MAX_OFFSET - DIRECTIONAL_SCROLL_DEADZONE)
+    );
+    return Math.round(sign * ratio * DIRECTIONAL_SCROLL_MAX_PIXELS);
+}
+
+function updateDirectionalScroll(hands, now) {
+    if (!directionalScrollState || !controlEnabled) return;
+    const hand = findHandForGesture(directionalScrollState.gesture, hands);
+    const pos = handPosition(hand);
+    if (!pos) {
+        stopAllGestureActions();
+        return;
+    }
+    if (now - directionalScrollState.lastSentAt < DIRECTIONAL_SCROLL_INTERVAL_MS) return;
+
+    let dx = pos.x - directionalScrollState.origin.x;
+    const dy = pos.y - directionalScrollState.origin.y;
+    if (tracker.displayMirrored) dx = -dx;
+
+    const left = directionalAmount(dx);
+    const top = directionalAmount(dy);
+    if (!left && !top) return;
+
+    directionalScrollState.lastSentAt = now;
+    sendAction('directionalScroll', { left, top });
+    extendWakeTimeout();
+}
+
 function stopAllGestureActions() {
     cancelPendingAction();
-    const wasRepeating = repeatingGesture !== null;
+    const wasRepeating = repeatingGesture !== null || directionalScrollState !== null;
+    stopDirectionalScroll();
     stopRepeat();
     if (wasRepeating && wakeGestureType !== 'none') {
         setWakeState(WAKE_STATE.IDLE);
     }
 }
 
-async function sendAction(action) {
+async function sendAction(action, data) {
     // ターゲットタブが閉じられている場合はアクションを送信しない
     if (!targetTabAlive && targetTabId) return;
     try {
         await chrome.runtime.sendMessage({
             type: 'gesture-action',
             action,
+            data,
             targetTabId: targetTabId || undefined,
         });
     } catch (_) {}
@@ -324,6 +447,10 @@ function confirmAction(gesture, action) {
     const now = Date.now();
     if (now - lastActionTime < ACTION_COOLDOWN) return;
     lastActionTime = now;
+
+    if (DIRECTIONAL_ACTIONS.has(action)) {
+        if (startDirectionalScroll(gesture)) return;
+    }
 
     sendAction(action);
 
@@ -429,27 +556,58 @@ function detectFrameGesture(hands) {
     return false;
 }
 
-function detectMetaGesture(hands) {
-    if (toggleGestureType === 'none' || hands.length < 2) return false;
-    switch (toggleGestureType) {
-        case 'frame':      return detectFrameGesture(hands);
-        case 'both-peace':  return hands.filter(h => h.gesture === 'peace').length >= 2;
-        case 'peace-fist':  return hands.some(h => h.gesture === 'peace') &&
-                                   hands.some(h => h.gesture === 'fist');
-        default: return false;
+function detectMetaGestureType(hands) {
+    if (hands.length < 2) return null;
+    if (detectFrameGesture(hands)) return 'frame';
+    if (hands.filter(h => h.gesture === 'peace').length >= 2) return 'both-peace';
+    if (hands.some(h => h.gesture === 'peace') && hands.some(h => h.gesture === 'fist')) return 'peace-fist';
+    return null;
+}
+
+function executeMetaAction(action) {
+    switch (action) {
+        case 'toggleEnabled':
+            controlEnabled = !controlEnabled;
+            chrome.storage.sync.set({ controlEnabled });
+            playBeep(controlEnabled ? 880 : 440, 0.2);
+            if (!controlEnabled) stopAllGestureActions();
+            return true;
+        case 'toggleMode':
+            operationMode = operationMode === OPERATION_MODES.MEDIA ? OPERATION_MODES.BROWSER : OPERATION_MODES.MEDIA;
+            refreshCurrentMapping();
+            chrome.storage.sync.set({ operationMode });
+            playBeep(operationMode === OPERATION_MODES.BROWSER ? 660 : 880, 0.18);
+            stopAllGestureActions();
+            return true;
+        case 'setModeMedia':
+        case 'setModeBrowser': {
+            const nextMode = action === 'setModeBrowser' ? OPERATION_MODES.BROWSER : OPERATION_MODES.MEDIA;
+            operationMode = nextMode;
+            refreshCurrentMapping();
+            chrome.storage.sync.set({ operationMode });
+            playBeep(operationMode === OPERATION_MODES.BROWSER ? 660 : 880, 0.18);
+            stopAllGestureActions();
+            return true;
+        }
+        default:
+            return false;
     }
 }
 
 tracker.addEventListener('frame', (e) => {
     const { gestures: hands } = e.detail;
     const now = Date.now();
+    lastFrameHands = hands;
 
     if (now - lastToggleTime < META_COOLDOWN_MS) {
         metaGestureActive = false;
+        updateDirectionalScroll(hands, now);
         return;
     }
 
-    const detected = detectMetaGesture(hands);
+    const detectedType = detectMetaGestureType(hands);
+    const metaAction = detectedType ? metaGestureMapping[detectedType] : 'none';
+    const detected = detectedType && metaAction && metaAction !== 'none';
 
     if (detected) {
         if (!metaGestureActive) {
@@ -457,25 +615,24 @@ tracker.addEventListener('frame', (e) => {
             metaGestureStartTime = now;
             metaGestureLastSeen = now;
             cancelPendingAction();
+            stopDirectionalScroll();
             stopRepeat();
         }
         metaGestureLastSeen = now;
 
         const holdMs = Math.max(gestureHoldTime, 200);
         if (now - metaGestureStartTime >= holdMs) {
-            controlEnabled = !controlEnabled;
-            chrome.storage.sync.set({ controlEnabled });
-            playBeep(controlEnabled ? 880 : 440, 0.2);
-            lastToggleTime = now;
+            if (executeMetaAction(metaAction)) lastToggleTime = now;
             metaGestureActive = false;
             metaGestureStartTime = 0;
-            if (!controlEnabled) stopAllGestureActions();
         }
     } else if (metaGestureActive) {
         if (now - metaGestureLastSeen > META_GRACE_MS) {
             metaGestureActive = false;
             metaGestureStartTime = 0;
         }
+    } else {
+        updateDirectionalScroll(hands, now);
     }
 });
 
@@ -503,6 +660,14 @@ function compositeFrame(ctx, canvas) {
     ctx.drawImage(handCanvas, 0, 0, vw, vh);
     if (mirrored) ctx.restore();
 
+    const isBrowserMode = operationMode === OPERATION_MODES.BROWSER;
+    const activeColor = isBrowserMode
+        ? 'rgba(74, 163, 255, 0.95)'
+        : 'rgba(80, 255, 120, 0.95)';
+    const idleColor = isBrowserMode
+        ? 'rgba(74, 163, 255, 0.45)'
+        : 'rgba(0, 220, 80, 0.4)';
+
     // ジェスチャーテキスト
     if (gestureText) {
         ctx.save();
@@ -511,7 +676,7 @@ function compositeFrame(ctx, canvas) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillStyle = wakeActive
-            ? 'rgba(0, 255, 100, 0.95)'
+            ? activeColor
             : 'rgba(255, 255, 255, 0.85)';
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.lineWidth = 3;
@@ -545,10 +710,10 @@ function compositeFrame(ctx, canvas) {
         ctx.strokeStyle = 'rgba(255, 60, 60, 0.8)';
         ctx.lineWidth = borderWidth * 2;
     } else if (wakeActive) {
-        ctx.strokeStyle = 'rgba(80, 255, 120, 0.95)';
+        ctx.strokeStyle = activeColor;
         ctx.lineWidth = borderWidth * 4;
     } else {
-        ctx.strokeStyle = 'rgba(0, 220, 80, 0.4)';
+        ctx.strokeStyle = idleColor;
         ctx.lineWidth = borderWidth * 2;
     }
     ctx.strokeRect(0, 0, vw, vh);
@@ -567,13 +732,22 @@ function compositeFrame(ctx, canvas) {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        const maxTextW = vw - 16;
+        const mode = modeLabel(operationMode);
+        const modeWidth = ctx.measureText(mode).width + 16;
+        const maxTextW = vw - modeWidth - 16;
         let label = `🎯 ${targetTabTitle}`;
         // テキストが長い場合は省略
         while (ctx.measureText(label).width > maxTextW && label.length > 10) {
             label = label.slice(0, -4) + '…';
         }
         ctx.fillText(label, 6, barH / 2);
+
+        ctx.textAlign = 'right';
+        ctx.fillStyle = activeColor;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.strokeText(mode, vw - 6, barH / 2);
+        ctx.fillText(mode, vw - 6, barH / 2);
         ctx.restore();
     }
 }

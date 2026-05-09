@@ -1,8 +1,8 @@
 /**
  * NyandSign — Content Script
  *
- * Service Worker から受信したメディアアクションを
- * ページ内の動画/音声要素に適用する。
+ * Service Worker から受信したアクションを
+ * ページ内の動画/音声要素やスクロールに適用する。
  */
 
 (() => {
@@ -48,10 +48,94 @@
         return false;
     }
 
+    const BROWSER_PAGE_ACTIONS = new Set([
+        'directionalScroll', 'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'pageTop', 'pageBottom',
+    ]);
+
+    function isEditableFocused() {
+        const el = document.activeElement;
+        if (!el) return false;
+        const tag = el.tagName?.toLowerCase();
+        return tag === 'input' || tag === 'textarea' || tag === 'select' || el.isContentEditable;
+    }
+
+    function getScrollRoot() {
+        return document.scrollingElement || document.documentElement || document.body;
+    }
+
+    function findHorizontalScroller() {
+        const root = getScrollRoot();
+        if (root && root.scrollWidth > root.clientWidth) return root;
+
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const underPointer = document.elementsFromPoint(centerX, centerY);
+        for (const el of underPointer) {
+            if (el.scrollWidth > el.clientWidth + 8) return el;
+        }
+
+        let best = null;
+        let bestArea = 0;
+        for (const el of document.querySelectorAll('*')) {
+            if (el.scrollWidth <= el.clientWidth + 8) continue;
+            const rect = el.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) continue;
+            if (rect.bottom < 0 || rect.top > window.innerHeight) continue;
+            const area = rect.width * rect.height;
+            if (area > bestArea) {
+                best = el;
+                bestArea = area;
+            }
+        }
+        return best || root;
+    }
+
+    function scrollPageBy(left, top, smooth = true) {
+        const behavior = smooth ? 'smooth' : 'auto';
+        if (top) getScrollRoot().scrollBy({ top, behavior });
+        if (left) findHorizontalScroller().scrollBy({ left, behavior });
+    }
+
+    function executeBrowserPageAction(action, data = {}) {
+        if (!BROWSER_PAGE_ACTIONS.has(action)) return false;
+        if (isEditableFocused()) return null;
+
+        switch (action) {
+            case 'directionalScroll':
+                scrollPageBy(Number(data.left) || 0, Number(data.top) || 0, false);
+                break;
+            case 'scrollDown':
+                scrollPageBy(0, Math.round(window.innerHeight * 0.55));
+                break;
+            case 'scrollUp':
+                scrollPageBy(0, -Math.round(window.innerHeight * 0.55));
+                break;
+            case 'scrollRight':
+                scrollPageBy(Math.round(window.innerWidth * 0.55), 0);
+                break;
+            case 'scrollLeft':
+                scrollPageBy(-Math.round(window.innerWidth * 0.55), 0);
+                break;
+            case 'pageTop':
+                getScrollRoot().scrollTo({ top: 0, behavior: 'smooth' });
+                break;
+            case 'pageBottom':
+                getScrollRoot().scrollTo({ top: getScrollRoot().scrollHeight, behavior: 'smooth' });
+                break;
+        }
+        return true;
+    }
+
     /**
-     * メディアアクションを実行する。
+     * アクションを実行する。
      */
     function executeAction(action, data) {
+        const browserResult = executeBrowserPageAction(action, data);
+        if (browserResult !== false) {
+            if (browserResult) showOverlay(action);
+            return;
+        }
+
         const media = findBestMediaElement();
 
         switch (action) {
@@ -149,10 +233,18 @@
         seekForward:   '⏩',
         seekBackward:  '⏪',
         nextTrack:     '⏭',
+        prevTrack:     '⏮',
         previousTrack: '⏮',
         speedUp:       '⏫',
         speedDown:     '⏬',
         resetSpeed:    '🔄',
+        directionalScroll: '↕',
+        scrollDown:    '↓',
+        scrollUp:      '↑',
+        scrollRight:   '→',
+        scrollLeft:    '←',
+        pageTop:       '↟',
+        pageBottom:    '↡',
     };
 
     let overlayTimer = null;

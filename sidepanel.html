@@ -16,8 +16,8 @@
             <button class="btn btn-danger btn-sm is-hidden" id="btn-stop-camera" data-i18n="btnStopCamera">⏹ Stop</button>
             <button class="btn btn-secondary btn-sm is-hidden" id="btn-pip" data-i18n="btnPip" data-i18n-title="titlePipButton">📌 PiP</button>
             <span class="spacer"></span>
-            <span class="header-label" data-i18n="headerMediaControl">Media Control</span>
-            <label class="toggle-switch" title="Enable/disable media control" data-i18n-title="titleMediaControlToggle">
+            <span class="header-label" id="operation-mode-label" data-i18n="headerMediaControl">Media Control</span>
+            <label class="toggle-switch mode-toggle" title="Enable/disable operation" data-i18n-title="titleOperationToggle">
                 <input type="checkbox" id="chk-enabled" checked>
                 <span class="slider"></span>
             </label>
@@ -67,10 +67,16 @@
 <details class="collapsible" id="section-gestures" open>
     <summary data-i18n="sectionHandSigns">Hand Signs</summary>
     <div class="collapsible-body">
+        <div class="mode-tabs" role="tablist" aria-label="Operation mode mapping">
+            <button class="mode-tab is-active" id="tab-media-mapping" type="button" data-mode="media" data-i18n="tabMediaActions">Media</button>
+            <button class="mode-tab" id="tab-browser-mapping" type="button" data-mode="browser" data-i18n="tabBrowserActions">Browser</button>
+        </div>
         <div id="mapping-list"></div>
         <div class="mapping-actions">
             <button class="btn btn-secondary btn-sm" id="btn-reset-mapping" data-i18n="btnResetMapping">Reset</button>
         </div>
+        <div class="mapping-subtitle" data-i18n="sectionTwoHandSigns">Two-Hand Signs</div>
+        <div id="meta-mapping-list"></div>
     </div>
 </details>
 
@@ -111,17 +117,6 @@
             <div class="setting-control">
                 <input type="range" id="rng-wake-timeout" min="1" max="10" step="0.5" value="5">
                 <span class="setting-value" id="wake-timeout-value">5.0s</span>
-            </div>
-        </div>
-        <div class="setting-row" title="Toggle media control ON/OFF with two-hand signs" data-i18n-title="settingToggleTitle">
-            <span data-i18n="settingToggleLabel">Toggle</span>
-            <div class="setting-control">
-                <select id="sel-toggle-gesture">
-                    <option value="frame" data-i18n="optionToggleFrame">🖼️ Frame</option>
-                    <option value="both-peace" data-i18n="optionToggleBothPeace">✌️✌️ Both peace</option>
-                    <option value="peace-fist" data-i18n="optionTogglePeaceFist">✌️✊ Peace & fist</option>
-                    <option value="none" data-i18n="optionToggleNone">⛔ None (manual)</option>
-                </select>
             </div>
         </div>
         <div class="setting-row" title="Prefer this hand's sign when both hands are detected" data-i18n-title="settingPreferredHandTitle">
@@ -199,7 +194,7 @@
 
 <!-- フッター -->
 <div class="footer">
-    <span class="version">v1.0.61</span>
+    <span class="version">v1.0.62</span>
     <a href="https://megane.8796.jp" target="_blank" rel="noopener">&copy; 8796.jp</a>
 </div>
 

@@ -40,6 +40,27 @@
   "titleMediaControlToggle": {
     "message": "メディアコントロール有効/無効"
   },
+  "titleOperationToggle": {
+    "message": "現在の操作モードのON/OFFを切り替えます"
+  },
+  "titleOperationToggleOff": {
+    "message": "操作はOFFです。認識は継続します"
+  },
+  "operationModeMedia": {
+    "message": "メディア操作"
+  },
+  "operationModeBrowser": {
+    "message": "ブラウザ操作"
+  },
+  "tabMediaActions": {
+    "message": "メディア操作"
+  },
+  "tabBrowserActions": {
+    "message": "ブラウザ操作"
+  },
+  "sectionTwoHandSigns": {
+    "message": "両手サイン"
+  },
 
   "sectionHandTracking": {
     "message": "ハンドトラッキング"
@@ -246,6 +267,51 @@
   "actionResetSpeed": {
     "message": "🔄 速度リセット"
   },
+  "actionDirectionalScroll": {
+    "message": "👌 方向スクロール"
+  },
+  "actionScrollDown": {
+    "message": "↓ 下へスクロール 🔁"
+  },
+  "actionScrollUp": {
+    "message": "↑ 上へスクロール 🔁"
+  },
+  "actionScrollRight": {
+    "message": "→ 右へスクロール 🔁"
+  },
+  "actionScrollLeft": {
+    "message": "← 左へスクロール 🔁"
+  },
+  "actionPageTop": {
+    "message": "↟ ページ先頭"
+  },
+  "actionPageBottom": {
+    "message": "↡ ページ末尾"
+  },
+  "actionHistoryBack": {
+    "message": "↩ 戻る"
+  },
+  "actionHistoryForward": {
+    "message": "↪ 進む"
+  },
+  "actionNextTab": {
+    "message": "⇥ 次のタブ"
+  },
+  "actionPreviousTab": {
+    "message": "⇤ 前のタブ"
+  },
+  "actionReload": {
+    "message": "↻ 再読み込み"
+  },
+  "actionZoomIn": {
+    "message": "＋ ズームイン 🔁"
+  },
+  "actionZoomOut": {
+    "message": "− ズームアウト 🔁"
+  },
+  "actionResetZoom": {
+    "message": "等倍に戻す"
+  },
   "actionNone": {
     "message": "— なし"
   },
@@ -258,6 +324,21 @@
   },
   "metaGesturePeaceFist": {
     "message": "ピース＆グー"
+  },
+  "metaActionToggleEnabled": {
+    "message": "操作ON/OFF"
+  },
+  "metaActionToggleMode": {
+    "message": "操作モード切替"
+  },
+  "metaActionSetModeMedia": {
+    "message": "メディア操作にする"
+  },
+  "metaActionSetModeBrowser": {
+    "message": "ブラウザ操作にする"
+  },
+  "metaActionNone": {
+    "message": "— なし"
   },
 
   "hintNoCamera": {
@@ -340,6 +421,31 @@
   },
   "logMediaControlOff": {
     "message": "メディア操作: OFF ⛔"
+  },
+  "logOperationEnabledOn": {
+    "message": "$1: ON ✅",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logOperationEnabledOff": {
+    "message": "$1: OFF ⛔",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logOperationModeChanged": {
+    "message": "操作モード: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logMetaGestureAction": {
+    "message": "両手サイン: $1 → $2",
+    "placeholders": {
+      "1": { "content": "$1" },
+      "2": { "content": "$2" }
+    }
   },
   "logWakeGestureChanged": {
     "message": "ウェイクサイン: $1",
@@ -597,13 +703,14 @@
     "message": "メディア操作トグルと主要設定"
   },
   "tutorialStep5Body": {
-    "message": "ヘッダー右の「メディア操作」トグルは、OFFにすると認識は続きますがメディアへの送信だけ止まります（誤操作防止用）。\n両手サイン「$1」でもON/OFFを切り替えられます。\n設定では「左右反転」「骨格のみ表示」「ウェイクの種類」がよく使われます。",
+    "message": "ヘッダー右のモードトグルは、OFFにすると認識は続きますが操作送信だけ止まります（誤操作防止用）。\n両手サイン「$1」には「$2」が割り当てられています。\n設定では「左右反転」「骨格のみ表示」「ウェイクの種類」がよく使われます。",
     "placeholders": {
-      "1": { "content": "$1" }
+      "1": { "content": "$1" },
+      "2": { "content": "$2" }
     }
   },
   "tutorialStep5BodyNoToggle": {
-    "message": "ヘッダー右の「メディア操作」トグルは、OFFにすると認識は続きますがメディアへの送信だけ止まります（誤操作防止用）。\n現在、両手サインでの切替はOFFですが、設定の「操作トグル」で有効化できます。\n設定では「左右反転」「骨格のみ表示」「ウェイクの種類」がよく使われます。"
+    "message": "ヘッダー右のモードトグルは、OFFにすると認識は続きますが操作送信だけ止まります（誤操作防止用）。\n現在、両手サインの役割はOFFですが、「ハンドサイン」の下にある「両手サイン」で有効化できます。\n設定では「左右反転」「骨格のみ表示」「ウェイクの種類」がよく使われます。"
   },
   "tutorialStep6Title": {
     "message": "サイドパネル vs PiP モード"

@@ -53,6 +53,34 @@
     "message": "Enable/disable media control",
     "description": "Tooltip for media control toggle"
   },
+  "titleOperationToggle": {
+    "message": "Enable/disable the current operation mode",
+    "description": "Tooltip for operation toggle"
+  },
+  "titleOperationToggleOff": {
+    "message": "Operations are OFF; recognition keeps running",
+    "description": "Tooltip when operation sending is disabled"
+  },
+  "operationModeMedia": {
+    "message": "Media Control",
+    "description": "Current operation mode: media"
+  },
+  "operationModeBrowser": {
+    "message": "Browser Control",
+    "description": "Current operation mode: browser"
+  },
+  "tabMediaActions": {
+    "message": "Media",
+    "description": "Mapping tab for media actions"
+  },
+  "tabBrowserActions": {
+    "message": "Browser",
+    "description": "Mapping tab for browser actions"
+  },
+  "sectionTwoHandSigns": {
+    "message": "Two-Hand Signs",
+    "description": "Subsection title for meta sign mapping"
+  },
 
   "sectionHandTracking": {
     "message": "Hand Tracking",
@@ -326,6 +354,66 @@
     "message": "🔄 Reset Speed",
     "description": "Media action: reset playback rate to 1x"
   },
+  "actionDirectionalScroll": {
+    "message": "👌 Directional Scroll",
+    "description": "Browser action: scroll by moving the held sign"
+  },
+  "actionScrollDown": {
+    "message": "↓ Scroll Down 🔁",
+    "description": "Browser action: scroll down"
+  },
+  "actionScrollUp": {
+    "message": "↑ Scroll Up 🔁",
+    "description": "Browser action: scroll up"
+  },
+  "actionScrollRight": {
+    "message": "→ Scroll Right 🔁",
+    "description": "Browser action: scroll right"
+  },
+  "actionScrollLeft": {
+    "message": "← Scroll Left 🔁",
+    "description": "Browser action: scroll left"
+  },
+  "actionPageTop": {
+    "message": "↟ Page Top",
+    "description": "Browser action: scroll to top"
+  },
+  "actionPageBottom": {
+    "message": "↡ Page Bottom",
+    "description": "Browser action: scroll to bottom"
+  },
+  "actionHistoryBack": {
+    "message": "↩ Back",
+    "description": "Browser action: history back"
+  },
+  "actionHistoryForward": {
+    "message": "↪ Forward",
+    "description": "Browser action: history forward"
+  },
+  "actionNextTab": {
+    "message": "⇥ Next Tab",
+    "description": "Browser action: activate next tab"
+  },
+  "actionPreviousTab": {
+    "message": "⇤ Previous Tab",
+    "description": "Browser action: activate previous tab"
+  },
+  "actionReload": {
+    "message": "↻ Reload",
+    "description": "Browser action: reload tab"
+  },
+  "actionZoomIn": {
+    "message": "+ Zoom In 🔁",
+    "description": "Browser action: zoom in"
+  },
+  "actionZoomOut": {
+    "message": "− Zoom Out 🔁",
+    "description": "Browser action: zoom out"
+  },
+  "actionResetZoom": {
+    "message": "Reset Zoom",
+    "description": "Browser action: reset zoom"
+  },
   "actionNone": {
     "message": "— None",
     "description": "Media action: no action assigned"
@@ -342,6 +430,26 @@
   "metaGesturePeaceFist": {
     "message": "Peace & Fist",
     "description": "Meta gesture display name: peace and fist"
+  },
+  "metaActionToggleEnabled": {
+    "message": "Operation ON/OFF",
+    "description": "Two-hand action: toggle sending actions"
+  },
+  "metaActionToggleMode": {
+    "message": "Switch Operation Mode",
+    "description": "Two-hand action: switch media/browser mode"
+  },
+  "metaActionSetModeMedia": {
+    "message": "Set Media Control",
+    "description": "Two-hand action: set media mode"
+  },
+  "metaActionSetModeBrowser": {
+    "message": "Set Browser Control",
+    "description": "Two-hand action: set browser mode"
+  },
+  "metaActionNone": {
+    "message": "— None",
+    "description": "Two-hand action: no action"
   },
 
   "hintNoCamera": {
@@ -444,6 +552,35 @@
   "logMediaControlOff": {
     "message": "Media control: OFF ⛔",
     "description": "Log when media control is disabled"
+  },
+  "logOperationEnabledOn": {
+    "message": "$1: ON ✅",
+    "description": "Log when current operation mode is enabled",
+    "placeholders": {
+      "1": { "content": "$1", "example": "Media Control" }
+    }
+  },
+  "logOperationEnabledOff": {
+    "message": "$1: OFF ⛔",
+    "description": "Log when current operation mode is disabled",
+    "placeholders": {
+      "1": { "content": "$1", "example": "Browser Control" }
+    }
+  },
+  "logOperationModeChanged": {
+    "message": "Operation mode: $1",
+    "description": "Log when operation mode changes",
+    "placeholders": {
+      "1": { "content": "$1", "example": "Browser Control" }
+    }
+  },
+  "logMetaGestureAction": {
+    "message": "Two-hand sign: $1 → $2",
+    "description": "Log when a two-hand sign triggers its assigned action",
+    "placeholders": {
+      "1": { "content": "$1", "example": "Frame" },
+      "2": { "content": "$2", "example": "Switch Operation Mode" }
+    }
   },
   "logWakeGestureChanged": {
     "message": "Wake sign: $1",
@@ -769,14 +906,15 @@
     "description": "Tutorial step 5 title"
   },
   "tutorialStep5Body": {
-    "message": "The \"Media Control\" toggle in the header, when OFF, keeps recognition running but stops sending actions to the media (to prevent accidental triggers).\nYou can also switch it ON/OFF with the two-hand sign \"$1\".\nIn Settings, \"Mirror\", \"Skeleton only\", and \"Wake\" type are the most useful controls.",
+    "message": "The mode toggle in the header, when OFF, keeps recognition running but stops sending actions (to prevent accidental triggers).\nThe two-hand sign \"$1\" is assigned to \"$2\".\nIn Settings, \"Mirror\", \"Skeleton only\", and \"Wake\" type are the most useful controls.",
     "description": "Tutorial step 5 body (with toggle sign)",
     "placeholders": {
-      "1": { "content": "$1" }
+      "1": { "content": "$1" },
+      "2": { "content": "$2" }
     }
   },
   "tutorialStep5BodyNoToggle": {
-    "message": "The \"Media Control\" toggle in the header, when OFF, keeps recognition running but stops sending actions to the media (to prevent accidental triggers).\nTwo-hand sign toggling is currently off — you can enable it under Settings > \"Toggle\".\nIn Settings, \"Mirror\", \"Skeleton only\", and \"Wake\" type are the most useful controls.",
+    "message": "The mode toggle in the header, when OFF, keeps recognition running but stops sending actions (to prevent accidental triggers).\nTwo-hand sign actions are currently off — you can enable them under Hand Signs > Two-Hand Signs.\nIn Settings, \"Mirror\", \"Skeleton only\", and \"Wake\" type are the most useful controls.",
     "description": "Tutorial step 5 body when toggle gesture is disabled"
   },
   "tutorialStep6Title": {

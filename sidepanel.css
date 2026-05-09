@@ -34,6 +34,10 @@
     --color-toggle-bg: #444;
     --color-toggle-knob: #fff;
     --color-camera-bg: #000;
+    --color-mode-media: #2fbf71;
+    --color-mode-media-soft: rgba(47, 191, 113, 0.22);
+    --color-mode-browser: #4aa3ff;
+    --color-mode-browser-soft: rgba(74, 163, 255, 0.22);
 }
 
 @media (prefers-color-scheme: light) {
@@ -70,6 +74,10 @@
         --color-toggle-bg: #ccc;
         --color-toggle-knob: #fff;
         --color-camera-bg: #000;
+        --color-mode-media: #1f9d57;
+        --color-mode-media-soft: rgba(31, 157, 87, 0.18);
+        --color-mode-browser: #1976d2;
+        --color-mode-browser-soft: rgba(25, 118, 210, 0.18);
     }
 }
 
@@ -97,6 +105,8 @@ body {
 .header-actions .header-label {
     font-size: 10px; color: var(--color-text-muted); white-space: nowrap;
 }
+body.mode-media .header-actions .header-label { color: var(--color-mode-media); }
+body.mode-browser .header-actions .header-label { color: var(--color-mode-browser); }
 .header-actions .toggle-switch { flex-shrink: 0; }
 
 #setup-hint { margin-top: 6px; }
@@ -199,6 +209,16 @@ details.collapsible > .collapsible-body { padding: 0 12px 10px; }
 #gesture-display.state-idle   { background: var(--color-neutral-bg); }
 #gesture-display.state-active { background: var(--color-success-bg); }
 #gesture-display.state-always { background: var(--color-success-bg); opacity: 0.8; }
+body.mode-browser #gesture-display.state-active,
+body.mode-browser #gesture-display.state-always {
+    background: var(--color-mode-browser-soft);
+    outline: 1px solid var(--color-mode-browser);
+}
+body.mode-media #gesture-display.state-active,
+body.mode-media #gesture-display.state-always {
+    background: var(--color-mode-media-soft);
+    outline: 1px solid var(--color-mode-media);
+}
 #wake-hint { margin-top: 6px; font-size: 10px; }
 
 /* ターゲットタブ行 */
@@ -223,6 +243,40 @@ details.collapsible > .collapsible-body { padding: 0 12px 10px; }
 }
 
 /* マッピング */
+.mode-tabs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+    margin-bottom: 8px;
+}
+.mode-tab {
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    font-size: 11px;
+    padding: 5px 8px;
+    cursor: pointer;
+}
+.mode-tab.is-active {
+    color: var(--color-text);
+    font-weight: 600;
+}
+.mode-tab[data-mode="media"].is-active {
+    border-color: var(--color-mode-media);
+    background: var(--color-mode-media-soft);
+}
+.mode-tab[data-mode="browser"].is-active {
+    border-color: var(--color-mode-browser);
+    background: var(--color-mode-browser-soft);
+}
+.mapping-subtitle {
+    margin: 10px 0 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-dim);
+}
 .mapping-row {
     display: flex; align-items: center; justify-content: space-between;
     padding: 4px 0;
@@ -249,6 +303,8 @@ details.collapsible > .collapsible-body { padding: 0 12px 10px; }
     background: var(--color-toggle-knob); border-radius: 50%; transition: 0.3s;
 }
 .toggle-switch input:checked + .slider { background: var(--color-accent); }
+body.mode-media .mode-toggle input:checked + .slider { background: var(--color-mode-media); }
+body.mode-browser .mode-toggle input:checked + .slider { background: var(--color-mode-browser); }
 .toggle-switch input:checked + .slider::before { transform: translateX(18px); }
 #log {
     font-family: 'Cascadia Code', 'Fira Code', monospace;

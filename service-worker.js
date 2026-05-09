@@ -39,7 +39,7 @@ async function broadcastTakeover(newInstance) {
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'gesture-action') {
-        forwardToActiveTab(message.action, message.targetTabId);
+        forwardToActiveTab(message.action, message.targetTabId, message.data);
         sendResponse({ ok: true });
         return true;
     }
@@ -104,53 +104,104 @@ chrome.runtime.onConnect.addListener((port) => {
  * targetTabId が指定されている場合はそのタブに直接送信する。
  * 未指定の場合は通常ウィンドウのアクティブタブを検索する。
  */
-async function forwardToActiveTab(action, targetTabId) {
-    if (!action || action === 'none') return;
-
-    let tabId;
-
+async function resolveTargetTab(targetTabId) {
     if (targetTabId) {
-        // 指定タブが存在するか確認
         try {
-            await chrome.tabs.get(targetTabId);
-            tabId = targetTabId;
+            return await chrome.tabs.get(targetTabId);
         } catch (_) {
             // タブが閉じられている場合はフォールバック
-            tabId = null;
         }
     }
 
-    if (!tabId) {
-        // 通常ウィンドウのアクティブタブを検索（ポップアップウィンドウを除外）
-        let tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-        if (tabs.length > 0) {
-            const win = await chrome.windows.get(tabs[0].windowId);
-            if (win.type !== 'normal') {
-                const allTabs = await chrome.tabs.query({ active: true });
-                for (const tab of allTabs) {
-                    const w = await chrome.windows.get(tab.windowId);
-                    if (w.type === 'normal') { tabs = [tab]; break; }
-                }
+    // 通常ウィンドウのアクティブタブを検索（ポップアップウィンドウを除外）
+    let tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (tabs.length > 0) {
+        const win = await chrome.windows.get(tabs[0].windowId);
+        if (win.type !== 'normal') {
+            const allTabs = await chrome.tabs.query({ active: true });
+            for (const tab of allTabs) {
+                const w = await chrome.windows.get(tab.windowId);
+                if (w.type === 'normal') { tabs = [tab]; break; }
             }
         }
-        if (tabs.length === 0) return;
-        tabId = tabs[0].id;
+    }
+    return tabs[0] || null;
+}
+
+async function activateAdjacentTab(tab, direction) {
+    const tabs = await chrome.tabs.query({ windowId: tab.windowId });
+    const ordered = tabs.sort((a, b) => a.index - b.index);
+    const currentIndex = ordered.findIndex(t => t.id === tab.id);
+    if (currentIndex < 0 || ordered.length < 2) return;
+    const nextIndex = (currentIndex + direction + ordered.length) % ordered.length;
+    await chrome.tabs.update(ordered[nextIndex].id, { active: true });
+}
+
+async function adjustZoom(tabId, delta) {
+    const current = await chrome.tabs.getZoom(tabId);
+    const next = Math.max(0.25, Math.min(5, Math.round((current + delta) * 100) / 100));
+    await chrome.tabs.setZoom(tabId, next);
+}
+
+async function executeBrowserTabAction(action, tab) {
+    switch (action) {
+        case 'historyBack':
+            await chrome.tabs.goBack(tab.id);
+            return true;
+        case 'historyForward':
+            await chrome.tabs.goForward(tab.id);
+            return true;
+        case 'nextTab':
+            await activateAdjacentTab(tab, 1);
+            return true;
+        case 'previousTab':
+            await activateAdjacentTab(tab, -1);
+            return true;
+        case 'reload':
+            await chrome.tabs.reload(tab.id);
+            return true;
+        case 'zoomIn':
+            await adjustZoom(tab.id, 0.1);
+            return true;
+        case 'zoomOut':
+            await adjustZoom(tab.id, -0.1);
+            return true;
+        case 'resetZoom':
+            await chrome.tabs.setZoom(tab.id, 0);
+            return true;
+        default:
+            return false;
+    }
+}
+
+async function forwardToActiveTab(action, targetTabId, data) {
+    if (!action || action === 'none') return;
+
+    const tab = await resolveTargetTab(targetTabId);
+    if (!tab?.id) return;
+
+    try {
+        if (await executeBrowserTabAction(action, tab)) return;
+    } catch (_) {
+        return;
     }
 
     try {
-        await chrome.tabs.sendMessage(tabId, {
+        await chrome.tabs.sendMessage(tab.id, {
             type: 'mediaAction',
             action,
+            data,
         });
     } catch (err) {
         try {
             await chrome.scripting.executeScript({
-                target: { tabId },
+                target: { tabId: tab.id },
                 files: ['content-script.js'],
             });
-            await chrome.tabs.sendMessage(tabId, {
+            await chrome.tabs.sendMessage(tab.id, {
                 type: 'mediaAction',
                 action,
+                data,
             });
         } catch (_) {
             // chrome:// 等の注入不可ページは無視
