@@ -29,32 +29,30 @@ const tracker = new HandTracker();
 let mediaMapping = { ...DEFAULT_MEDIA_MAPPING };
 let browserMapping = { ...DEFAULT_BROWSER_MAPPING };
 let currentMapping = { ...DEFAULT_MEDIA_MAPPING };
-let operationMode = OPERATION_MODES.MEDIA;
+let operationMode = DEFAULT_SETTINGS.operationMode;
 let controlEnabled = true;
-let notifyVolume = 0.3;            // 通知音量 (0.0〜1.0)
-let pipFontScale = 1.0;            // PiP 文字サイズ倍率
+let notifyVolume = DEFAULT_SETTINGS.notifyVolume;   // 通知音量 (0.0〜1.0)
+let pipFontScale = DEFAULT_SETTINGS.pipFontScale / 100; // PiP 文字サイズ倍率
 
 // ウェイクサイン
-const WAKE_STATE = { IDLE: 'idle', ACTIVE: 'active' };
 let wakeState = WAKE_STATE.IDLE;
 let wakeTimeout = null;
-let wakeActiveDuration = 5000;
-let wakeGestureType = 'open';
+let wakeActiveDuration = DEFAULT_SETTINGS.wakeActiveDuration;
+let wakeGestureType = DEFAULT_SETTINGS.wakeGestureType;
 
 // ジェスチャー確定
-let gestureHoldTime = 300;
+let gestureHoldTime = DEFAULT_SETTINGS.gestureHoldTime;
 let pendingActionTimer = null;
 let pendingGesture = null;
 let lastActionTime = 0;
-const ACTION_COOLDOWN = 800;
 
 // リピート
-let actionRepeatInterval = 1000;
+let actionRepeatInterval = DEFAULT_SETTINGS.actionRepeatInterval;
 let repeatTimer = null;
 let repeatingGesture = null;
 
 // メタサイン
-let toggleGestureType = 'frame';
+let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
 let metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
 let metaGestureController = null;
 
@@ -71,7 +69,7 @@ let wakeActive = false;
 
 // カメラ
 let cameraStream = null;
-let mirrorCamera = true;
+let mirrorCamera = DEFAULT_SETTINGS.mirrorCamera;
 let pipActive = false;
 
 // ターゲットタブ（ジェスチャーアクションの送信先 — アクティブタブに自動追従）

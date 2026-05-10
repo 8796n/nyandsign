@@ -110,6 +110,30 @@ const OPERATION_MODES = {
     BROWSER: 'browser',
 };
 
+const WAKE_STATE = {
+    IDLE: 'idle',
+    ACTIVE: 'active',
+};
+
+const ACTION_COOLDOWN = 800;
+
+/** 設定のデフォルト値 — sidepanel.js / pip.js で共有 */
+const DEFAULT_SETTINGS = {
+    mirrorCamera: true,
+    skeletonOnly: false,
+    wakeGestureType: 'open',
+    wakeActiveDuration: 5000,
+    operationMode: OPERATION_MODES.MEDIA,
+    toggleGestureType: 'frame',
+    preferredHand: 'auto',
+    gestureHoldTime: 300,
+    actionRepeatInterval: 1000,
+    inferenceFps: 15,
+    notifyVolume: 0.3,
+    uiScale: 100,
+    pipFontScale: 100,
+};
+
 const META_GESTURE_TYPES = ['frame', 'both-peace', 'peace-fist'];
 
 const META_ACTION_I18N_KEYS = {
