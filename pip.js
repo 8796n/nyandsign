@@ -123,7 +123,11 @@ async function loadSettings() {
         ]);
         const savedMedia = result.mediaGestureMapping || result.gestureMapping;
         if (savedMedia) mediaMapping = { ...DEFAULT_MEDIA_MAPPING, ...savedMedia };
-        if (result.browserGestureMapping) browserMapping = { ...DEFAULT_BROWSER_MAPPING, ...result.browserGestureMapping };
+        if (result.browserGestureMapping) {
+            browserMapping = isSameGestureMapping(result.browserGestureMapping, LEGACY_DEFAULT_BROWSER_MAPPING)
+                ? { ...DEFAULT_BROWSER_MAPPING }
+                : { ...DEFAULT_BROWSER_MAPPING, ...result.browserGestureMapping };
+        }
         if (result.operationMode === OPERATION_MODES.BROWSER || result.operationMode === OPERATION_MODES.MEDIA) operationMode = result.operationMode;
         refreshCurrentMapping();
         if (result.controlEnabled !== undefined) controlEnabled = result.controlEnabled;
@@ -462,7 +466,7 @@ tracker.addEventListener('gesture', (e) => {
     const action = currentMapping[gesture];
     if (!action || action === 'none') { stopAllGestureActions(); return; }
 
-    // メディアコマンドとして発火するのでコマンド名を表示
+    // 操作コマンドとして発火するのでコマンド名を表示
     gestureText = `${icon} ${actionDisplay(action)}`;
 
     if (gesture === repeatingGesture || gesture === pendingGesture) return;

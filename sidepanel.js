@@ -861,7 +861,10 @@ function confirmAction(gesture, action) {
 
     log(msg('logGestureAction', [gestureLabel(gesture), actionDisplay(action)]));
     if (DIRECTIONAL_ACTIONS.has(action)) {
-        if (startDirectionalScroll(gesture)) return;
+        if (startDirectionalScroll(gesture)) {
+            setGestureText(GESTURE_ICONS[gesture] || '❓', actionDisplay(action));
+            return;
+        }
     }
 
     sendAction(action);
@@ -1114,7 +1117,12 @@ async function loadMapping() {
         if (result.browserGestureMapping) {
             const saved = { ...result.browserGestureMapping };
             delete saved.open;
-            browserMapping = { ...DEFAULT_BROWSER_MAPPING, ...saved };
+            if (isSameGestureMapping(saved, LEGACY_DEFAULT_BROWSER_MAPPING)) {
+                browserMapping = { ...DEFAULT_BROWSER_MAPPING };
+                chrome.storage.sync.set({ browserGestureMapping: browserMapping });
+            } else {
+                browserMapping = { ...DEFAULT_BROWSER_MAPPING, ...saved };
+            }
         }
 
         if (result.operationMode === OPERATION_MODES.BROWSER || result.operationMode === OPERATION_MODES.MEDIA) {

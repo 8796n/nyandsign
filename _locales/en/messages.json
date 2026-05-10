@@ -359,7 +359,7 @@
     "description": "Media action: reset playback rate to 1x"
   },
   "actionDirectionalScroll": {
-    "message": "Directional Scroll",
+    "message": "Hold to Scroll",
     "description": "Browser action: scroll by moving the held sign"
   },
   "actionScrollDown": {
@@ -910,7 +910,7 @@
     "description": "Tutorial step 5 title: command signs"
   },
   "tutorialStep5Body": {
-    "message": "This list shows the hand sign assignments for the selected mode.\nMedia Control assigns playback, volume, and seek actions. Browser Control assigns directional scroll, back/forward, tab switching, and zoom actions.\nThe flow is \"wake sign → command sign\". You can customize assignments separately for each mode.",
+    "message": "This list shows the hand sign assignments for the selected mode.\nMedia Control assigns playback, volume, and seek actions. Browser Control assigns hold-to-scroll, back/forward, tab switching, and zoom actions.\n\"Hold to Scroll\" means: keep the assigned sign held and move it up, down, left, or right to scroll in that direction.\nThe flow is \"wake sign → command sign\". You can customize assignments separately for each mode.",
     "description": "Tutorial step 5 body: command signs"
   },
   "tutorialStep6Title": {

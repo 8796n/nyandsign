@@ -130,6 +130,20 @@ const DEFAULT_MAPPING = {
 const DEFAULT_MEDIA_MAPPING = DEFAULT_MAPPING;
 
 const DEFAULT_BROWSER_MAPPING = {
+    fist: 'resetZoom',
+    peace: 'none',
+    three: 'pageTop',
+    four: 'pageBottom',
+    ok: 'directionalScroll',
+    aloha: 'reload',
+    rock: 'none',
+    'point-right': 'nextTab',
+    'point-left': 'previousTab',
+    thumbsup: 'zoomIn',
+    thumbsdown: 'zoomOut',
+};
+
+const LEGACY_DEFAULT_BROWSER_MAPPING = {
     fist: 'none',
     peace: 'none',
     three: 'historyForward',
@@ -142,6 +156,10 @@ const DEFAULT_BROWSER_MAPPING = {
     thumbsup: 'nextTab',
     thumbsdown: 'previousTab',
 };
+
+function isSameGestureMapping(mapping, baseline) {
+    return Object.keys(baseline).every(key => mapping?.[key] === baseline[key]);
+}
 
 const OPERATION_MODES = {
     MEDIA: 'media',
