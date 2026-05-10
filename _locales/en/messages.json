@@ -359,7 +359,7 @@
     "description": "Media action: reset playback rate to 1x"
   },
   "actionDirectionalScroll": {
-    "message": "👌 Directional Scroll",
+    "message": "Directional Scroll",
     "description": "Browser action: scroll by moving the held sign"
   },
   "actionScrollDown": {
@@ -918,7 +918,7 @@
     }
   },
   "tutorialStep5BodyNoToggle": {
-    "message": "The mode toggle in the header, when OFF, keeps recognition running but stops sending actions (to prevent accidental triggers).\nTwo-hand sign actions are currently off — you can enable them under Hand Signs > Two-Hand Signs.\nIn Settings, \"Mirror\", \"Skeleton only\", and \"Wake\" type are the most useful controls.",
+    "message": "The mode toggle in the header, when OFF, keeps recognition running but stops sending actions (to prevent accidental triggers).\nTwo-hand sign actions are currently off — you can enable them in the Two-Hand Signs section.\nIn Settings, \"Mirror\", \"Skeleton only\", and \"Wake\" type are the most useful controls.",
     "description": "Tutorial step 5 body when toggle gesture is disabled"
   },
   "tutorialStep6Title": {

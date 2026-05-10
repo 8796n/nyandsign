@@ -1374,8 +1374,9 @@ async function loadMapping() {
     } catch (_) {}
     // 折りたたみセクションの開閉状態を復元
     try {
-        const result = await chrome.storage.sync.get(['collapse_section-settings', 'collapse_section-gestures']);
-        for (const id of ['section-settings', 'section-gestures']) {
+        const collapsibleIds = ['section-settings', 'section-gestures', 'section-meta-gestures'];
+        const result = await chrome.storage.sync.get(collapsibleIds.map(id => `collapse_${id}`));
+        for (const id of collapsibleIds) {
             const val = result[`collapse_${id}`];
             if (val !== undefined) $(id).open = val;
         }
@@ -1479,7 +1480,7 @@ document.querySelectorAll('.mode-tab').forEach((tab) => {
         const nextMode = tab.dataset.mode === OPERATION_MODES.BROWSER
             ? OPERATION_MODES.BROWSER
             : OPERATION_MODES.MEDIA;
-        setOperationMode(nextMode);
+        setOperationMode(nextMode, { beep: false });
     });
 });
 
@@ -1703,7 +1704,7 @@ $('btn-copy-log').addEventListener('click', async () => {
 });
 
 // 折りたたみセクションの開閉状態を永続化
-for (const id of ['section-settings', 'section-gestures']) {
+for (const id of ['section-settings', 'section-gestures', 'section-meta-gestures']) {
     const det = $(id);
     if (det) {
         det.addEventListener('toggle', () => {
