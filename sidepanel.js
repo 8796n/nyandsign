@@ -101,23 +101,13 @@ let uiScale = DEFAULT_SETTINGS.uiScale;
 // --- メタサイン（NyandSign 自体の操作）---
 let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
 let metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
-let metaGestureActive = false;
-let metaGestureStartTime = 0;
-let metaGestureConsumed = false;    // 発火後、両手サイン解除まで再発火を抑制
+let metaGestureController = null;
 // メガネカメラ使用時のミラー自動OFF用
 let savedMirrorState = null;       // null=自動変更なし, boolean=変更前の値
-let metaGestureLastSeen = 0;
-let lastToggleTime = 0;
-const META_COOLDOWN_MS = 2000;      // トグル後のクールダウン
-const META_GRACE_MS = 150;          // 一時的未検出の許容時間
 
 // --- 方向スクロール ---
 let lastFrameHands = [];
-let directionalScrollState = null;  // { gesture, origin, lastSentAt }
-const DIRECTIONAL_SCROLL_INTERVAL_MS = 80;
-const DIRECTIONAL_SCROLL_DEADZONE = 0.045;
-const DIRECTIONAL_SCROLL_MAX_OFFSET = 0.28;
-const DIRECTIONAL_SCROLL_MAX_PIXELS = 180;
+let directionalScrollController = null;
 
 // --- PiP (Picture-in-Picture) ---
 let pipWindowId = null;             // PiP ポップアップウィンドウの ID
@@ -544,8 +534,7 @@ function stopCamera() {
     hide($('btn-pip'));
     hide(el.cameraSection);
     // メタサイン状態もリセット
-    metaGestureActive = false;    metaGestureStartTime = 0;
-    metaGestureConsumed = false;
+    resetMetaGestureState();
     setGestureText('—', '');
     // メガネカメラによるミラー自動OFFの復元
     if (savedMirrorState !== null) {
@@ -863,70 +852,18 @@ function stopRepeat() {
     repeatingGesture = null;
 }
 
-function handPosition(hand) {
-    if (!hand?.landmarks) return null;
-    const lm = hand.landmarks;
-    const points = [lm[0], lm[5], lm[9], lm[13], lm[17]].filter(Boolean);
-    if (!points.length) return null;
-    const sum = points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
-    return { x: sum.x / points.length, y: sum.y / points.length };
-}
-
-function findHandForGesture(gesture, hands = lastFrameHands) {
-    const candidates = hands.filter(h => h.gesture === gesture);
-    if (!candidates.length) return null;
-    if (tracker.preferredHand !== 'auto') {
-        return candidates.find(h => h.hand === tracker.preferredHand) || candidates[0];
-    }
-    return candidates[0];
-}
-
 function startDirectionalScroll(gesture) {
-    const hand = findHandForGesture(gesture);
-    const origin = handPosition(hand);
-    if (!origin) return false;
-    directionalScrollState = { gesture, origin, lastSentAt: 0 };
+    if (!directionalScrollController?.start(gesture, lastFrameHands)) return false;
     repeatingGesture = gesture;
     return true;
 }
 
 function stopDirectionalScroll() {
-    directionalScrollState = null;
-}
-
-function directionalAmount(delta) {
-    const sign = Math.sign(delta);
-    const distance = Math.abs(delta);
-    if (distance <= DIRECTIONAL_SCROLL_DEADZONE) return 0;
-    const ratio = Math.min(
-        1,
-        (distance - DIRECTIONAL_SCROLL_DEADZONE) / (DIRECTIONAL_SCROLL_MAX_OFFSET - DIRECTIONAL_SCROLL_DEADZONE)
-    );
-    return Math.round(sign * ratio * DIRECTIONAL_SCROLL_MAX_PIXELS);
+    directionalScrollController?.stop();
 }
 
 function updateDirectionalScroll(hands, now) {
-    if (!directionalScrollState || !controlEnabled) return;
-    const hand = findHandForGesture(directionalScrollState.gesture, hands);
-    const pos = handPosition(hand);
-    if (!pos) {
-        stopAllGestureActions();
-        return;
-    }
-
-    if (now - directionalScrollState.lastSentAt < DIRECTIONAL_SCROLL_INTERVAL_MS) return;
-
-    let dx = pos.x - directionalScrollState.origin.x;
-    const dy = pos.y - directionalScrollState.origin.y;
-    if (tracker.displayMirrored) dx = -dx;
-
-    const left = directionalAmount(dx);
-    const top = directionalAmount(dy);
-    if (!left && !top) return;
-
-    directionalScrollState.lastSentAt = now;
-    sendAction('directionalScroll', { left, top });
-    extendWakeTimeout();
+    directionalScrollController?.update(hands, now);
 }
 
 /** holdTime 経過後にアクションを確定発火する */
@@ -961,7 +898,7 @@ function confirmAction(gesture, action) {
 /** サイン変化時: 保留 + リピートを停止し、必要なら IDLE に戻す */
 function stopAllGestureActions() {
     cancelPendingAction();
-    const wasRepeating = repeatingGesture !== null || directionalScrollState !== null;
+    const wasRepeating = repeatingGesture !== null || !!directionalScrollController?.active;
     stopDirectionalScroll();
     stopRepeat();
     if (wasRepeating && wakeGestureType !== 'none') {
@@ -980,16 +917,14 @@ tracker.addEventListener('gesture', (e) => {
         setGestureText('—', '');
         stopAllGestureActions();
         // メタサイン状態もリセット（手が消えた）
-        metaGestureActive = false;
-        metaGestureStartTime = 0;
-        metaGestureConsumed = false;
+        resetMetaGestureState();
         return;
     }
 
     setGestureText(GESTURE_ICONS[gesture] || '❓', gestureLabel(gesture));
 
     // メタサイン検出中は通常アクションを抑制
-    if (metaGestureActive || metaGestureConsumed) return;
+    if (metaGestureController?.isBlocking()) return;
 
     if (!controlEnabled) return;
 
@@ -1033,93 +968,6 @@ tracker.addEventListener('gesture', (e) => {
  * メタサイン（操作トグル）
  * ============================================================ */
 
-/** 2D 距離（正規化座標） */
-function dist2d(a, b) {
-    return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-/** 片手の重複検出を両手サインとして扱わないためのペア判定 */
-function isDistinctHandPair(handA, handB) {
-    if (!handA?.landmarks || !handB?.landmarks) return false;
-
-    const lmA = handA.landmarks;
-    const lmB = handB.landmarks;
-    const psA = dist2d(lmA[0], lmA[9]);
-    const psB = dist2d(lmB[0], lmB[9]);
-    const avgPs = (psA + psB) / 2;
-    const wristDistance = dist2d(lmA[0], lmB[0]);
-
-    // 同一の実手を2件として検出した場合は手首位置がかなり近い。
-    if (wristDistance < avgPs * 0.9) return false;
-
-    // handedness が同じで距離も近い場合は、重複検出の可能性が高い。
-    if (handA.hand !== 'unknown' && handB.hand !== 'unknown' &&
-        handA.hand === handB.hand && wristDistance < avgPs * 1.6) {
-        return false;
-    }
-
-    return true;
-}
-
-function distinctHandPairs(hands) {
-    const pairs = [];
-    for (let i = 0; i < hands.length; i++) {
-        for (let j = i + 1; j < hands.length; j++) {
-            if (isDistinctHandPair(hands[i], hands[j])) pairs.push([hands[i], hands[j]]);
-        }
-    }
-    return pairs;
-}
-
-/** フレームサイン: 両手の親指先端⇔人差し指先端が交差接近 */
-function detectFrameGesture(pairs) {
-    for (const [handA, handB] of pairs) {
-        const lm1 = handA.landmarks;
-        const lm2 = handB.landmarks;
-
-        // パームサイズ基準のスケール相対閾値
-        const ps1 = dist2d(lm1[0], lm1[9]);
-        const ps2 = dist2d(lm2[0], lm2[9]);
-        const avgPs = (ps1 + ps2) / 2;
-        const threshold = avgPs * 0.5;
-
-        // 親指先端(4)⇔人差し指先端(8) が交差で接近
-        const d1 = dist2d(lm1[4], lm2[8]);
-        const d2 = dist2d(lm1[8], lm2[4]);
-
-        if (d1 < threshold && d2 < threshold) {
-            // 接触点が縦に分離している（四角の形状確認）
-            const cy1 = (lm1[4].y + lm2[8].y) / 2;
-            const cy2 = (lm1[8].y + lm2[4].y) / 2;
-            if (Math.abs(cy1 - cy2) > avgPs * 0.3) return true;
-        }
-    }
-    return false;
-}
-
-const META_GESTURE_DISPLAY = {
-    frame: { emoji: '🖼️', i18nKey: 'metaGestureFrame' },
-    'both-peace': { emoji: '✌️✌️', i18nKey: 'metaGestureBothPeace' },
-    'peace-fist': { emoji: '✌️✊', i18nKey: 'metaGesturePeaceFist' },
-};
-
-/** メタサイン検出（両手の組み合わせ） */
-function detectMetaGestureType(hands) {
-    const pairs = distinctHandPairs(hands);
-    if (!pairs.length) return null;
-    if (detectFrameGesture(pairs)) return 'frame';
-    if (pairs.some(([a, b]) => a.gesture === 'peace' && b.gesture === 'peace')) return 'both-peace';
-    if (pairs.some(([a, b]) =>
-        (a.gesture === 'peace' && b.gesture === 'fist') ||
-        (a.gesture === 'fist' && b.gesture === 'peace'))) return 'peace-fist';
-    return null;
-}
-
-function metaGestureLabel(type) {
-    const disp = META_GESTURE_DISPLAY[type];
-    return disp ? `${disp.emoji} ${msg(disp.i18nKey)}` : type;
-}
-
 function executeMetaAction(action) {
     switch (action) {
         case 'toggleEnabled':
@@ -1140,78 +988,17 @@ function executeMetaAction(action) {
     return true;
 }
 
+function resetMetaGestureState() {
+    metaGestureController?.reset();
+}
+
 /** frame イベント: メタサインの検出と方向スクロール */
 tracker.addEventListener('frame', (e) => {
     const { gestures: hands } = e.detail;
     const now = Date.now();
     lastFrameHands = hands;
-    const detectedType = detectMetaGestureType(hands);
-
-    if (detectedType) {
-        metaGestureLastSeen = now;
-    } else if (metaGestureConsumed && now - metaGestureLastSeen > META_GRACE_MS) {
-        metaGestureConsumed = false;
-    }
-
-    // 発火済みの両手サインは、いったん解除されるまで再発火させない
-    if (metaGestureConsumed) {
-        metaGestureActive = false;
-        return;
-    }
-
-    // クールダウン中はスキップ
-    if (now - lastToggleTime < META_COOLDOWN_MS) {
-        if (detectedType) {
-            metaGestureActive = true;
-            metaGestureStartTime = now;
-        } else {
-            metaGestureActive = false;
-            metaGestureStartTime = 0;
-        }
-        updateDirectionalScroll(hands, now);
-        return;
-    }
-
-    const metaAction = detectedType ? metaGestureMapping[detectedType] : 'none';
-    const detected = detectedType && metaAction && metaAction !== 'none';
-
-    if (detected) {
-        if (!metaGestureActive) {
-            metaGestureActive = true;
-            metaGestureStartTime = now;
-            metaGestureLastSeen = now;
-            // 通常アクションの保留をキャンセル
-            cancelPendingAction();
-            stopDirectionalScroll();
-            stopRepeat();
-        }
-        metaGestureLastSeen = now;
-
-        // メタサインを表示に反映
-        const disp = META_GESTURE_DISPLAY[detectedType];
-        if (disp) {
-            setGestureText(disp.emoji, metaActionLabel(metaAction));
-        }
-
-        // 判定待機時間経過 → メタアクション実行
-        const holdMs = Math.max(gestureHoldTime, 200);
-        if (now - metaGestureStartTime >= holdMs) {
-            if (executeMetaAction(metaAction)) {
-                log(msg('logMetaGestureAction', [metaGestureLabel(detectedType), metaActionLabel(metaAction)]));
-                lastToggleTime = now;
-                metaGestureConsumed = true;
-                metaGestureLastSeen = now;
-            }
-            metaGestureActive = false;
-            metaGestureStartTime = 0;
-        }
-    } else if (metaGestureActive) {
-        // 猶予期間内なら保持（raw サインの一時的な未検出を許容）
-        if (now - metaGestureLastSeen > META_GRACE_MS) {
-            metaGestureActive = false;
-            metaGestureStartTime = 0;
-        }
-    } else {
+    const result = metaGestureController?.update(hands, now);
+    if (result?.allowDirectional) {
         updateDirectionalScroll(hands, now);
     }
 });
@@ -1226,6 +1013,32 @@ async function sendAction(action, data) {
         log(msg('logSendError', [e?.message || String(e)]));
     }
 }
+
+directionalScrollController = new DirectionalScrollController({
+    tracker,
+    sendAction,
+    extendWakeTimeout,
+    stopAllGestureActions,
+    isControlEnabled: () => controlEnabled,
+});
+
+metaGestureController = new MetaGestureController({
+    getMetaAction: (type) => metaGestureMapping[type] || 'none',
+    getHoldMs: () => Math.max(gestureHoldTime, 200),
+    executeMetaAction: (_type, action) => executeMetaAction(action),
+    onActiveStart: () => {
+        cancelPendingAction();
+        stopDirectionalScroll();
+        stopRepeat();
+    },
+    onDisplay: (type, action) => {
+        const disp = META_GESTURE_DISPLAY[type];
+        if (disp) setGestureText(disp.emoji, metaActionLabel(action));
+    },
+    onExecuted: (type, action) => {
+        log(msg('logMetaGestureAction', [metaGestureLabel(type), metaActionLabel(action)]));
+    },
+});
 
 /* ============================================================
  * マッピング UI

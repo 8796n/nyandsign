@@ -56,21 +56,11 @@ let repeatingGesture = null;
 // メタサイン
 let toggleGestureType = 'frame';
 let metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
-let metaGestureActive = false;
-let metaGestureStartTime = 0;
-let metaGestureConsumed = false;   // 発火後、両手サイン解除まで再発火を抑制
-let metaGestureLastSeen = 0;
-let lastToggleTime = 0;
-const META_COOLDOWN_MS = 2000;
-const META_GRACE_MS = 150;
+let metaGestureController = null;
 
 // 方向スクロール
 let lastFrameHands = [];
-let directionalScrollState = null;
-const DIRECTIONAL_SCROLL_INTERVAL_MS = 80;
-const DIRECTIONAL_SCROLL_DEADZONE = 0.045;
-const DIRECTIONAL_SCROLL_MAX_OFFSET = 0.28;
-const DIRECTIONAL_SCROLL_MAX_PIXELS = 180;
+let directionalScrollController = null;
 
 // PiP 合成
 let pipCanvas = null;
@@ -356,74 +346,23 @@ function stopRepeat() {
     repeatingGesture = null;
 }
 
-function handPosition(hand) {
-    if (!hand?.landmarks) return null;
-    const lm = hand.landmarks;
-    const points = [lm[0], lm[5], lm[9], lm[13], lm[17]].filter(Boolean);
-    if (!points.length) return null;
-    const sum = points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
-    return { x: sum.x / points.length, y: sum.y / points.length };
-}
-
-function findHandForGesture(gesture, hands = lastFrameHands) {
-    const candidates = hands.filter(h => h.gesture === gesture);
-    if (!candidates.length) return null;
-    if (tracker.preferredHand !== 'auto') {
-        return candidates.find(h => h.hand === tracker.preferredHand) || candidates[0];
-    }
-    return candidates[0];
-}
-
 function startDirectionalScroll(gesture) {
-    const hand = findHandForGesture(gesture);
-    const origin = handPosition(hand);
-    if (!origin) return false;
-    directionalScrollState = { gesture, origin, lastSentAt: 0 };
+    if (!directionalScrollController?.start(gesture, lastFrameHands)) return false;
     repeatingGesture = gesture;
     return true;
 }
 
 function stopDirectionalScroll() {
-    directionalScrollState = null;
-}
-
-function directionalAmount(delta) {
-    const sign = Math.sign(delta);
-    const distance = Math.abs(delta);
-    if (distance <= DIRECTIONAL_SCROLL_DEADZONE) return 0;
-    const ratio = Math.min(
-        1,
-        (distance - DIRECTIONAL_SCROLL_DEADZONE) / (DIRECTIONAL_SCROLL_MAX_OFFSET - DIRECTIONAL_SCROLL_DEADZONE)
-    );
-    return Math.round(sign * ratio * DIRECTIONAL_SCROLL_MAX_PIXELS);
+    directionalScrollController?.stop();
 }
 
 function updateDirectionalScroll(hands, now) {
-    if (!directionalScrollState || !controlEnabled) return;
-    const hand = findHandForGesture(directionalScrollState.gesture, hands);
-    const pos = handPosition(hand);
-    if (!pos) {
-        stopAllGestureActions();
-        return;
-    }
-    if (now - directionalScrollState.lastSentAt < DIRECTIONAL_SCROLL_INTERVAL_MS) return;
-
-    let dx = pos.x - directionalScrollState.origin.x;
-    const dy = pos.y - directionalScrollState.origin.y;
-    if (tracker.displayMirrored) dx = -dx;
-
-    const left = directionalAmount(dx);
-    const top = directionalAmount(dy);
-    if (!left && !top) return;
-
-    directionalScrollState.lastSentAt = now;
-    sendAction('directionalScroll', { left, top });
-    extendWakeTimeout();
+    directionalScrollController?.update(hands, now);
 }
 
 function stopAllGestureActions() {
     cancelPendingAction();
-    const wasRepeating = repeatingGesture !== null || directionalScrollState !== null;
+    const wasRepeating = repeatingGesture !== null || !!directionalScrollController?.active;
     stopDirectionalScroll();
     stopRepeat();
     if (wasRepeating && wakeGestureType !== 'none') {
@@ -443,6 +382,25 @@ async function sendAction(action, data) {
         });
     } catch (_) {}
 }
+
+directionalScrollController = new DirectionalScrollController({
+    tracker,
+    sendAction,
+    extendWakeTimeout,
+    stopAllGestureActions,
+    isControlEnabled: () => controlEnabled,
+});
+
+metaGestureController = new MetaGestureController({
+    getMetaAction: (type) => metaGestureMapping[type] || 'none',
+    getHoldMs: () => Math.max(gestureHoldTime, 200),
+    executeMetaAction: (_type, action) => executeMetaAction(action),
+    onActiveStart: () => {
+        cancelPendingAction();
+        stopDirectionalScroll();
+        stopRepeat();
+    },
+});
 
 function confirmAction(gesture, action) {
     const now = Date.now();
@@ -480,18 +438,15 @@ tracker.addEventListener('gesture', (e) => {
     if (!gesture) {
         gestureText = '';
         stopAllGestureActions();
-        metaGestureActive = false;
-        metaGestureStartTime = 0;
-        metaGestureConsumed = false;
+        resetMetaGestureState();
         return;
     }
 
     const icon = GESTURE_ICONS[gesture] || '❓';
-    const mappedAction = currentMapping[gesture];
     // デフォルトは絵文字のみ（発火時のみコマンド名を付加）
     gestureText = icon;
 
-    if (metaGestureActive || metaGestureConsumed) return;
+    if (metaGestureController?.isBlocking()) return;
     if (!controlEnabled) return;
 
     // ウェイクサイン検出で ACTIVE に遷移
@@ -533,65 +488,8 @@ tracker.addEventListener('gesture', (e) => {
 /* ============================================================
  * メタサイン（操作トグル）
  * ============================================================ */
-function dist2d(a, b) {
-    return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-function isDistinctHandPair(handA, handB) {
-    if (!handA?.landmarks || !handB?.landmarks) return false;
-    const lmA = handA.landmarks;
-    const lmB = handB.landmarks;
-    const psA = dist2d(lmA[0], lmA[9]);
-    const psB = dist2d(lmB[0], lmB[9]);
-    const avgPs = (psA + psB) / 2;
-    const wristDistance = dist2d(lmA[0], lmB[0]);
-
-    if (wristDistance < avgPs * 0.9) return false;
-    if (handA.hand !== 'unknown' && handB.hand !== 'unknown' &&
-        handA.hand === handB.hand && wristDistance < avgPs * 1.6) {
-        return false;
-    }
-    return true;
-}
-
-function distinctHandPairs(hands) {
-    const pairs = [];
-    for (let i = 0; i < hands.length; i++) {
-        for (let j = i + 1; j < hands.length; j++) {
-            if (isDistinctHandPair(hands[i], hands[j])) pairs.push([hands[i], hands[j]]);
-        }
-    }
-    return pairs;
-}
-
-function detectFrameGesture(pairs) {
-    for (const [handA, handB] of pairs) {
-        const lm1 = handA.landmarks;
-        const lm2 = handB.landmarks;
-        const ps1 = dist2d(lm1[0], lm1[9]);
-        const ps2 = dist2d(lm2[0], lm2[9]);
-        const avgPs = (ps1 + ps2) / 2;
-        const threshold = avgPs * 0.5;
-        const d1 = dist2d(lm1[4], lm2[8]);
-        const d2 = dist2d(lm1[8], lm2[4]);
-        if (d1 < threshold && d2 < threshold) {
-            const cy1 = (lm1[4].y + lm2[8].y) / 2;
-            const cy2 = (lm1[8].y + lm2[4].y) / 2;
-            if (Math.abs(cy1 - cy2) > avgPs * 0.3) return true;
-        }
-    }
-    return false;
-}
-
-function detectMetaGestureType(hands) {
-    const pairs = distinctHandPairs(hands);
-    if (!pairs.length) return null;
-    if (detectFrameGesture(pairs)) return 'frame';
-    if (pairs.some(([a, b]) => a.gesture === 'peace' && b.gesture === 'peace')) return 'both-peace';
-    if (pairs.some(([a, b]) =>
-        (a.gesture === 'peace' && b.gesture === 'fist') ||
-        (a.gesture === 'fist' && b.gesture === 'peace'))) return 'peace-fist';
-    return null;
+function resetMetaGestureState() {
+    metaGestureController?.reset();
 }
 
 function executeMetaAction(action) {
@@ -628,61 +526,8 @@ tracker.addEventListener('frame', (e) => {
     const { gestures: hands } = e.detail;
     const now = Date.now();
     lastFrameHands = hands;
-    const detectedType = detectMetaGestureType(hands);
-
-    if (detectedType) {
-        metaGestureLastSeen = now;
-    } else if (metaGestureConsumed && now - metaGestureLastSeen > META_GRACE_MS) {
-        metaGestureConsumed = false;
-    }
-
-    if (metaGestureConsumed) {
-        metaGestureActive = false;
-        return;
-    }
-
-    if (now - lastToggleTime < META_COOLDOWN_MS) {
-        if (detectedType) {
-            metaGestureActive = true;
-            metaGestureStartTime = now;
-        } else {
-            metaGestureActive = false;
-            metaGestureStartTime = 0;
-        }
-        updateDirectionalScroll(hands, now);
-        return;
-    }
-
-    const metaAction = detectedType ? metaGestureMapping[detectedType] : 'none';
-    const detected = detectedType && metaAction && metaAction !== 'none';
-
-    if (detected) {
-        if (!metaGestureActive) {
-            metaGestureActive = true;
-            metaGestureStartTime = now;
-            metaGestureLastSeen = now;
-            cancelPendingAction();
-            stopDirectionalScroll();
-            stopRepeat();
-        }
-        metaGestureLastSeen = now;
-
-        const holdMs = Math.max(gestureHoldTime, 200);
-        if (now - metaGestureStartTime >= holdMs) {
-            if (executeMetaAction(metaAction)) {
-                lastToggleTime = now;
-                metaGestureConsumed = true;
-                metaGestureLastSeen = now;
-            }
-            metaGestureActive = false;
-            metaGestureStartTime = 0;
-        }
-    } else if (metaGestureActive) {
-        if (now - metaGestureLastSeen > META_GRACE_MS) {
-            metaGestureActive = false;
-            metaGestureStartTime = 0;
-        }
-    } else {
+    const result = metaGestureController?.update(hands, now);
+    if (result?.allowDirectional) {
         updateDirectionalScroll(hands, now);
     }
 });

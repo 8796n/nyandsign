@@ -21,6 +21,7 @@ $includes = @(
     'camera-setup.js'
     'constants.js'
     'content-script.js'
+    'gesture-runtime.js'
     'hand-tracker.js'
     'icons'
     'lib'
