@@ -3,7 +3,7 @@
  *
  * ブラウザに接続された全カメラに対応。カメラドロップダウンで選択可能。
  * 電気メガネカメラが検出された場合は自動で優先選択される。
- * MediaPipe でハンドサインを認識し、content-script 経由でメディア操作を行う。
+ * MediaPipe でハンドサインを認識し、content-script 経由でメディア操作やブラウザ操作を行う。
  *
  * WebHID による UVC 有効化は外部の EyeCon ページが担当。
  */
@@ -1316,7 +1316,7 @@ el.chkEnabled.addEventListener('change', () => {
     setControlEnabled(el.chkEnabled.checked);
 });
 
-/** メディア操作の有効/無効を一元的に切り替え */
+/** 操作送信の有効/無効を一元的に切り替え */
 function setControlEnabled(enabled) {
     controlEnabled = enabled;
     el.chkEnabled.checked = enabled;
@@ -1580,11 +1580,12 @@ for (const id of ['section-settings', 'section-gestures', 'section-meta-gestures
 const TUTORIAL_STEPS = [
     { id: 'welcome', targets: [],                                       titleKey: 'tutorialStep1Title', bodyKey: 'tutorialStep1Body' },
     { id: 'camera',  targets: ['#camera-controls'],                     titleKey: 'tutorialStep2Title', bodyKey: 'tutorialStep2Body', autoAdvanceOn: 'camera-started' },
-    { id: 'wake',    targets: ['#camera-section', '#gesture-section'],  titleKey: 'tutorialStep3Title', bodyKey: 'tutorialStep3Body', autoAdvanceOn: 'wake-activated' },
-    { id: 'command', targets: ['#mapping-list'],                        titleKey: 'tutorialStep4Title', bodyKey: 'tutorialStep4Body' },
-    // #chk-enabled は opacity:0 で 0x0。視認できる親ラベル + 「メディア操作」テキストを外接矩形化する
-    { id: 'toggle',  targets: ['.header-label', 'label.toggle-switch:has(#chk-enabled)'], titleKey: 'tutorialStep5Title', bodyKey: 'tutorialStep5Body' },
-    { id: 'pip',     targets: ['#btn-pip'],                             titleKey: 'tutorialStep6Title', bodyKey: 'tutorialStep6Body' },
+    { id: 'mode',    targets: ['#operation-mode-section', '#operation-mode-label'], titleKey: 'tutorialStep3Title', bodyKey: 'tutorialStep3Body' },
+    { id: 'wake',    targets: ['#camera-section', '#gesture-section'],  titleKey: 'tutorialStep4Title', bodyKey: 'tutorialStep4Body', autoAdvanceOn: 'wake-activated' },
+    { id: 'command', targets: ['#section-gestures', '#mapping-list'],   titleKey: 'tutorialStep5Title', bodyKey: 'tutorialStep5Body' },
+    // #chk-enabled は opacity:0 で 0x0。視認できる親ラベル + 「操作モード」テキストを外接矩形化する
+    { id: 'toggle',  targets: ['.header-label', 'label.toggle-switch:has(#chk-enabled)', '#section-meta-gestures'], titleKey: 'tutorialStep6Title', bodyKey: 'tutorialStep6Body', bodyNoToggleKey: 'tutorialStep6BodyNoToggle' },
+    { id: 'pip',     targets: ['#btn-pip'],                             titleKey: 'tutorialStep7Title', bodyKey: 'tutorialStep7Body' },
 ];
 let tutorialIndex = 0;
 let tutorialActive = false;
@@ -1595,7 +1596,7 @@ function tutorialCurrentStep() { return TUTORIAL_STEPS[tutorialIndex]; }
 function startTutorial() {
     tutorialIndex = 0;
     tutorialActive = true;
-    // チュートリアル中はメディア操作を自動でON（OFFだとウェイクが発火せずステップ進行が止まる）
+    // チュートリアル中は操作送信を自動でON（OFFだとウェイクが発火せずステップ進行が止まる）
     if (!controlEnabled) setControlEnabled(true);
     const overlay = $('tutorial-overlay');
     show(overlay);
@@ -1636,6 +1637,8 @@ function clearTutorialHighlight() {
 function renderTutorialStep() {
     const step = tutorialCurrentStep();
     const total = TUTORIAL_STEPS.length;
+    if (step.id === 'command') $('section-gestures').open = true;
+    if (step.id === 'toggle') $('section-meta-gestures').open = true;
     $('tutorial-indicator').textContent = msg('tutorialStepIndicator', [String(tutorialIndex + 1), String(total)]);
     $('tutorial-title').textContent = msg(step.titleKey);
     let bodyText;
@@ -1643,9 +1646,9 @@ function renderTutorialStep() {
         const toggleEntry = Object.entries(metaGestureMapping)
             .find(([, action]) => action && action !== 'none');
         if (!toggleEntry) {
-            bodyText = msg('tutorialStep5BodyNoToggle');
+            bodyText = msg(step.bodyNoToggleKey);
         } else {
-            bodyText = msg('tutorialStep5Body', [
+            bodyText = msg(step.bodyKey, [
                 metaGestureLabel(toggleEntry[0]),
                 metaActionDisplay(toggleEntry[1]),
             ]);

@@ -4,7 +4,7 @@
     "description": "Extension name shown in Chrome"
   },
   "extensionDescription": {
-    "message": "Detect hand signs and control media playback",
+    "message": "Detect hand signs and control media or browser actions",
     "description": "Extension description in Chrome Web Store"
   },
 
@@ -47,11 +47,11 @@
 
   "headerMediaControl": {
     "message": "Media Control",
-    "description": "Header label for media control toggle"
+    "description": "Initial header label for the operation toggle"
   },
   "titleMediaControlToggle": {
-    "message": "Enable/disable media control",
-    "description": "Tooltip for media control toggle"
+    "message": "Operation ON/OFF",
+    "description": "Tooltip for operation toggle"
   },
   "titleOperationToggle": {
     "message": "Enable/disable the current operation mode",
@@ -128,7 +128,7 @@
     "description": "Setting label for wake gesture"
   },
   "settingWakeTitle": {
-    "message": "Hand sign to start media control. After detection, perform command signs within the timeout period",
+    "message": "Hand sign to start operation. After detection, perform command signs within the timeout period",
     "description": "Tooltip for wake gesture setting"
   },
   "settingWakeTimeoutLabel": {
@@ -144,7 +144,7 @@
     "description": "Setting label for operation toggle gesture"
   },
   "settingToggleTitle": {
-    "message": "Toggle media control ON/OFF with a two-hand sign",
+    "message": "Use two-hand signs to toggle operation ON/OFF or switch operation mode",
     "description": "Tooltip for toggle gesture setting"
   },
   "settingPreferredHandLabel": {
@@ -550,12 +550,12 @@
     }
   },
   "logMediaControlOn": {
-    "message": "Media control: ON ✅",
-    "description": "Log when media control is enabled"
+    "message": "Operation: ON ✅",
+    "description": "Log when operation sending is enabled"
   },
   "logMediaControlOff": {
-    "message": "Media control: OFF ⛔",
-    "description": "Log when media control is disabled"
+    "message": "Operation: OFF ⛔",
+    "description": "Log when operation sending is disabled"
   },
   "logOperationEnabledOn": {
     "message": "$1: ON ✅",
@@ -810,7 +810,7 @@
 
   "pipOverlayOff": {
     "message": "⛔ OFF",
-    "description": "Overlay text shown on PiP canvas when media control is disabled"
+    "description": "Overlay text shown on PiP canvas when operation sending is disabled"
   },
 
   "setupTitle": {
@@ -878,7 +878,7 @@
     "description": "Tutorial step 1 title: welcome"
   },
   "tutorialStep1Body": {
-    "message": "NyandSign detects hand signs via your camera and controls media playback in the browser. Let's walk through the basics in 6 steps.",
+    "message": "NyandSign detects hand signs via your camera and controls both media playback and browser actions. This tutorial walks through the two operation modes and the basic flow.",
     "description": "Tutorial step 1 body: intro"
   },
   "tutorialStep2Title": {
@@ -890,44 +890,52 @@
     "description": "Tutorial step 2 body"
   },
   "tutorialStep3Title": {
-    "message": "Wake Sign",
-    "description": "Tutorial step 3 title: wake sign"
+    "message": "Choose an Operation Mode",
+    "description": "Tutorial step 3 title: operation mode"
   },
   "tutorialStep3Body": {
-    "message": "Show an Open Hand 🖐️ to activate media control. When this area turns green, perform a command sign within 5 seconds. This step advances automatically on wake.",
+    "message": "Media Control mode handles video/audio playback, volume, and seeking. Browser Control mode handles scrolling, back/forward, tab switching, and zoom.\nThese buttons switch both the active mode and the hand sign mapping. In PiP, Media Control uses a green border and Browser Control uses a blue border.",
     "description": "Tutorial step 3 body"
   },
   "tutorialStep4Title": {
-    "message": "Command Signs",
-    "description": "Tutorial step 4 title: command signs"
+    "message": "Wake Sign",
+    "description": "Tutorial step 4 title: wake sign"
   },
   "tutorialStep4Body": {
-    "message": "Default mapping:\n✌️ Play/Pause  ✊ Pause  🤙 Play\n👌 Mute\n👍 Vol+  👎 Vol−\n👉 +10s  👈 −10s\n\nTo try it out: \"Open Hand 🖐️ → command sign\" (wake returns to idle after 5s). You can remap signs in the \"Hand Signs\" section below.",
-    "description": "Tutorial step 4 body: default mapping"
+    "message": "Show an Open Hand 🖐️ to activate controls. When this area turns the mode color, perform a command sign within 5 seconds.\nYou can also set Wake to \"None\" to always accept command signs. This step advances automatically on wake.",
+    "description": "Tutorial step 4 body: wake sign"
   },
   "tutorialStep5Title": {
-    "message": "Media Control Toggle & Key Settings",
-    "description": "Tutorial step 5 title"
+    "message": "Control with Hand Signs",
+    "description": "Tutorial step 5 title: command signs"
   },
   "tutorialStep5Body": {
-    "message": "The mode toggle in the header, when OFF, keeps recognition running but stops sending actions (to prevent accidental triggers).\nThe two-hand sign \"$1\" is assigned to \"$2\".\nIn Settings, \"Mirror\", \"Skeleton only\", and \"Wake\" type are the most useful controls.",
-    "description": "Tutorial step 5 body (with toggle sign)",
+    "message": "This list shows the hand sign assignments for the selected mode.\nMedia Control assigns playback, volume, and seek actions. Browser Control assigns directional scroll, back/forward, tab switching, and zoom actions.\nThe flow is \"wake sign → command sign\". You can customize assignments separately for each mode.",
+    "description": "Tutorial step 5 body: command signs"
+  },
+  "tutorialStep6Title": {
+    "message": "Operation ON/OFF & Two-Hand Signs",
+    "description": "Tutorial step 6 title"
+  },
+  "tutorialStep6Body": {
+    "message": "The switch in the header is a safety switch: recognition keeps running, but action sending stops when it is OFF.\nThe two-hand sign \"$1\" is assigned to \"$2\". Two-hand signs can toggle operation ON/OFF or switch between Media and Browser modes.",
+    "description": "Tutorial step 6 body (with two-hand sign)",
     "placeholders": {
       "1": { "content": "$1" },
       "2": { "content": "$2" }
     }
   },
-  "tutorialStep5BodyNoToggle": {
-    "message": "The mode toggle in the header, when OFF, keeps recognition running but stops sending actions (to prevent accidental triggers).\nTwo-hand sign actions are currently off — you can enable them in the Two-Hand Signs section.\nIn Settings, \"Mirror\", \"Skeleton only\", and \"Wake\" type are the most useful controls.",
-    "description": "Tutorial step 5 body when toggle gesture is disabled"
+  "tutorialStep6BodyNoToggle": {
+    "message": "The switch in the header is a safety switch: recognition keeps running, but action sending stops when it is OFF.\nTwo-hand sign actions are currently unassigned. In the Two-Hand Signs section, you can assign operation ON/OFF or Media/Browser mode switching.",
+    "description": "Tutorial step 6 body when two-hand actions are disabled"
   },
-  "tutorialStep6Title": {
+  "tutorialStep7Title": {
     "message": "Side Panel vs PiP Mode",
-    "description": "Tutorial step 6 title"
+    "description": "Tutorial step 7 title"
   },
-  "tutorialStep6Body": {
+  "tutorialStep7Body": {
     "message": "Use the side panel when you want access to settings and logs. If it gets in the way of fullscreen playback, press \"📌 PiP\" to switch to a small popup window that keeps hand sign control going.",
-    "description": "Tutorial step 6 body"
+    "description": "Tutorial step 7 body"
   },
   "tutorialBtnNext": {
     "message": "Next →",
@@ -947,10 +955,10 @@
   },
   "tutorialStepIndicator": {
     "message": "$1 / $2",
-    "description": "Tutorial step indicator e.g. 1 / 6",
+    "description": "Tutorial step indicator e.g. 1 / 7",
     "placeholders": {
       "1": { "content": "$1", "example": "1" },
-      "2": { "content": "$2", "example": "6" }
+      "2": { "content": "$2", "example": "7" }
     }
   },
   "btnShowTutorial": {

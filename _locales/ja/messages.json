@@ -3,7 +3,7 @@
     "message": "NyandSign — Hand Sign Media Controller"
   },
   "extensionDescription": {
-    "message": "ハンドサインを検出しメディア再生を操作する"
+    "message": "ハンドサインを検出しメディア操作やブラウザ操作を行う"
   },
 
   "btnStartCamera": {
@@ -38,7 +38,7 @@
     "message": "メディア操作"
   },
   "titleMediaControlToggle": {
-    "message": "メディアコントロール有効/無効"
+    "message": "操作ON/OFF"
   },
   "titleOperationToggle": {
     "message": "現在の操作モードのON/OFFを切り替えます"
@@ -97,7 +97,7 @@
     "message": "ウェイク"
   },
   "settingWakeTitle": {
-    "message": "メディア操作を開始するためのハンドサイン。検出後、待機時間内にコマンドサインを行います"
+    "message": "操作を開始するためのハンドサイン。検出後、待機時間内にコマンドサインを行います"
   },
   "settingWakeTimeoutLabel": {
     "message": "待機時間"
@@ -109,7 +109,7 @@
     "message": "操作トグル"
   },
   "settingToggleTitle": {
-    "message": "両手サインでメディア操作のON/OFFを切り替えます"
+    "message": "両手サインで操作ON/OFFや操作モードを切り替えます"
   },
   "settingPreferredHandLabel": {
     "message": "優先する手"
@@ -420,10 +420,10 @@
     }
   },
   "logMediaControlOn": {
-    "message": "メディア操作: ON ✅"
+    "message": "操作: ON ✅"
   },
   "logMediaControlOff": {
-    "message": "メディア操作: OFF ⛔"
+    "message": "操作: OFF ⛔"
   },
   "logOperationEnabledOn": {
     "message": "$1: ON ✅",
@@ -682,7 +682,7 @@
     "message": "ようこそ 🎉"
   },
   "tutorialStep1Body": {
-    "message": "NyandSignはハンドサインでブラウザのメディア再生を操作する拡張です。基本の使い方を6ステップで案内します。"
+    "message": "NyandSignはハンドサインでメディア再生やブラウザ操作を行う拡張です。メディア操作とブラウザ操作の2つのモードを、基本の流れに沿って案内します。"
   },
   "tutorialStep2Title": {
     "message": "カメラを選んで開始"
@@ -691,34 +691,40 @@
     "message": "上部からカメラを選んで「▶ カメラ開始」を押してください。電気メガネのカメラも自動検出されます。開始すると自動で次へ進みます。"
   },
   "tutorialStep3Title": {
-    "message": "ウェイクサインで起動"
+    "message": "操作モードを選ぶ"
   },
   "tutorialStep3Body": {
-    "message": "パー 🖐️ を出すとメディア操作が有効になります。表示エリアが緑色に変わったら、5秒以内にコマンドサインを出してください。検出されると自動で次へ進みます。"
+    "message": "メディア操作モードは動画や音楽の再生、音量、シークを操作します。ブラウザ操作モードはスクロール、戻る/進む、タブ切り替え、ズームを操作します。\nこの切り替えボタンで、使用モードとハンドサイン設定が一緒に切り替わります。PiPではメディア操作は緑枠、ブラウザ操作は青枠で表示されます。"
   },
   "tutorialStep4Title": {
-    "message": "コマンドサインで操作"
+    "message": "ウェイクサインで起動"
   },
   "tutorialStep4Body": {
-    "message": "デフォルトの割り当て:\n✌️ 再生/一時停止　✊ 一時停止　🤙 再生\n👌 ミュート\n👍 音量＋　👎 音量−\n👉 10秒進む　👈 10秒戻る\n\n試すには「パー🖐️ → コマンドサイン」の順で（ウェイクは5秒で待機に戻ります）。下の「ハンドサイン」セクションで割り当ても変更できます。"
+    "message": "パー 🖐️ を出すと操作が有効になります。表示エリアがモード色に変わったら、5秒以内にコマンドサインを出してください。\nウェイクサインを「なし」にすると、常にコマンドサインを受け付ける設定にもできます。検出されると自動で次へ進みます。"
   },
   "tutorialStep5Title": {
-    "message": "メディア操作トグルと主要設定"
+    "message": "ハンドサインで操作"
   },
   "tutorialStep5Body": {
-    "message": "ヘッダー右のモードトグルは、OFFにすると認識は続きますが操作送信だけ止まります（誤操作防止用）。\n両手サイン「$1」には「$2」が割り当てられています。\n設定では「左右反転」「骨格のみ表示」「ウェイクの種類」がよく使われます。",
+    "message": "現在選んでいるモードのハンドサイン割り当てがここに表示されます。\nメディア操作では再生/一時停止、音量、シークなどを割り当てます。ブラウザ操作では方向スクロール、戻る/進む、タブ切り替え、ズームなどを割り当てます。\n使う流れは「ウェイクサイン → コマンドサイン」です。割り当てはモードごとに変更できます。"
+  },
+  "tutorialStep6Title": {
+    "message": "操作ON/OFFと両手サイン"
+  },
+  "tutorialStep6Body": {
+    "message": "ヘッダー右のスイッチは、認識は続けたまま操作送信だけ止める安全スイッチです（誤操作防止用）。\n両手サイン「$1」には「$2」が割り当てられています。両手サインは操作ON/OFFやメディア/ブラウザの切り替えにも使えます。",
     "placeholders": {
       "1": { "content": "$1" },
       "2": { "content": "$2" }
     }
   },
-  "tutorialStep5BodyNoToggle": {
-    "message": "ヘッダー右のモードトグルは、OFFにすると認識は続きますが操作送信だけ止まります（誤操作防止用）。\n現在、両手サインの役割はOFFですが、「両手サイン」セクションで有効化できます。\n設定では「左右反転」「骨格のみ表示」「ウェイクの種類」がよく使われます。"
+  "tutorialStep6BodyNoToggle": {
+    "message": "ヘッダー右のスイッチは、認識は続けたまま操作送信だけ止める安全スイッチです（誤操作防止用）。\n現在、両手サインの役割は未設定ですが、「両手サイン」セクションで操作ON/OFFやメディア/ブラウザの切り替えを割り当てられます。"
   },
-  "tutorialStep6Title": {
+  "tutorialStep7Title": {
     "message": "サイドパネル vs PiP モード"
   },
-  "tutorialStep6Body": {
+  "tutorialStep7Body": {
     "message": "サイドパネルは設定やログ確認に便利です。フルスクリーン動画などでサイドパネルが邪魔になる場合は「📌 PiP」ボタンで小さなポップアップウィンドウに切り替え、ハンドサイン操作だけを継続できます。"
   },
   "tutorialBtnNext": {
