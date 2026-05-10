@@ -1,0 +1,124 @@
+NyandSign — Chrome Web Store Listing (English)
+
+
+SHORT DESCRIPTION (132 characters max)
+
+Control media and browser actions hands-free with webcam hand signs: play, scroll, switch tabs, zoom, and more.
+
+
+DETAILED DESCRIPTION
+
+What is NyandSign?
+
+NyandSign is a Chrome extension that detects hand signs with your webcam and lets you control media playback and browser actions hands-free. It uses Google MediaPipe's on-device AI to recognize hand signs in real time. All processing happens locally in your browser, and your camera feed is never sent to any external server.
+
+Use hand signs to control media on sites like YouTube, Spotify, and Netflix, or switch to Browser Control mode for scrolling, back/forward navigation, tab switching, and zoom. Any regular webcam works, and supported electric glasses camera devices can also be used.
+
+
+KEY FEATURES
+
+🖐️ 11 Recognizable Hand Signs
+Fist, Peace, Three, Four, OK, Aloha (shaka), Rock, Point Right, Point Left, Thumbs Up, and Thumbs Down — each sign can be mapped separately for each operation mode.
+
+🎬 Media Control Mode
+▶⏸ Play / Pause
+🔊🔉 Volume Up / Down
+🔇 Mute
+⏩⏪ Seek Forward / Backward (10 seconds)
+⏭⏮ Next / Previous Track
+⏫⏬ Playback Speed Up / Down
+1× Reset Playback Speed
+
+🌐 Browser Control Mode
+↕ Hold to Scroll — hold the assigned sign and move your hand up, down, left, or right to scroll
+↟↡ Page Top / Page Bottom
+↩↪ Back / Forward
+⇥⇤ Next Tab / Previous Tab
+↻ Reload
+＋− Zoom In / Zoom Out
+100% Reset Zoom
+
+⚡ Fully Customizable
+Switch between Media Control and Browser Control modes
+Customize hand sign mappings separately for each mode
+Adjustable gesture hold time to reduce accidental triggers
+Repeatable actions for continuous volume, seek, scroll, and zoom control
+Wake sign mode — require an activation sign before commands are accepted
+Wake sign options — Open Hand (either side), Open Hand (palm only), or always active
+Two-hand signs — toggle operation ON/OFF or switch between Media and Browser modes
+Built-in tutorial — explains both operation modes and the basic flow
+
+📌 PiP (Picture-in-Picture) Mode
+When fullscreen video makes the side panel intrusive, switch to a compact popup window. In PiP, Media Control mode uses a green border and Browser Control mode uses a blue border, so you can tell which mode is active at a glance.
+
+🎯 Target Tab Control
+Send gesture actions to a specific tab. Pin a target tab to control background media or a specific page while browsing elsewhere.
+
+🔒 100% Local & Private
+All hand tracking runs on-device using WebAssembly. Your camera feed never leaves your browser. No cloud processing, no data collection, no accounts required.
+
+🌐 Bilingual
+English and Japanese (日本語) interface support.
+
+
+BENEFITS OF INSTALLING NyandSign
+
+Hands-free convenience — Control media and pages while cooking, exercising, eating, or when your hands are occupied.
+
+Accessibility — Provides an alternative input method for users who have difficulty using a keyboard or mouse.
+
+Electric glasses camera support — Designed to work with supported XREAL / Nreal camera devices, enabling gesture control while wearing your glasses.
+
+Distraction-free viewing — PiP mode lets you enjoy fullscreen content without a visible side panel while keeping hand sign control active.
+
+Flexible controls — Configure media and browser actions separately, and map your most-used actions to the signs that feel natural to you.
+
+No additional software — Everything runs as a lightweight Chrome extension. No desktop apps, drivers, or accounts needed.
+
+
+WHY THESE PERMISSIONS ARE NEEDED
+
+NyandSign requests the minimum permissions required to function. Here is exactly what each permission does and why it is necessary:
+
+activeTab
+Allows the extension to interact with the currently active tab when you click the extension icon. This is needed to inject the content script into the page you are viewing, so media actions and browser-page actions such as scrolling can reach the page.
+
+tabs
+Allows the extension to read tab titles and manage tab-related actions. This is used for the Target Tab feature and for actions such as Next Tab and Previous Tab. Tab information is only used locally in the side panel and is never transmitted anywhere.
+
+scripting
+Allows the extension to inject a small content script into web pages. This script is the bridge between NyandSign and the page: it receives gesture commands and applies them to media elements or page scrolling. Without this permission, gestures could be detected but could not control the page.
+
+storage
+Allows the extension to save your settings, including hand sign mappings, operation mode, volume preferences, and display options, in Chrome's built-in storage. Your configuration persists across browser restarts. If Chrome Sync is enabled, Chrome itself may sync this settings data across your devices. NyandSign does not send it to its own external servers.
+
+sidePanel
+Allows the extension to display its interface as a Chrome side panel. The side panel is the primary UI where you see the camera feed, hand tracking visualization, current sign, operation mode, settings, and tutorial.
+
+Host permission: all URLs
+The content script needs to run on any page because media and scrollable content can appear on any website — YouTube, Spotify, Netflix, Twitch, SoundCloud, news sites, documentation sites, and countless others. Restricting access to specific domains would break control on unlisted sites. The content script only handles the page interactions required by gesture commands and does not send camera data or personal information anywhere.
+
+
+TECHNICAL DETAILS
+
+Uses Google MediaPipe Hand Landmarker (on-device, WebAssembly)
+Runs at configurable FPS (default 15 fps) to balance accuracy and CPU usage
+Distance-based gesture recognition with palm-size normalization
+Temporal majority voting (200ms window) + hysteresis for stable detection
+All processing happens locally — camera feed is never transmitted
+Manifest V3 compliant
+
+
+WHAT'S NEW
+
+v1.0.73
+- Added Browser Control mode
+- Added browser actions such as scroll, back/forward, tab switching, reload, and zoom
+- Added separate hand sign mappings for Media Control and Browser Control modes
+- Added two-hand sign actions for operation ON/OFF and mode switching
+- Updated the tutorial and PiP visual feedback for the new two-mode workflow
+
+
+SUPPORT
+
+If you encounter any issues or have feature requests, please visit our GitHub repository.
