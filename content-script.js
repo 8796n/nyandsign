@@ -60,6 +60,13 @@
         cursorRight: 'ArrowRight',
     };
 
+    const KEY_CODE_BY_KEY = {
+        ArrowUp: 38,
+        ArrowDown: 40,
+        ArrowLeft: 37,
+        ArrowRight: 39,
+    };
+
     const CURSOR_DIRECTION_BY_ACTION = {
         cursorUp: 'up',
         cursorDown: 'down',
@@ -184,11 +191,34 @@
         return true;
     }
 
+    function createArrowKeyEvent(type, key) {
+        const keyCode = KEY_CODE_BY_KEY[key] || 0;
+        const event = new KeyboardEvent(type, {
+            key,
+            code: key,
+            keyCode,
+            which: keyCode,
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+        });
+
+        for (const prop of ['keyCode', 'which']) {
+            if (event[prop] === keyCode) continue;
+            try {
+                Object.defineProperty(event, prop, { get: () => keyCode });
+            } catch (_) {
+                // 読み取り専用プロパティを補強できない環境では、そのまま送出する
+            }
+        }
+
+        return event;
+    }
+
     function simulateArrowKey(key) {
         const target = document.activeElement || document.body || document;
-        const opts = { key, code: key, bubbles: true, cancelable: true };
-        target.dispatchEvent(new KeyboardEvent('keydown', opts));
-        target.dispatchEvent(new KeyboardEvent('keyup', opts));
+        target.dispatchEvent(createArrowKeyEvent('keydown', key));
+        target.dispatchEvent(createArrowKeyEvent('keyup', key));
     }
 
     function executeCursorAction(action) {
