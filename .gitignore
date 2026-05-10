@@ -6,3 +6,4 @@ docs/
 .github/copilot-instructions.md
 .claude/settings.local.json
 CLAUDE.md
+AGENTS.md
