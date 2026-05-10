@@ -285,6 +285,18 @@
   "actionScrollLeft": {
     "message": "左へスクロール"
   },
+  "actionCursorUp": {
+    "message": "カーソル上へ"
+  },
+  "actionCursorDown": {
+    "message": "カーソル下へ"
+  },
+  "actionCursorLeft": {
+    "message": "カーソル左へ"
+  },
+  "actionCursorRight": {
+    "message": "カーソル右へ"
+  },
   "actionPageTop": {
     "message": "ページ先頭"
   },

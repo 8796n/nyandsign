@@ -50,13 +50,33 @@
 
     const BROWSER_PAGE_ACTIONS = new Set([
         'directionalScroll', 'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'pageTop', 'pageBottom',
+        'cursorUp', 'cursorDown', 'cursorLeft', 'cursorRight',
     ]);
 
+    const CURSOR_KEY_BY_ACTION = {
+        cursorUp: 'ArrowUp',
+        cursorDown: 'ArrowDown',
+        cursorLeft: 'ArrowLeft',
+        cursorRight: 'ArrowRight',
+    };
+
+    const CURSOR_DIRECTION_BY_ACTION = {
+        cursorUp: 'up',
+        cursorDown: 'down',
+        cursorLeft: 'left',
+        cursorRight: 'right',
+    };
+
     function isEditableFocused() {
+        return !!getFocusedEditable();
+    }
+
+    function getFocusedEditable() {
         const el = document.activeElement;
-        if (!el) return false;
+        if (!el) return null;
         const tag = el.tagName?.toLowerCase();
-        return tag === 'input' || tag === 'textarea' || tag === 'select' || el.isContentEditable;
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || el.isContentEditable) return el;
+        return null;
     }
 
     function getScrollRoot() {
@@ -96,8 +116,97 @@
         if (left) findHorizontalScroller().scrollBy({ left, behavior });
     }
 
+    function clamp(n, min, max) {
+        return Math.max(min, Math.min(max, n));
+    }
+
+    function moveTextControlCursor(el, direction) {
+        if (typeof el.selectionStart !== 'number' || typeof el.selectionEnd !== 'number') return false;
+
+        const value = el.value || '';
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        const collapsed = start === end;
+        let next = end;
+
+        if (direction === 'left') {
+            next = collapsed ? clamp(start - 1, 0, value.length) : start;
+        } else if (direction === 'right') {
+            next = collapsed ? clamp(end + 1, 0, value.length) : end;
+        } else if (direction === 'up') {
+            if (el.tagName?.toLowerCase() !== 'textarea') {
+                next = 0;
+            } else {
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                const column = start - lineStart;
+                if (lineStart === 0) {
+                    next = 0;
+                } else {
+                    const prevLineEnd = lineStart - 1;
+                    const prevLineStart = value.lastIndexOf('\n', prevLineEnd - 1) + 1;
+                    next = Math.min(prevLineStart + column, prevLineEnd);
+                }
+            }
+        } else if (direction === 'down') {
+            if (el.tagName?.toLowerCase() !== 'textarea') {
+                next = value.length;
+            } else {
+                const lineEnd = value.indexOf('\n', end);
+                if (lineEnd < 0) {
+                    next = value.length;
+                } else {
+                    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                    const column = start - lineStart;
+                    const nextLineStart = lineEnd + 1;
+                    const nextLineEndRaw = value.indexOf('\n', nextLineStart);
+                    const nextLineEnd = nextLineEndRaw < 0 ? value.length : nextLineEndRaw;
+                    next = Math.min(nextLineStart + column, nextLineEnd);
+                }
+            }
+        }
+
+        el.focus();
+        try {
+            el.setSelectionRange(next, next);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function moveContentEditableCursor(action) {
+        const selection = window.getSelection?.();
+        if (!selection?.modify) return false;
+
+        const isVertical = action === 'cursorUp' || action === 'cursorDown';
+        const direction = (action === 'cursorUp' || action === 'cursorLeft') ? 'backward' : 'forward';
+        selection.modify('move', direction, isVertical ? 'line' : 'character');
+        return true;
+    }
+
+    function simulateArrowKey(key) {
+        const target = document.activeElement || document.body || document;
+        const opts = { key, code: key, bubbles: true, cancelable: true };
+        target.dispatchEvent(new KeyboardEvent('keydown', opts));
+        target.dispatchEvent(new KeyboardEvent('keyup', opts));
+    }
+
+    function executeCursorAction(action) {
+        const key = CURSOR_KEY_BY_ACTION[action];
+        if (!key) return false;
+
+        const editable = getFocusedEditable();
+        const direction = CURSOR_DIRECTION_BY_ACTION[action];
+        if (editable?.isContentEditable && moveContentEditableCursor(action)) return true;
+        if (editable && moveTextControlCursor(editable, direction)) return true;
+
+        simulateArrowKey(key);
+        return true;
+    }
+
     function executeBrowserPageAction(action, data = {}) {
         if (!BROWSER_PAGE_ACTIONS.has(action)) return false;
+        if (CURSOR_KEY_BY_ACTION[action]) return executeCursorAction(action);
         if (isEditableFocused()) return null;
 
         switch (action) {
@@ -245,6 +354,10 @@
         scrollLeft:    '←',
         pageTop:       '↟',
         pageBottom:    '↡',
+        cursorUp:      '⇡',
+        cursorDown:    '⇣',
+        cursorLeft:    '⇠',
+        cursorRight:   '⇢',
         historyBack:   '↩',
         historyForward: '↪',
         nextTab:       '⇥',

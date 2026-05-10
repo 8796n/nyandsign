@@ -378,6 +378,22 @@
     "message": "Scroll Left",
     "description": "Browser action: scroll left"
   },
+  "actionCursorUp": {
+    "message": "Cursor Up",
+    "description": "Browser action: move cursor up"
+  },
+  "actionCursorDown": {
+    "message": "Cursor Down",
+    "description": "Browser action: move cursor down"
+  },
+  "actionCursorLeft": {
+    "message": "Cursor Left",
+    "description": "Browser action: move cursor left"
+  },
+  "actionCursorRight": {
+    "message": "Cursor Right",
+    "description": "Browser action: move cursor right"
+  },
   "actionPageTop": {
     "message": "Page Top",
     "description": "Browser action: scroll to top"

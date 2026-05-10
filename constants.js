@@ -36,6 +36,8 @@ const ACTION_I18N_KEYS = {
     directionalScroll: 'actionDirectionalScroll',
     scrollDown: 'actionScrollDown', scrollUp: 'actionScrollUp',
     scrollRight: 'actionScrollRight', scrollLeft: 'actionScrollLeft',
+    cursorUp: 'actionCursorUp', cursorDown: 'actionCursorDown',
+    cursorLeft: 'actionCursorLeft', cursorRight: 'actionCursorRight',
     pageTop: 'actionPageTop', pageBottom: 'actionPageBottom',
     historyBack: 'actionHistoryBack', historyForward: 'actionHistoryForward',
     nextTab: 'actionNextTab', previousTab: 'actionPreviousTab',
@@ -63,6 +65,10 @@ const ACTION_ICONS = {
     scrollUp: '↑',
     scrollRight: '→',
     scrollLeft: '←',
+    cursorUp: '⇡',
+    cursorDown: '⇣',
+    cursorLeft: '⇠',
+    cursorRight: '⇢',
     pageTop: '↟',
     pageBottom: '↡',
     historyBack: '↩',
@@ -98,6 +104,7 @@ const MEDIA_ACTION_KEYS = [
 const BROWSER_ACTION_KEYS = [
     'directionalScroll',
     'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft',
+    'cursorUp', 'cursorDown', 'cursorLeft', 'cursorRight',
     'pageTop', 'pageBottom',
     'historyBack', 'historyForward',
     'nextTab', 'previousTab',
@@ -109,6 +116,7 @@ const BROWSER_ACTION_KEYS = [
 const REPEATABLE_ACTIONS = new Set([
     'volumeUp', 'volumeDown', 'seekForward', 'seekBackward', 'speedUp', 'speedDown',
     'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'zoomIn', 'zoomOut',
+    'cursorUp', 'cursorDown', 'cursorLeft', 'cursorRight',
 ]);
 
 const DIRECTIONAL_ACTIONS = new Set(['directionalScroll']);
