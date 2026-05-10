@@ -57,7 +57,7 @@ const ACTION_ICONS = {
     seekBackward: '⏪',
     speedUp: '⏫',
     speedDown: '⏬',
-    resetSpeed: '1×',
+    resetSpeed: '🔄',
     directionalScroll: '↕',
     scrollDown: '↓',
     scrollUp: '↑',
@@ -70,9 +70,9 @@ const ACTION_ICONS = {
     nextTab: '⇥',
     previousTab: '⇤',
     reload: '↻',
-    zoomIn: '＋',
-    zoomOut: '−',
-    resetZoom: '100%',
+    zoomIn: '➕',
+    zoomOut: '➖',
+    resetZoom: '🔄',
     none: '—',
 };
 
@@ -203,7 +203,7 @@ const META_ACTION_I18N_KEYS = {
 const META_ACTION_ICONS = {
     toggleEnabled: '⏻',
     toggleMode: '⇄',
-    setModeMedia: '▶',
+    setModeMedia: '🎬',
     setModeBrowser: '🌐',
     none: '—',
 };
