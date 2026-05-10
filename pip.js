@@ -558,9 +558,9 @@ function compositeFrame(ctx, canvas) {
     const activeColor = isBrowserMode
         ? 'rgba(74, 163, 255, 0.95)'
         : 'rgba(80, 255, 120, 0.95)';
-    const idleColor = isBrowserMode
-        ? 'rgba(74, 163, 255, 0.45)'
-        : 'rgba(0, 220, 80, 0.4)';
+    const modeBorderColor = isBrowserMode
+        ? 'rgba(74, 163, 255, 0.9)'
+        : 'rgba(80, 255, 120, 0.9)';
 
     // ジェスチャーテキスト
     if (gestureText) {
@@ -597,20 +597,21 @@ function compositeFrame(ctx, canvas) {
         ctx.restore();
     }
 
-    // 操作状態を示す縁取り（ACTIVE: 太い明緑、IDLE: 薄緑、OFF: 赤）
-    const borderWidth = Math.max(3, Math.round(Math.min(vw, vh) * 0.006));
+    // PiP でも操作モードが分かるよう、操作 ON 時は常にモード色で縁取りする。
+    const borderWidth = Math.max(2, Math.round(Math.min(vw, vh) * 0.004));
     ctx.save();
     if (!controlEnabled) {
         ctx.strokeStyle = 'rgba(255, 60, 60, 0.8)';
-        ctx.lineWidth = borderWidth * 2;
+        ctx.lineWidth = borderWidth;
     } else if (wakeActive) {
         ctx.strokeStyle = activeColor;
-        ctx.lineWidth = borderWidth * 4;
-    } else {
-        ctx.strokeStyle = idleColor;
         ctx.lineWidth = borderWidth * 2;
+    } else {
+        ctx.strokeStyle = modeBorderColor;
+        ctx.lineWidth = borderWidth;
     }
-    ctx.strokeRect(0, 0, vw, vh);
+    const inset = ctx.lineWidth / 2;
+    ctx.strokeRect(inset, inset, vw - ctx.lineWidth, vh - ctx.lineWidth);
     ctx.restore();
 
     // ターゲットタブ情報（上部に半透明バーで描画）
