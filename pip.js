@@ -472,6 +472,7 @@ tracker.addEventListener('gesture', (e) => {
     if (gesture === repeatingGesture || gesture === pendingGesture) return;
 
     cancelPendingAction();
+    stopDirectionalScroll();
     stopRepeat();
     pendingGesture = gesture;
 

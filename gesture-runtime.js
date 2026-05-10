@@ -124,21 +124,53 @@ class DirectionalScrollController {
         this.deadzone = options.deadzone ?? 0.045;
         this.maxOffset = options.maxOffset ?? 0.28;
         this.maxPixels = options.maxPixels ?? 180;
+        this.graceMs = options.graceMs ?? 250;
+        this.maxTrackingJump = options.maxTrackingJump ?? 0.18;
         this.state = null;
     }
 
     get active() { return this.state !== null; }
 
-    start(gesture, hands = []) {
+    start(gesture, hands = [], now = Date.now()) {
         const hand = GestureRuntimeUtils.findHandForGesture(gesture, hands, this.tracker.preferredHand);
         const origin = GestureRuntimeUtils.handPosition(hand);
         if (!origin) return false;
-        this.state = { gesture, origin, lastSentAt: 0 };
+        this.state = {
+            gesture,
+            hand: hand?.hand || 'unknown',
+            origin,
+            lastPosition: origin,
+            lastSeenAt: now,
+            lastSentAt: 0,
+        };
         return true;
     }
 
     stop() {
         this.state = null;
+    }
+
+    findTrackedHand(hands = []) {
+        if (!this.state?.lastPosition) return null;
+
+        const byHand = this.state.hand && this.state.hand !== 'unknown'
+            ? hands.filter(h => h.hand === this.state.hand)
+            : [];
+        const candidates = byHand.length ? byHand : hands;
+        let best = null;
+        let bestDistance = Infinity;
+
+        for (const hand of candidates) {
+            const pos = GestureRuntimeUtils.handPosition(hand);
+            if (!pos) continue;
+            const distance = GestureRuntimeUtils.dist2d(pos, this.state.lastPosition);
+            if (distance < bestDistance) {
+                best = { hand, pos };
+                bestDistance = distance;
+            }
+        }
+
+        return bestDistance <= this.maxTrackingJump ? best : null;
     }
 
     update(hands = [], now) {
@@ -149,7 +181,23 @@ class DirectionalScrollController {
             hands,
             this.tracker.preferredHand
         );
-        const pos = GestureRuntimeUtils.handPosition(hand);
+        let pos = GestureRuntimeUtils.handPosition(hand);
+
+        if (pos) {
+            this.state.hand = hand?.hand || this.state.hand;
+            this.state.lastPosition = pos;
+            this.state.lastSeenAt = now;
+        } else {
+            const withinGrace = now - this.state.lastSeenAt <= this.graceMs;
+            const tracked = withinGrace ? this.findTrackedHand(hands) : null;
+            if (tracked?.pos) {
+                pos = tracked.pos;
+                this.state.lastPosition = pos;
+            } else if (withinGrace) {
+                return;
+            }
+        }
+
         if (!pos) {
             this.stopAllGestureActions();
             return;

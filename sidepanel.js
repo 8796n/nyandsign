@@ -939,6 +939,7 @@ tracker.addEventListener('gesture', (e) => {
 
     // 新しいサイン → すべてリセットして確定タイマー開始
     cancelPendingAction();
+    stopDirectionalScroll();
     stopRepeat();
     pendingGesture = gesture;
 
