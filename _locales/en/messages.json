@@ -307,55 +307,55 @@
   },
 
   "actionPlayPause": {
-    "message": "▶⏸ Play/Pause",
+    "message": "Play/Pause",
     "description": "Media action: toggle play/pause"
   },
   "actionPlay": {
-    "message": "▶ Play",
+    "message": "Play",
     "description": "Media action: play"
   },
   "actionPause": {
-    "message": "⏸ Pause",
+    "message": "Pause",
     "description": "Media action: pause"
   },
   "actionVolumeUp": {
-    "message": "🔊 Volume+ 🔁",
+    "message": "Volume+",
     "description": "Media action: volume up (repeatable)"
   },
   "actionVolumeDown": {
-    "message": "🔉 Volume− 🔁",
+    "message": "Volume−",
     "description": "Media action: volume down (repeatable)"
   },
   "actionMute": {
-    "message": "🔇 Mute",
+    "message": "Mute",
     "description": "Media action: toggle mute"
   },
   "actionNextTrack": {
-    "message": "⏭ Next Track",
+    "message": "Next Track",
     "description": "Media action: next track"
   },
   "actionPrevTrack": {
-    "message": "⏮ Prev Track",
+    "message": "Prev Track",
     "description": "Media action: previous track"
   },
   "actionSeekForward": {
-    "message": "⏩ +10s 🔁",
+    "message": "+10s",
     "description": "Media action: seek forward 10 seconds (repeatable)"
   },
   "actionSeekBackward": {
-    "message": "⏪ −10s 🔁",
+    "message": "−10s",
     "description": "Media action: seek backward 10 seconds (repeatable)"
   },
   "actionSpeedUp": {
-    "message": "⏫ Speed+ 🔁",
+    "message": "Speed+",
     "description": "Media action: increase playback rate (repeatable)"
   },
   "actionSpeedDown": {
-    "message": "⏬ Speed− 🔁",
+    "message": "Speed−",
     "description": "Media action: decrease playback rate (repeatable)"
   },
   "actionResetSpeed": {
-    "message": "🔄 Reset Speed",
+    "message": "Reset Speed",
     "description": "Media action: reset playback rate to 1x"
   },
   "actionDirectionalScroll": {
@@ -363,55 +363,55 @@
     "description": "Browser action: scroll by moving the held sign"
   },
   "actionScrollDown": {
-    "message": "↓ Scroll Down 🔁",
+    "message": "Scroll Down",
     "description": "Browser action: scroll down"
   },
   "actionScrollUp": {
-    "message": "↑ Scroll Up 🔁",
+    "message": "Scroll Up",
     "description": "Browser action: scroll up"
   },
   "actionScrollRight": {
-    "message": "→ Scroll Right 🔁",
+    "message": "Scroll Right",
     "description": "Browser action: scroll right"
   },
   "actionScrollLeft": {
-    "message": "← Scroll Left 🔁",
+    "message": "Scroll Left",
     "description": "Browser action: scroll left"
   },
   "actionPageTop": {
-    "message": "↟ Page Top",
+    "message": "Page Top",
     "description": "Browser action: scroll to top"
   },
   "actionPageBottom": {
-    "message": "↡ Page Bottom",
+    "message": "Page Bottom",
     "description": "Browser action: scroll to bottom"
   },
   "actionHistoryBack": {
-    "message": "↩ Back",
+    "message": "Back",
     "description": "Browser action: history back"
   },
   "actionHistoryForward": {
-    "message": "↪ Forward",
+    "message": "Forward",
     "description": "Browser action: history forward"
   },
   "actionNextTab": {
-    "message": "⇥ Next Tab",
+    "message": "Next Tab",
     "description": "Browser action: activate next tab"
   },
   "actionPreviousTab": {
-    "message": "⇤ Previous Tab",
+    "message": "Previous Tab",
     "description": "Browser action: activate previous tab"
   },
   "actionReload": {
-    "message": "↻ Reload",
+    "message": "Reload",
     "description": "Browser action: reload tab"
   },
   "actionZoomIn": {
-    "message": "+ Zoom In 🔁",
+    "message": "Zoom In",
     "description": "Browser action: zoom in"
   },
   "actionZoomOut": {
-    "message": "− Zoom Out 🔁",
+    "message": "Zoom Out",
     "description": "Browser action: zoom out"
   },
   "actionResetZoom": {
@@ -419,7 +419,7 @@
     "description": "Browser action: reset zoom"
   },
   "actionNone": {
-    "message": "— None",
+    "message": "None",
     "description": "Media action: no action assigned"
   },
 
@@ -452,7 +452,7 @@
     "description": "Two-hand action: set browser mode"
   },
   "metaActionNone": {
-    "message": "— None",
+    "message": "None",
     "description": "Two-hand action: no action"
   },
 

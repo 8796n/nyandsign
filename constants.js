@@ -44,8 +44,46 @@ const ACTION_I18N_KEYS = {
     none: 'actionNone',
 };
 
+const ACTION_ICONS = {
+    playPause: '▶⏸',
+    play: '▶',
+    pause: '⏸',
+    volumeUp: '🔊',
+    volumeDown: '🔉',
+    mute: '🔇',
+    nextTrack: '⏭',
+    prevTrack: '⏮',
+    seekForward: '⏩',
+    seekBackward: '⏪',
+    speedUp: '⏫',
+    speedDown: '⏬',
+    resetSpeed: '1×',
+    directionalScroll: '↕',
+    scrollDown: '↓',
+    scrollUp: '↑',
+    scrollRight: '→',
+    scrollLeft: '←',
+    pageTop: '↟',
+    pageBottom: '↡',
+    historyBack: '↩',
+    historyForward: '↪',
+    nextTab: '⇥',
+    previousTab: '⇤',
+    reload: '↻',
+    zoomIn: '＋',
+    zoomOut: '−',
+    resetZoom: '100%',
+    none: '—',
+};
+
 function actionLabel(key) {
     return msg(ACTION_I18N_KEYS[key] ?? 'actionNone');
+}
+
+function actionDisplay(key) {
+    const normalizedKey = ACTION_I18N_KEYS[key] ? key : 'none';
+    const repeatSuffix = REPEATABLE_ACTIONS.has(normalizedKey) ? ' 🔁' : '';
+    return `${ACTION_ICONS[normalizedKey]} ${actionLabel(normalizedKey)}${repeatSuffix}`;
 }
 
 const MEDIA_ACTION_KEYS = [
@@ -144,6 +182,14 @@ const META_ACTION_I18N_KEYS = {
     none: 'metaActionNone',
 };
 
+const META_ACTION_ICONS = {
+    toggleEnabled: '⏻',
+    toggleMode: '⇄',
+    setModeMedia: '▶',
+    setModeBrowser: '🌐',
+    none: '—',
+};
+
 const DEFAULT_META_GESTURE_MAPPING = {
     frame: 'toggleEnabled',
     'both-peace': 'toggleMode',
@@ -152,4 +198,9 @@ const DEFAULT_META_GESTURE_MAPPING = {
 
 function metaActionLabel(key) {
     return msg(META_ACTION_I18N_KEYS[key] ?? 'metaActionNone');
+}
+
+function metaActionDisplay(key) {
+    const normalizedKey = META_ACTION_I18N_KEYS[key] ? key : 'none';
+    return `${META_ACTION_ICONS[normalizedKey]} ${metaActionLabel(normalizedKey)}`;
 }

@@ -232,91 +232,91 @@
   },
 
   "actionPlayPause": {
-    "message": "▶⏸ 再生/一時停止"
+    "message": "再生/一時停止"
   },
   "actionPlay": {
-    "message": "▶ 再生"
+    "message": "再生"
   },
   "actionPause": {
-    "message": "⏸ 一時停止"
+    "message": "一時停止"
   },
   "actionVolumeUp": {
-    "message": "🔊 音量+ 🔁"
+    "message": "音量+"
   },
   "actionVolumeDown": {
-    "message": "🔉 音量− 🔁"
+    "message": "音量−"
   },
   "actionMute": {
-    "message": "🔇 ミュート"
+    "message": "ミュート"
   },
   "actionNextTrack": {
-    "message": "⏭ 次のトラック"
+    "message": "次のトラック"
   },
   "actionPrevTrack": {
-    "message": "⏮ 前のトラック"
+    "message": "前のトラック"
   },
   "actionSeekForward": {
-    "message": "⏩ 10秒進む 🔁"
+    "message": "10秒進む"
   },
   "actionSeekBackward": {
-    "message": "⏪ 10秒戻る 🔁"
+    "message": "10秒戻る"
   },
   "actionSpeedUp": {
-    "message": "⏫ 速度+ 🔁"
+    "message": "速度+"
   },
   "actionSpeedDown": {
-    "message": "⏬ 速度− 🔁"
+    "message": "速度−"
   },
   "actionResetSpeed": {
-    "message": "🔄 速度リセット"
+    "message": "速度リセット"
   },
   "actionDirectionalScroll": {
     "message": "方向スクロール"
   },
   "actionScrollDown": {
-    "message": "↓ 下へスクロール 🔁"
+    "message": "下へスクロール"
   },
   "actionScrollUp": {
-    "message": "↑ 上へスクロール 🔁"
+    "message": "上へスクロール"
   },
   "actionScrollRight": {
-    "message": "→ 右へスクロール 🔁"
+    "message": "右へスクロール"
   },
   "actionScrollLeft": {
-    "message": "← 左へスクロール 🔁"
+    "message": "左へスクロール"
   },
   "actionPageTop": {
-    "message": "↟ ページ先頭"
+    "message": "ページ先頭"
   },
   "actionPageBottom": {
-    "message": "↡ ページ末尾"
+    "message": "ページ末尾"
   },
   "actionHistoryBack": {
-    "message": "↩ 戻る"
+    "message": "戻る"
   },
   "actionHistoryForward": {
-    "message": "↪ 進む"
+    "message": "進む"
   },
   "actionNextTab": {
-    "message": "⇥ 次のタブ"
+    "message": "次のタブ"
   },
   "actionPreviousTab": {
-    "message": "⇤ 前のタブ"
+    "message": "前のタブ"
   },
   "actionReload": {
-    "message": "↻ 再読み込み"
+    "message": "再読み込み"
   },
   "actionZoomIn": {
-    "message": "＋ ズームイン 🔁"
+    "message": "ズームイン"
   },
   "actionZoomOut": {
-    "message": "− ズームアウト 🔁"
+    "message": "ズームアウト"
   },
   "actionResetZoom": {
     "message": "等倍に戻す"
   },
   "actionNone": {
-    "message": "— なし"
+    "message": "なし"
   },
 
   "metaGestureFrame": {
@@ -341,7 +341,7 @@
     "message": "ブラウザ操作にする"
   },
   "metaActionNone": {
-    "message": "— なし"
+    "message": "なし"
   },
 
   "hintNoCamera": {

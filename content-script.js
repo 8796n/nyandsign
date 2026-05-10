@@ -224,7 +224,7 @@
      * 操作フィードバック用のオーバーレイを一瞬表示する。
      */
     const ACTION_ICONS = {
-        playPause:     '⏯',
+        playPause:     '▶⏸',
         play:          '▶',
         pause:         '⏸',
         volumeUp:      '🔊',
@@ -237,7 +237,7 @@
         previousTrack: '⏮',
         speedUp:       '⏫',
         speedDown:     '⏬',
-        resetSpeed:    '🔄',
+        resetSpeed:    '1×',
         directionalScroll: '↕',
         scrollDown:    '↓',
         scrollUp:      '↑',
@@ -245,6 +245,14 @@
         scrollLeft:    '←',
         pageTop:       '↟',
         pageBottom:    '↡',
+        historyBack:   '↩',
+        historyForward: '↪',
+        nextTab:       '⇥',
+        previousTab:   '⇤',
+        reload:        '↻',
+        zoomIn:        '＋',
+        zoomOut:       '−',
+        resetZoom:     '100%',
     };
 
     let overlayTimer = null;

@@ -859,7 +859,7 @@ function confirmAction(gesture, action) {
     if (now - lastActionTime < ACTION_COOLDOWN) return;
     lastActionTime = now;
 
-    log(msg('logGestureAction', [gestureLabel(gesture), actionLabel(action)]));
+    log(msg('logGestureAction', [gestureLabel(gesture), actionDisplay(action)]));
     if (DIRECTIONAL_ACTIONS.has(action)) {
         if (startDirectionalScroll(gesture)) return;
     }
@@ -1020,10 +1020,10 @@ metaGestureController = new MetaGestureController({
     },
     onDisplay: (type, action) => {
         const disp = META_GESTURE_DISPLAY[type];
-        if (disp) setGestureText(disp.emoji, metaActionLabel(action));
+        if (disp) setGestureText(disp.emoji, metaActionDisplay(action));
     },
     onExecuted: (type, action) => {
-        log(msg('logMetaGestureAction', [metaGestureLabel(type), metaActionLabel(action)]));
+        log(msg('logMetaGestureAction', [metaGestureLabel(type), metaActionDisplay(action)]));
     },
 });
 
@@ -1048,7 +1048,7 @@ function buildMappingUI() {
         for (const value of actionKeys) {
             const opt = document.createElement('option');
             opt.value = value;
-            opt.textContent = actionLabel(value);
+            opt.textContent = actionDisplay(value);
             if (editMapping[gesture] === value) opt.selected = true;
             select.appendChild(opt);
         }
@@ -1081,7 +1081,7 @@ function buildMetaMappingUI() {
         for (const value of actions) {
             const opt = document.createElement('option');
             opt.value = value;
-            opt.textContent = metaActionLabel(value);
+            opt.textContent = metaActionDisplay(value);
             if ((metaGestureMapping[type] || 'none') === value) opt.selected = true;
             select.appendChild(opt);
         }
@@ -1647,7 +1647,7 @@ function renderTutorialStep() {
         } else {
             bodyText = msg('tutorialStep5Body', [
                 metaGestureLabel(toggleEntry[0]),
-                metaActionLabel(toggleEntry[1]),
+                metaActionDisplay(toggleEntry[1]),
             ]);
         }
     } else {

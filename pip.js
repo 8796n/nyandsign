@@ -463,7 +463,7 @@ tracker.addEventListener('gesture', (e) => {
     if (!action || action === 'none') { stopAllGestureActions(); return; }
 
     // メディアコマンドとして発火するのでコマンド名を表示
-    gestureText = `${icon} ${actionLabel(action)}`;
+    gestureText = `${icon} ${actionDisplay(action)}`;
 
     if (gesture === repeatingGesture || gesture === pendingGesture) return;
 
