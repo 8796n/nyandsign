@@ -58,6 +58,7 @@ let toggleGestureType = 'frame';
 let metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
 let metaGestureActive = false;
 let metaGestureStartTime = 0;
+let metaGestureConsumed = false;   // 発火後、両手サイン解除まで再発火を抑制
 let metaGestureLastSeen = 0;
 let lastToggleTime = 0;
 const META_COOLDOWN_MS = 2000;
@@ -481,6 +482,7 @@ tracker.addEventListener('gesture', (e) => {
         stopAllGestureActions();
         metaGestureActive = false;
         metaGestureStartTime = 0;
+        metaGestureConsumed = false;
         return;
     }
 
@@ -489,7 +491,7 @@ tracker.addEventListener('gesture', (e) => {
     // デフォルトは絵文字のみ（発火時のみコマンド名を付加）
     gestureText = icon;
 
-    if (metaGestureActive) return;
+    if (metaGestureActive || metaGestureConsumed) return;
     if (!controlEnabled) return;
 
     // ウェイクサイン検出で ACTIVE に遷移
@@ -626,14 +628,31 @@ tracker.addEventListener('frame', (e) => {
     const { gestures: hands } = e.detail;
     const now = Date.now();
     lastFrameHands = hands;
+    const detectedType = detectMetaGestureType(hands);
+
+    if (detectedType) {
+        metaGestureLastSeen = now;
+    } else if (metaGestureConsumed && now - metaGestureLastSeen > META_GRACE_MS) {
+        metaGestureConsumed = false;
+    }
+
+    if (metaGestureConsumed) {
+        metaGestureActive = false;
+        return;
+    }
 
     if (now - lastToggleTime < META_COOLDOWN_MS) {
-        metaGestureActive = false;
+        if (detectedType) {
+            metaGestureActive = true;
+            metaGestureStartTime = now;
+        } else {
+            metaGestureActive = false;
+            metaGestureStartTime = 0;
+        }
         updateDirectionalScroll(hands, now);
         return;
     }
 
-    const detectedType = detectMetaGestureType(hands);
     const metaAction = detectedType ? metaGestureMapping[detectedType] : 'none';
     const detected = detectedType && metaAction && metaAction !== 'none';
 
@@ -650,7 +669,11 @@ tracker.addEventListener('frame', (e) => {
 
         const holdMs = Math.max(gestureHoldTime, 200);
         if (now - metaGestureStartTime >= holdMs) {
-            if (executeMetaAction(metaAction)) lastToggleTime = now;
+            if (executeMetaAction(metaAction)) {
+                lastToggleTime = now;
+                metaGestureConsumed = true;
+                metaGestureLastSeen = now;
+            }
             metaGestureActive = false;
             metaGestureStartTime = 0;
         }

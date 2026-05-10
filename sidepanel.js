@@ -103,6 +103,7 @@ let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
 let metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
 let metaGestureActive = false;
 let metaGestureStartTime = 0;
+let metaGestureConsumed = false;    // 発火後、両手サイン解除まで再発火を抑制
 // メガネカメラ使用時のミラー自動OFF用
 let savedMirrorState = null;       // null=自動変更なし, boolean=変更前の値
 let metaGestureLastSeen = 0;
@@ -544,6 +545,7 @@ function stopCamera() {
     hide(el.cameraSection);
     // メタサイン状態もリセット
     metaGestureActive = false;    metaGestureStartTime = 0;
+    metaGestureConsumed = false;
     setGestureText('—', '');
     // メガネカメラによるミラー自動OFFの復元
     if (savedMirrorState !== null) {
@@ -980,13 +982,14 @@ tracker.addEventListener('gesture', (e) => {
         // メタサイン状態もリセット（手が消えた）
         metaGestureActive = false;
         metaGestureStartTime = 0;
+        metaGestureConsumed = false;
         return;
     }
 
     setGestureText(GESTURE_ICONS[gesture] || '❓', gestureLabel(gesture));
 
     // メタサイン検出中は通常アクションを抑制
-    if (metaGestureActive) return;
+    if (metaGestureActive || metaGestureConsumed) return;
 
     if (!controlEnabled) return;
 
@@ -1142,15 +1145,33 @@ tracker.addEventListener('frame', (e) => {
     const { gestures: hands } = e.detail;
     const now = Date.now();
     lastFrameHands = hands;
+    const detectedType = detectMetaGestureType(hands);
+
+    if (detectedType) {
+        metaGestureLastSeen = now;
+    } else if (metaGestureConsumed && now - metaGestureLastSeen > META_GRACE_MS) {
+        metaGestureConsumed = false;
+    }
+
+    // 発火済みの両手サインは、いったん解除されるまで再発火させない
+    if (metaGestureConsumed) {
+        metaGestureActive = false;
+        return;
+    }
 
     // クールダウン中はスキップ
     if (now - lastToggleTime < META_COOLDOWN_MS) {
-        metaGestureActive = false;
+        if (detectedType) {
+            metaGestureActive = true;
+            metaGestureStartTime = now;
+        } else {
+            metaGestureActive = false;
+            metaGestureStartTime = 0;
+        }
         updateDirectionalScroll(hands, now);
         return;
     }
 
-    const detectedType = detectMetaGestureType(hands);
     const metaAction = detectedType ? metaGestureMapping[detectedType] : 'none';
     const detected = detectedType && metaAction && metaAction !== 'none';
 
@@ -1178,6 +1199,8 @@ tracker.addEventListener('frame', (e) => {
             if (executeMetaAction(metaAction)) {
                 log(msg('logMetaGestureAction', [metaGestureLabel(detectedType), metaActionLabel(metaAction)]));
                 lastToggleTime = now;
+                metaGestureConsumed = true;
+                metaGestureLastSeen = now;
             }
             metaGestureActive = false;
             metaGestureStartTime = 0;
