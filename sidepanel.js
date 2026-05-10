@@ -1035,29 +1035,60 @@ function dist2d(a, b) {
     return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-/** フレームサイン: 両手の親指先端⇔人差し指先端が交差接近 */
-function detectFrameGesture(hands) {
+/** 片手の重複検出を両手サインとして扱わないためのペア判定 */
+function isDistinctHandPair(handA, handB) {
+    if (!handA?.landmarks || !handB?.landmarks) return false;
+
+    const lmA = handA.landmarks;
+    const lmB = handB.landmarks;
+    const psA = dist2d(lmA[0], lmA[9]);
+    const psB = dist2d(lmB[0], lmB[9]);
+    const avgPs = (psA + psB) / 2;
+    const wristDistance = dist2d(lmA[0], lmB[0]);
+
+    // 同一の実手を2件として検出した場合は手首位置がかなり近い。
+    if (wristDistance < avgPs * 0.9) return false;
+
+    // handedness が同じで距離も近い場合は、重複検出の可能性が高い。
+    if (handA.hand !== 'unknown' && handB.hand !== 'unknown' &&
+        handA.hand === handB.hand && wristDistance < avgPs * 1.6) {
+        return false;
+    }
+
+    return true;
+}
+
+function distinctHandPairs(hands) {
+    const pairs = [];
     for (let i = 0; i < hands.length; i++) {
         for (let j = i + 1; j < hands.length; j++) {
-            const lm1 = hands[i].landmarks;
-            const lm2 = hands[j].landmarks;
+            if (isDistinctHandPair(hands[i], hands[j])) pairs.push([hands[i], hands[j]]);
+        }
+    }
+    return pairs;
+}
 
-            // パームサイズ基準のスケール相対閾値
-            const ps1 = dist2d(lm1[0], lm1[9]);
-            const ps2 = dist2d(lm2[0], lm2[9]);
-            const avgPs = (ps1 + ps2) / 2;
-            const threshold = avgPs * 0.5;
+/** フレームサイン: 両手の親指先端⇔人差し指先端が交差接近 */
+function detectFrameGesture(pairs) {
+    for (const [handA, handB] of pairs) {
+        const lm1 = handA.landmarks;
+        const lm2 = handB.landmarks;
 
-            // 親指先端(4)⇔人差し指先端(8) が交差で接近
-            const d1 = dist2d(lm1[4], lm2[8]);
-            const d2 = dist2d(lm1[8], lm2[4]);
+        // パームサイズ基準のスケール相対閾値
+        const ps1 = dist2d(lm1[0], lm1[9]);
+        const ps2 = dist2d(lm2[0], lm2[9]);
+        const avgPs = (ps1 + ps2) / 2;
+        const threshold = avgPs * 0.5;
 
-            if (d1 < threshold && d2 < threshold) {
-                // 接触点が縦に分離している（四角の形状確認）
-                const cy1 = (lm1[4].y + lm2[8].y) / 2;
-                const cy2 = (lm1[8].y + lm2[4].y) / 2;
-                if (Math.abs(cy1 - cy2) > avgPs * 0.3) return true;
-            }
+        // 親指先端(4)⇔人差し指先端(8) が交差で接近
+        const d1 = dist2d(lm1[4], lm2[8]);
+        const d2 = dist2d(lm1[8], lm2[4]);
+
+        if (d1 < threshold && d2 < threshold) {
+            // 接触点が縦に分離している（四角の形状確認）
+            const cy1 = (lm1[4].y + lm2[8].y) / 2;
+            const cy2 = (lm1[8].y + lm2[4].y) / 2;
+            if (Math.abs(cy1 - cy2) > avgPs * 0.3) return true;
         }
     }
     return false;
@@ -1071,10 +1102,13 @@ const META_GESTURE_DISPLAY = {
 
 /** メタサイン検出（両手の組み合わせ） */
 function detectMetaGestureType(hands) {
-    if (hands.length < 2) return null;
-    if (detectFrameGesture(hands)) return 'frame';
-    if (hands.filter(h => h.gesture === 'peace').length >= 2) return 'both-peace';
-    if (hands.some(h => h.gesture === 'peace') && hands.some(h => h.gesture === 'fist')) return 'peace-fist';
+    const pairs = distinctHandPairs(hands);
+    if (!pairs.length) return null;
+    if (detectFrameGesture(pairs)) return 'frame';
+    if (pairs.some(([a, b]) => a.gesture === 'peace' && b.gesture === 'peace')) return 'both-peace';
+    if (pairs.some(([a, b]) =>
+        (a.gesture === 'peace' && b.gesture === 'fist') ||
+        (a.gesture === 'fist' && b.gesture === 'peace'))) return 'peace-fist';
     return null;
 }
 
