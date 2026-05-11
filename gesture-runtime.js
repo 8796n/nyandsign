@@ -55,6 +55,10 @@ const GestureRuntimeUtils = {
         return action || 'none';
     },
 
+    isUncertainGesture(gesture) {
+        return !gesture || gesture === 'unknown';
+    },
+
     dist2d(a, b) {
         return Math.hypot(a.x - b.x, a.y - b.y);
     },

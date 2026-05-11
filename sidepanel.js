@@ -985,8 +985,12 @@ function isWakeGesture(gesture) {
 
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
-    if (!gesture) {
-        setGestureText('—', '');
+    if (GestureRuntimeUtils.isUncertainGesture(gesture)) {
+        if (gesture === 'unknown') {
+            setGestureText(GESTURE_ICONS.unknown || '❓', gestureLabel('unknown'));
+        } else {
+            setGestureText('—', '');
+        }
         const suspended = holdGestureResumeController?.suspend();
         if (!suspended) {
             continuousGestureGate?.reset();

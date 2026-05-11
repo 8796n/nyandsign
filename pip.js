@@ -555,8 +555,8 @@ function isWakeGesture(gesture) {
 // ジェスチャーイベント
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
-    if (!gesture) {
-        gestureText = '';
+    if (GestureRuntimeUtils.isUncertainGesture(gesture)) {
+        gestureText = gesture === 'unknown' ? (GESTURE_ICONS.unknown || '❓') : '';
         const suspended = holdGestureResumeController?.suspend();
         if (!suspended) {
             continuousGestureGate?.reset();
