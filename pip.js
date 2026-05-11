@@ -63,7 +63,7 @@ let metaGestureController = null;
 let lastFrameHands = [];
 let directionalScrollController = null;
 let pointerMoveController = null;
-let pointerKeepAliveTimer = null;
+let pointerVisibilityController = null;
 
 // PiP 合成
 let pipCanvas = null;
@@ -101,12 +101,6 @@ let lifecyclePort = null;
 let targetTabAlive = true;
 let targetTabTitle = '';           // PiP canvas 描画用
 
-function modeLabel(mode) {
-    if (mode === OPERATION_MODES.BROWSER) return msg('operationModeBrowser');
-    if (mode === OPERATION_MODES.POINTER) return msg('operationModePointer');
-    return msg('operationModeMedia');
-}
-
 function getMappingForMode(mode) {
     if (mode === OPERATION_MODES.BROWSER) return browserMapping;
     if (mode === OPERATION_MODES.POINTER) return pointerMapping;
@@ -114,25 +108,15 @@ function getMappingForMode(mode) {
 }
 
 function isPointerModeAvailable() {
-    return experimentalPointerModeEnabled === true;
+    return GestureRuntimeUtils.isPointerModeAvailable(experimentalPointerModeEnabled);
 }
 
 function normalizeOperationMode(mode) {
-    if (mode === OPERATION_MODES.POINTER) {
-        return isPointerModeAvailable() ? OPERATION_MODES.POINTER : OPERATION_MODES.BROWSER;
-    }
-    if (mode === OPERATION_MODES.BROWSER) return OPERATION_MODES.BROWSER;
-    return OPERATION_MODES.MEDIA;
+    return GestureRuntimeUtils.normalizeOperationMode(mode, experimentalPointerModeEnabled);
 }
 
 function availableOperationModes() {
-    return OPERATION_MODE_ORDER.filter(mode => mode !== OPERATION_MODES.POINTER || isPointerModeAvailable());
-}
-
-function modeBeepFrequency(mode) {
-    if (mode === OPERATION_MODES.BROWSER) return 660;
-    if (mode === OPERATION_MODES.POINTER) return 740;
-    return 880;
+    return GestureRuntimeUtils.availableOperationModes(experimentalPointerModeEnabled);
 }
 
 function refreshCurrentMapping() {
@@ -145,54 +129,16 @@ function setOperationMode(mode, options = {}) {
     operationMode = normalizeOperationMode(mode);
     refreshCurrentMapping();
     if (options.save !== false) chrome.storage.sync.set({ operationMode });
-    if (options.beep !== false) playBeep(modeBeepFrequency(operationMode), 0.18);
+    if (options.beep !== false) playBeep(GestureRuntimeUtils.modeBeepFrequency(operationMode), 0.18);
     stopAllGestureActions();
     continuousGestureGate?.reset();
-    syncPointerVisibility(previousMode);
+    pointerVisibilityController?.sync(previousMode);
 }
 
 function toggleOperationMode() {
     const modes = availableOperationModes();
     const index = Math.max(0, modes.indexOf(operationMode));
     setOperationMode(modes[(index + 1) % modes.length]);
-}
-
-function shouldKeepPointerVisible() {
-    return operationMode === OPERATION_MODES.POINTER && controlEnabled && !!cameraStream;
-}
-
-function stopPointerKeepAlive(options = {}) {
-    if (pointerKeepAliveTimer) {
-        clearInterval(pointerKeepAliveTimer);
-        pointerKeepAliveTimer = null;
-    }
-    if (options.hide) sendAction('pointerHide');
-}
-
-function startPointerKeepAlive() {
-    if (!shouldKeepPointerVisible()) return;
-    if (!pointerKeepAliveTimer) {
-        pointerKeepAliveTimer = setInterval(() => {
-            if (shouldKeepPointerVisible()) {
-                sendAction('pointerShow');
-            } else {
-                stopPointerKeepAlive({ hide: true });
-            }
-        }, 2000);
-    }
-    sendAction('pointerShow');
-}
-
-function syncPointerVisibility(previousMode = operationMode) {
-    if (previousMode === OPERATION_MODES.POINTER && operationMode !== OPERATION_MODES.POINTER) {
-        stopPointerKeepAlive({ hide: true });
-        return;
-    }
-    if (shouldKeepPointerVisible()) {
-        startPointerKeepAlive();
-    } else {
-        stopPointerKeepAlive({ hide: true });
-    }
 }
 
 /* ============================================================
@@ -237,7 +183,7 @@ async function loadSettings() {
         if (result.preferredHand) tracker.preferredHand = result.preferredHand;
         if (result.notifyVolume !== undefined) notifyVolume = Math.max(0, Math.min(1, Number(result.notifyVolume)));
         if (result.pipFontScale !== undefined) pipFontScale = Math.max(0.5, Math.min(2, Number(result.pipFontScale) / 100));
-        syncPointerVisibility();
+        pointerVisibilityController?.sync();
     } catch (_) {}
 }
 
@@ -265,21 +211,21 @@ chrome.storage.onChanged.addListener((changes) => {
             chrome.storage.sync.set({ operationMode });
             stopAllGestureActions();
         }
-        syncPointerVisibility(previousMode);
+        pointerVisibilityController?.sync(previousMode);
     }
     if (changes.operationMode) {
         const previousMode = operationMode;
         operationMode = normalizeOperationMode(changes.operationMode.newValue);
         refreshCurrentMapping();
         stopAllGestureActions();
-        syncPointerVisibility(previousMode);
+        pointerVisibilityController?.sync(previousMode);
     }
     if (changes.controlEnabled) {
         controlEnabled = changes.controlEnabled.newValue;
         if (!controlEnabled) {
             stopAllGestureActions();
         }
-        syncPointerVisibility();
+        pointerVisibilityController?.sync();
     }
     if (changes.wakeGestureType) wakeGestureType = changes.wakeGestureType.newValue;
     if (changes.wakeActiveDuration) wakeActiveDuration = changes.wakeActiveDuration.newValue;
@@ -380,7 +326,7 @@ chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'instance-takeover' && message.instanceId !== instanceId) {
         // 別のインスタンスに所有権が移った → 自身を停止
         stopAllGestureActions();
-        stopPointerKeepAlive({ hide: true });
+        pointerVisibilityController?.stop({ hide: true });
         stopPipComposite();
         if (document.pictureInPictureElement) {
             document.exitPictureInPicture().catch(() => {});
@@ -533,6 +479,13 @@ pointerMoveController = new PointerMoveController({
     isControlEnabled: () => controlEnabled && operationMode === OPERATION_MODES.POINTER,
 });
 
+pointerVisibilityController = new PointerVisibilityController({
+    getOperationMode: () => operationMode,
+    isControlEnabled: () => controlEnabled,
+    hasCameraStream: () => !!cameraStream,
+    sendAction,
+});
+
 metaGestureController = new MetaGestureController({
     getMetaAction: getEnabledMetaAction,
     getHoldMs: () => Math.max(gestureHoldTime, 200),
@@ -654,8 +607,7 @@ function resetMetaGestureState() {
 
 function getEnabledMetaAction(type) {
     const action = metaGestureMapping[type] || 'none';
-    if (action === 'setModePointer' && !isPointerModeAvailable()) return 'none';
-    return action;
+    return GestureRuntimeUtils.enabledMetaAction(action, experimentalPointerModeEnabled);
 }
 
 function executeMetaAction(action) {
@@ -667,7 +619,7 @@ function executeMetaAction(action) {
             if (!controlEnabled) {
                 stopAllGestureActions();
             }
-            syncPointerVisibility();
+            pointerVisibilityController?.sync();
             return true;
         case 'toggleMode':
             toggleOperationMode();
@@ -800,7 +752,7 @@ function compositeFrame(ctx, canvas) {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        const mode = modeLabel(operationMode);
+        const mode = GestureRuntimeUtils.modeLabel(operationMode);
         const modeWidth = ctx.measureText(mode).width + 16;
         const maxTextW = vw - modeWidth - 16;
         let label = `🎯 ${targetTabTitle}`;
@@ -874,7 +826,7 @@ async function startCamera() {
             console.log('[PiP] カメラ切断を検出');
             // カメラ・トラッキングを停止
             stopAllGestureActions();
-            stopPointerKeepAlive({ hide: true });
+            pointerVisibilityController?.stop({ hide: true });
             stopPipComposite();
             tracker.stop();
             if (cameraStream) {
@@ -922,7 +874,7 @@ async function startCamera() {
 
         statusEl.textContent = msg('pipStatusCameraReady');
         btnStartPip.disabled = false;
-        syncPointerVisibility();
+        pointerVisibilityController?.sync();
 
         // プレビュー描画開始
         previewLoop();
@@ -1045,7 +997,7 @@ async function returnToSidepanel(autoRestart) {
     }
     // カメラを停止
     stopAllGestureActions();
-    stopPointerKeepAlive({ hide: true });
+    pointerVisibilityController?.stop({ hide: true });
     stopPipComposite();
     tracker.stop();
     if (cameraStream) {
@@ -1089,7 +1041,7 @@ window.addEventListener('beforeunload', (e) => {
         try { lifecyclePort.postMessage({ skipReturn: true }); } catch (_) {}
     }
     stopAllGestureActions();
-    stopPointerKeepAlive({ hide: true });
+    pointerVisibilityController?.stop({ hide: true });
     stopPipComposite();
     if (document.pictureInPictureElement) {
         document.exitPictureInPicture().catch(() => {});
@@ -1105,7 +1057,7 @@ window.addEventListener('beforeunload', (e) => {
 
 window.addEventListener('pagehide', () => {
     stopAllGestureActions();
-    stopPointerKeepAlive({ hide: true });
+    pointerVisibilityController?.stop({ hide: true });
 });
 
 // 起動

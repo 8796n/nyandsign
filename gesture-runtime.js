@@ -1,8 +1,9 @@
 /* ============================================================
  * ジェスチャー実行ランタイム共通部
  *
- * sidepanel.js / pip.js で共有する、両手サイン判定と方向スクロール制御。
- * UI 表示・通知音・ストレージ保存は呼び出し側に残す。
+ * sidepanel.js / pip.js で共有する、両手サイン判定・方向スクロール制御・
+ * 操作モード補助・ポインタ表示維持。
+ * UI 構築・通知音・ストレージ保存は呼び出し側に残す。
  * ============================================================ */
 
 const META_GESTURE_DISPLAY = {
@@ -17,6 +18,43 @@ function metaGestureLabel(type) {
 }
 
 const GestureRuntimeUtils = {
+    isPointerModeAvailable(enabled) {
+        return enabled === true;
+    },
+
+    normalizeOperationMode(mode, pointerEnabled) {
+        if (mode === OPERATION_MODES.POINTER) {
+            return this.isPointerModeAvailable(pointerEnabled)
+                ? OPERATION_MODES.POINTER
+                : OPERATION_MODES.BROWSER;
+        }
+        if (mode === OPERATION_MODES.BROWSER) return OPERATION_MODES.BROWSER;
+        return OPERATION_MODES.MEDIA;
+    },
+
+    availableOperationModes(pointerEnabled) {
+        return OPERATION_MODE_ORDER.filter(mode =>
+            mode !== OPERATION_MODES.POINTER || this.isPointerModeAvailable(pointerEnabled)
+        );
+    },
+
+    modeBeepFrequency(mode) {
+        if (mode === OPERATION_MODES.BROWSER) return 660;
+        if (mode === OPERATION_MODES.POINTER) return 740;
+        return 880;
+    },
+
+    modeLabel(mode) {
+        if (mode === OPERATION_MODES.BROWSER) return msg('operationModeBrowser');
+        if (mode === OPERATION_MODES.POINTER) return msg('operationModePointer');
+        return msg('operationModeMedia');
+    },
+
+    enabledMetaAction(action, pointerEnabled) {
+        if (action === 'setModePointer' && !this.isPointerModeAvailable(pointerEnabled)) return 'none';
+        return action || 'none';
+    },
+
     dist2d(a, b) {
         return Math.hypot(a.x - b.x, a.y - b.y);
     },
@@ -459,5 +497,57 @@ class MetaGestureController {
         }
 
         return { allowDirectional: !this.active };
+    }
+}
+
+class PointerVisibilityController {
+    constructor(options) {
+        this.getOperationMode = options.getOperationMode;
+        this.isControlEnabled = options.isControlEnabled;
+        this.hasCameraStream = options.hasCameraStream;
+        this.sendAction = options.sendAction;
+        this.intervalMs = options.intervalMs ?? 2000;
+        this.timer = null;
+    }
+
+    shouldKeepVisible() {
+        return this.getOperationMode() === OPERATION_MODES.POINTER &&
+            this.isControlEnabled() &&
+            this.hasCameraStream();
+    }
+
+    stop(options = {}) {
+        if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
+        }
+        if (options.hide) this.sendAction('pointerHide');
+    }
+
+    start() {
+        if (!this.shouldKeepVisible()) return;
+        if (!this.timer) {
+            this.timer = setInterval(() => {
+                if (this.shouldKeepVisible()) {
+                    this.sendAction('pointerShow');
+                } else {
+                    this.stop({ hide: true });
+                }
+            }, this.intervalMs);
+        }
+        this.sendAction('pointerShow');
+    }
+
+    sync(previousMode = this.getOperationMode()) {
+        if (previousMode === OPERATION_MODES.POINTER &&
+            this.getOperationMode() !== OPERATION_MODES.POINTER) {
+            this.stop({ hide: true });
+            return;
+        }
+        if (this.shouldKeepVisible()) {
+            this.start();
+        } else {
+            this.stop({ hide: true });
+        }
     }
 }
