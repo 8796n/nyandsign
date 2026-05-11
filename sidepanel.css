@@ -38,6 +38,8 @@
     --color-mode-media-soft: rgba(47, 191, 113, 0.22);
     --color-mode-browser: #4aa3ff;
     --color-mode-browser-soft: rgba(74, 163, 255, 0.22);
+    --color-mode-pointer: #ffc107;
+    --color-mode-pointer-soft: rgba(255, 193, 7, 0.22);
 }
 
 @media (prefers-color-scheme: light) {
@@ -78,6 +80,8 @@
         --color-mode-media-soft: rgba(31, 157, 87, 0.18);
         --color-mode-browser: #1976d2;
         --color-mode-browser-soft: rgba(25, 118, 210, 0.18);
+        --color-mode-pointer: #f2a900;
+        --color-mode-pointer-soft: rgba(242, 169, 0, 0.18);
     }
 }
 
@@ -107,6 +111,7 @@ body {
 }
 body.mode-media .header-actions .header-label { color: var(--color-mode-media); }
 body.mode-browser .header-actions .header-label { color: var(--color-mode-browser); }
+body.mode-pointer .header-actions .header-label { color: var(--color-mode-pointer); }
 .header-actions .toggle-switch { flex-shrink: 0; }
 
 #setup-hint { margin-top: 6px; }
@@ -219,6 +224,11 @@ body.mode-media #gesture-display.state-always {
     background: var(--color-mode-media-soft);
     outline: 1px solid var(--color-mode-media);
 }
+body.mode-pointer #gesture-display.state-active,
+body.mode-pointer #gesture-display.state-always {
+    background: var(--color-mode-pointer-soft);
+    outline: 1px solid var(--color-mode-pointer);
+}
 #wake-hint { margin-top: 6px; font-size: 10px; }
 
 /* ターゲットタブ行 */
@@ -247,6 +257,7 @@ body.mode-media #gesture-display.state-always {
     display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
     margin-bottom: 8px;
 }
+body.pointer-experimental-enabled .mode-tabs { grid-template-columns: repeat(3, 1fr); }
 .mode-tab {
     border: 1px solid var(--color-border);
     border-radius: 4px;
@@ -267,6 +278,10 @@ body.mode-media #gesture-display.state-always {
 .mode-tab[data-mode="browser"].is-active {
     border-color: var(--color-mode-browser);
     background: var(--color-mode-browser-soft);
+}
+.mode-tab[data-mode="pointer"].is-active {
+    border-color: var(--color-mode-pointer);
+    background: var(--color-mode-pointer-soft);
 }
 .mapping-row {
     display: flex; align-items: center; justify-content: space-between;
@@ -296,6 +311,7 @@ body.mode-media #gesture-display.state-always {
 .toggle-switch input:checked + .slider { background: var(--color-accent); }
 body.mode-media .mode-toggle input:checked + .slider { background: var(--color-mode-media); }
 body.mode-browser .mode-toggle input:checked + .slider { background: var(--color-mode-browser); }
+body.mode-pointer .mode-toggle input:checked + .slider { background: var(--color-mode-pointer); }
 .toggle-switch input:checked + .slider::before { transform: translateX(18px); }
 #log {
     font-family: 'Cascadia Code', 'Fira Code', monospace;

@@ -43,6 +43,8 @@ const ACTION_I18N_KEYS = {
     nextTab: 'actionNextTab', previousTab: 'actionPreviousTab',
     reload: 'actionReload',
     zoomIn: 'actionZoomIn', zoomOut: 'actionZoomOut', resetZoom: 'actionResetZoom',
+    pointerMove: 'actionPointerMove', pointerClick: 'actionPointerClick',
+    pointerShow: 'actionPointerShow', pointerHide: 'actionPointerHide',
     none: 'actionNone',
 };
 
@@ -79,6 +81,10 @@ const ACTION_ICONS = {
     zoomIn: '➕',
     zoomOut: '➖',
     resetZoom: '🔄',
+    pointerMove: '🟡',
+    pointerClick: '👆',
+    pointerShow: '🟡',
+    pointerHide: '—',
     none: '—',
 };
 
@@ -113,6 +119,10 @@ const BROWSER_ACTION_KEYS = [
     'none',
 ];
 
+const POINTER_ACTION_KEYS = [
+    'pointerMove', 'pointerClick', 'none',
+];
+
 const REPEATABLE_ACTIONS = new Set([
     'volumeUp', 'volumeDown', 'seekForward', 'seekBackward', 'speedUp', 'speedDown',
     'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'zoomIn', 'zoomOut',
@@ -120,6 +130,7 @@ const REPEATABLE_ACTIONS = new Set([
 ]);
 
 const DIRECTIONAL_ACTIONS = new Set(['directionalScroll']);
+const POINTER_MOVE_ACTIONS = new Set(['pointerMove']);
 
 const DEFAULT_MAPPING = {
     fist: 'pause',
@@ -151,6 +162,20 @@ const DEFAULT_BROWSER_MAPPING = {
     thumbsdown: 'zoomOut',
 };
 
+const DEFAULT_POINTER_MAPPING = {
+    fist: 'pointerClick',
+    peace: 'none',
+    three: 'none',
+    four: 'none',
+    ok: 'pointerMove',
+    aloha: 'none',
+    rock: 'none',
+    'point-right': 'none',
+    'point-left': 'none',
+    thumbsup: 'none',
+    thumbsdown: 'none',
+};
+
 const LEGACY_DEFAULT_BROWSER_MAPPING = {
     fist: 'none',
     peace: 'none',
@@ -172,7 +197,14 @@ function isSameGestureMapping(mapping, baseline) {
 const OPERATION_MODES = {
     MEDIA: 'media',
     BROWSER: 'browser',
+    POINTER: 'pointer',
 };
+
+const OPERATION_MODE_ORDER = [
+    OPERATION_MODES.MEDIA,
+    OPERATION_MODES.BROWSER,
+    OPERATION_MODES.POINTER,
+];
 
 const WAKE_STATE = {
     IDLE: 'idle',
@@ -196,6 +228,7 @@ const DEFAULT_SETTINGS = {
     notifyVolume: 0.3,
     uiScale: 100,
     pipFontScale: 100,
+    experimentalPointerModeEnabled: false,
 };
 
 const META_GESTURE_TYPES = ['frame', 'both-peace', 'peace-fist'];
@@ -205,6 +238,7 @@ const META_ACTION_I18N_KEYS = {
     toggleMode: 'metaActionToggleMode',
     setModeMedia: 'metaActionSetModeMedia',
     setModeBrowser: 'metaActionSetModeBrowser',
+    setModePointer: 'metaActionSetModePointer',
     none: 'metaActionNone',
 };
 
@@ -213,6 +247,7 @@ const META_ACTION_ICONS = {
     toggleMode: '⇄',
     setModeMedia: '🎬',
     setModeBrowser: '🌐',
+    setModePointer: '🟡',
     none: '—',
 };
 

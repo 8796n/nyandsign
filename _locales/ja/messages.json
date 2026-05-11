@@ -52,11 +52,17 @@
   "operationModeBrowser": {
     "message": "ブラウザ操作"
   },
+  "operationModePointer": {
+    "message": "ポインタ操作"
+  },
   "tabMediaActions": {
     "message": "メディア操作"
   },
   "tabBrowserActions": {
     "message": "ブラウザ操作"
+  },
+  "tabPointerActions": {
+    "message": "ポインタ操作"
   },
   "sectionTwoHandSigns": {
     "message": "両手サイン"
@@ -92,6 +98,12 @@
   },
   "settingSkeletonTitle": {
     "message": "カメラ映像を非表示にし、手の骨格のみ表示します"
+  },
+  "settingExperimentalPointerModeLabel": {
+    "message": "実験: ポインタ操作"
+  },
+  "settingExperimentalPointerModeTitle": {
+    "message": "ページ内に仮想カーソルを表示し、ハンドサインで移動とクリックを行う実験的な操作モードを有効にします"
   },
   "settingWakeLabel": {
     "message": "ウェイク"
@@ -327,6 +339,18 @@
   "actionResetZoom": {
     "message": "等倍に戻す"
   },
+  "actionPointerMove": {
+    "message": "ポインタ移動"
+  },
+  "actionPointerClick": {
+    "message": "クリック"
+  },
+  "actionPointerShow": {
+    "message": "ポインタ表示"
+  },
+  "actionPointerHide": {
+    "message": "ポインタ非表示"
+  },
   "actionNone": {
     "message": "なし"
   },
@@ -351,6 +375,9 @@
   },
   "metaActionSetModeBrowser": {
     "message": "ブラウザ操作にする"
+  },
+  "metaActionSetModePointer": {
+    "message": "ポインタ操作にする"
   },
   "metaActionNone": {
     "message": "なし"

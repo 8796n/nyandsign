@@ -53,8 +53,10 @@ const CAMERA_POLL_INTERVAL = 3000;
 const tracker = new HandTracker();
 let mediaMapping = { ...DEFAULT_MEDIA_MAPPING };
 let browserMapping = { ...DEFAULT_BROWSER_MAPPING };
+let pointerMapping = { ...DEFAULT_POINTER_MAPPING };
 let currentMapping = { ...DEFAULT_MEDIA_MAPPING };
 let operationMode = DEFAULT_SETTINGS.operationMode;
+let experimentalPointerModeEnabled = DEFAULT_SETTINGS.experimentalPointerModeEnabled;
 let controlEnabled = true;
 let cameraStream = null;
 let lastActionTime = 0;
@@ -96,6 +98,7 @@ let savedMirrorState = null;       // null=自動変更なし, boolean=変更前
 // --- 方向スクロール ---
 let lastFrameHands = [];
 let directionalScrollController = null;
+let pointerMoveController = null;
 
 // --- PiP (Picture-in-Picture) ---
 let pipWindowId = null;             // PiP ポップアップウィンドウの ID
@@ -140,6 +143,7 @@ const el = {
     metaMappingList: $('meta-mapping-list'),
     operationModeLabel: $('operation-mode-label'),
     chkEnabled:      $('chk-enabled'),
+    chkPointerMode:  $('chk-experimental-pointer-mode'),
     btnReset:        $('btn-reset-mapping'),
 
     log:             $('log'),
@@ -729,19 +733,48 @@ function playBeep(freq = 880, duration = 0.12) {
 /* ============================================================
  * 操作モード
  * ============================================================ */
+function isPointerModeAvailable() {
+    return experimentalPointerModeEnabled === true;
+}
+
+function normalizeOperationMode(mode) {
+    if (mode === OPERATION_MODES.POINTER) {
+        return isPointerModeAvailable() ? OPERATION_MODES.POINTER : OPERATION_MODES.BROWSER;
+    }
+    if (mode === OPERATION_MODES.BROWSER) return OPERATION_MODES.BROWSER;
+    return OPERATION_MODES.MEDIA;
+}
+
+function availableOperationModes() {
+    return OPERATION_MODE_ORDER.filter(mode => mode !== OPERATION_MODES.POINTER || isPointerModeAvailable());
+}
+
+function modeBeepFrequency(mode) {
+    if (mode === OPERATION_MODES.BROWSER) return 660;
+    if (mode === OPERATION_MODES.POINTER) return 740;
+    return 880;
+}
+
 function modeLabel(mode) {
-    return mode === OPERATION_MODES.BROWSER ? msg('operationModeBrowser') : msg('operationModeMedia');
+    if (mode === OPERATION_MODES.BROWSER) return msg('operationModeBrowser');
+    if (mode === OPERATION_MODES.POINTER) return msg('operationModePointer');
+    return msg('operationModeMedia');
 }
 
 function getMappingForMode(mode) {
-    return mode === OPERATION_MODES.BROWSER ? browserMapping : mediaMapping;
+    if (mode === OPERATION_MODES.BROWSER) return browserMapping;
+    if (mode === OPERATION_MODES.POINTER) return pointerMapping;
+    return mediaMapping;
 }
 
 function getActionKeysForMode(mode) {
-    return mode === OPERATION_MODES.BROWSER ? BROWSER_ACTION_KEYS : MEDIA_ACTION_KEYS;
+    if (mode === OPERATION_MODES.BROWSER) return BROWSER_ACTION_KEYS;
+    if (mode === OPERATION_MODES.POINTER) return POINTER_ACTION_KEYS;
+    return MEDIA_ACTION_KEYS;
 }
 
 function refreshCurrentMapping() {
+    operationMode = normalizeOperationMode(operationMode);
     currentMapping = getMappingForMode(operationMode);
 }
 
@@ -749,34 +782,69 @@ function updateOperationModeUI() {
     refreshCurrentMapping();
     document.body.classList.toggle('mode-media', operationMode === OPERATION_MODES.MEDIA);
     document.body.classList.toggle('mode-browser', operationMode === OPERATION_MODES.BROWSER);
+    document.body.classList.toggle('mode-pointer', operationMode === OPERATION_MODES.POINTER);
+    document.body.classList.toggle('pointer-experimental-enabled', isPointerModeAvailable());
     if (el.operationModeLabel) {
         el.operationModeLabel.textContent = modeLabel(operationMode);
         el.operationModeLabel.title = controlEnabled ? msg('titleOperationToggle') : msg('titleOperationToggleOff');
     }
     if (el.chkEnabled) el.chkEnabled.checked = controlEnabled;
+    if (el.chkPointerMode) el.chkPointerMode.checked = isPointerModeAvailable();
     document.querySelectorAll('.mode-tab').forEach((tab) => {
+        const visible = tab.dataset.mode !== OPERATION_MODES.POINTER || isPointerModeAvailable();
+        tab.classList.toggle('is-hidden', !visible);
         tab.classList.toggle('is-active', tab.dataset.mode === operationMode);
         tab.setAttribute('aria-selected', tab.dataset.mode === operationMode ? 'true' : 'false');
+        tab.tabIndex = visible ? 0 : -1;
     });
 }
 
 function setOperationMode(mode, options = {}) {
-    const nextMode = mode === OPERATION_MODES.BROWSER ? OPERATION_MODES.BROWSER : OPERATION_MODES.MEDIA;
+    const previousMode = operationMode;
+    const nextMode = normalizeOperationMode(mode);
     if (operationMode === nextMode && !options.force) {
         updateOperationModeUI();
+        syncPointerVisibility(previousMode);
         return;
     }
     stopAllGestureActions();
+    continuousGestureGate?.reset();
     operationMode = nextMode;
     updateOperationModeUI();
     if (options.save !== false) chrome.storage.sync.set({ operationMode });
     if (options.log !== false) log(msg('logOperationModeChanged', [modeLabel(operationMode)]));
-    if (options.beep !== false) playBeep(operationMode === OPERATION_MODES.BROWSER ? 660 : 880, 0.18);
+    if (options.beep !== false) playBeep(modeBeepFrequency(operationMode), 0.18);
+    syncPointerVisibility(previousMode);
     buildMappingUI();
+    buildMetaMappingUI();
 }
 
 function toggleOperationMode() {
-    setOperationMode(operationMode === OPERATION_MODES.MEDIA ? OPERATION_MODES.BROWSER : OPERATION_MODES.MEDIA);
+    const modes = availableOperationModes();
+    const index = Math.max(0, modes.indexOf(operationMode));
+    setOperationMode(modes[(index + 1) % modes.length]);
+}
+
+function syncPointerVisibility(previousMode = operationMode) {
+    if (previousMode === OPERATION_MODES.POINTER && operationMode !== OPERATION_MODES.POINTER) {
+        sendAction('pointerHide');
+    }
+    if (operationMode === OPERATION_MODES.POINTER && controlEnabled) {
+        sendAction('pointerShow');
+    }
+}
+
+function setExperimentalPointerModeEnabled(enabled) {
+    experimentalPointerModeEnabled = enabled === true;
+    if (!experimentalPointerModeEnabled && operationMode === OPERATION_MODES.POINTER) {
+        setOperationMode(OPERATION_MODES.BROWSER, { force: true });
+    } else {
+        updateOperationModeUI();
+        buildMappingUI();
+        buildMetaMappingUI();
+        syncPointerVisibility();
+    }
+    chrome.storage.sync.set({ experimentalPointerModeEnabled });
 }
 
 /* ============================================================
@@ -787,6 +855,7 @@ function setWakeState(newState) {
     if (wakeTimeout) { clearTimeout(wakeTimeout); wakeTimeout = null; }
     cancelPendingAction();
     stopDirectionalScroll();
+    stopPointerMove();
     stopRepeat();
 
     const gd = el.gestureDisplay;
@@ -855,8 +924,28 @@ function updateDirectionalScroll(hands, now) {
     directionalScrollController?.update(hands, now);
 }
 
+function startPointerMove(gesture) {
+    if (!pointerMoveController?.start(gesture, lastFrameHands)) return false;
+    return true;
+}
+
+function stopPointerMove() {
+    pointerMoveController?.stop();
+}
+
+function updatePointerMove(hands, now) {
+    pointerMoveController?.update(hands, now);
+}
+
 /** holdTime 経過後にアクションを確定発火する */
 function confirmAction(gesture, action) {
+    if (POINTER_MOVE_ACTIONS.has(action)) {
+        if (startPointerMove(gesture)) {
+            setGestureText(GESTURE_ICONS[gesture] || '❓', actionDisplay(action));
+            return;
+        }
+    }
+
     const now = Date.now();
     if (now - lastActionTime < ACTION_COOLDOWN) return;
     lastActionTime = now;
@@ -891,9 +980,10 @@ function confirmAction(gesture, action) {
 /** サイン変化時: 保留 + リピートを停止し、必要なら IDLE に戻す */
 function stopAllGestureActions() {
     cancelPendingAction();
-    const wasRepeating = repeatingGesture !== null || !!directionalScrollController?.active;
+    const wasRepeating = repeatingGesture !== null || !!directionalScrollController?.active || !!pointerMoveController?.active;
     continuousGestureGate?.stop();
     stopDirectionalScroll();
+    stopPointerMove();
     stopRepeat();
     if (wasRepeating && wakeGestureType !== 'none') {
         setWakeState(WAKE_STATE.IDLE);
@@ -947,11 +1037,13 @@ tracker.addEventListener('gesture', (e) => {
     if (!action || action === 'none') { stopAllGestureActions(); return; }
 
     // リピート中 or 確定待機中の同じサイン → 継続
+    if (pointerMoveController?.active && gesture === pointerMoveController.state?.gesture) return;
     if (gesture === repeatingGesture || gesture === pendingGesture) return;
 
     // 新しいサイン → すべてリセットして確定タイマー開始
     cancelPendingAction();
     stopDirectionalScroll();
+    stopPointerMove();
     stopRepeat();
     pendingGesture = gesture;
 
@@ -985,6 +1077,10 @@ function executeMetaAction(action) {
         case 'setModeBrowser':
             setOperationMode(OPERATION_MODES.BROWSER);
             break;
+        case 'setModePointer':
+            if (!isPointerModeAvailable()) return false;
+            setOperationMode(OPERATION_MODES.POINTER);
+            break;
         default:
             return false;
     }
@@ -995,7 +1091,13 @@ function resetMetaGestureState() {
     metaGestureController?.reset();
 }
 
-/** frame イベント: メタサインの検出と方向スクロール */
+function getEnabledMetaAction(type) {
+    const action = metaGestureMapping[type] || 'none';
+    if (action === 'setModePointer' && !isPointerModeAvailable()) return 'none';
+    return action;
+}
+
+/** frame イベント: メタサインの検出と保持系操作 */
 tracker.addEventListener('frame', (e) => {
     const { gestures: hands } = e.detail;
     const now = Date.now();
@@ -1003,6 +1105,7 @@ tracker.addEventListener('frame', (e) => {
     const result = metaGestureController?.update(hands, now);
     if (result?.allowDirectional) {
         updateDirectionalScroll(hands, now);
+        updatePointerMove(hands, now);
     }
 });
 
@@ -1035,14 +1138,23 @@ directionalScrollController = new DirectionalScrollController({
     isControlEnabled: () => controlEnabled,
 });
 
+pointerMoveController = new PointerMoveController({
+    tracker,
+    sendAction,
+    extendWakeTimeout,
+    stopAllGestureActions,
+    isControlEnabled: () => controlEnabled && operationMode === OPERATION_MODES.POINTER,
+});
+
 metaGestureController = new MetaGestureController({
-    getMetaAction: (type) => metaGestureMapping[type] || 'none',
+    getMetaAction: getEnabledMetaAction,
     getHoldMs: () => Math.max(gestureHoldTime, 200),
     executeMetaAction: (_type, action) => executeMetaAction(action),
     onActiveStart: () => {
         continuousGestureGate?.reset();
         cancelPendingAction();
         stopDirectionalScroll();
+        stopPointerMove();
         stopRepeat();
     },
     onDisplay: (type, action) => {
@@ -1095,7 +1207,8 @@ function buildMappingUI() {
 function buildMetaMappingUI() {
     if (!el.metaMappingList) return;
     el.metaMappingList.innerHTML = '';
-    const actions = Object.keys(META_ACTION_I18N_KEYS);
+    const actions = Object.keys(META_ACTION_I18N_KEYS)
+        .filter(action => action !== 'setModePointer' || isPointerModeAvailable());
     for (const type of META_GESTURE_TYPES) {
         const row = document.createElement('div');
         row.className = 'mapping-row';
@@ -1105,11 +1218,12 @@ function buildMetaMappingUI() {
         label.textContent = metaGestureLabel(type);
 
         const select = document.createElement('select');
+        const currentValue = actions.includes(metaGestureMapping[type]) ? metaGestureMapping[type] : 'none';
         for (const value of actions) {
             const opt = document.createElement('option');
             opt.value = value;
             opt.textContent = metaActionDisplay(value);
-            if ((metaGestureMapping[type] || 'none') === value) opt.selected = true;
+            if (currentValue === value) opt.selected = true;
             select.appendChild(opt);
         }
         select.addEventListener('change', () => {
@@ -1126,9 +1240,12 @@ function buildMetaMappingUI() {
 async function loadMapping() {
     try {
         const result = await chrome.storage.sync.get([
-            'gestureMapping', 'mediaGestureMapping', 'browserGestureMapping',
+            'gestureMapping', 'mediaGestureMapping', 'browserGestureMapping', 'pointerGestureMapping',
             'operationMode', 'controlEnabled', 'metaGestureMapping', 'toggleGestureType',
+            'experimentalPointerModeEnabled',
         ]);
+
+        experimentalPointerModeEnabled = result.experimentalPointerModeEnabled === true;
 
         const savedMedia = result.mediaGestureMapping || result.gestureMapping;
         if (savedMedia) {
@@ -1149,8 +1266,14 @@ async function loadMapping() {
             }
         }
 
-        if (result.operationMode === OPERATION_MODES.BROWSER || result.operationMode === OPERATION_MODES.MEDIA) {
-            operationMode = result.operationMode;
+        if (result.pointerGestureMapping) {
+            const saved = { ...result.pointerGestureMapping };
+            delete saved.open;
+            pointerMapping = { ...DEFAULT_POINTER_MAPPING, ...saved };
+        }
+
+        if (OPERATION_MODE_ORDER.includes(result.operationMode)) {
+            operationMode = normalizeOperationMode(result.operationMode);
         }
 
         if (result.controlEnabled !== undefined) {
@@ -1169,6 +1292,7 @@ async function loadMapping() {
 
         refreshCurrentMapping();
         updateOperationModeUI();
+        syncPointerVisibility();
     } catch (_) {}
     try {
         const d = DEFAULT_SETTINGS;
@@ -1278,6 +1402,7 @@ async function saveMapping() {
             gestureMapping: mediaMapping,
             mediaGestureMapping: mediaMapping,
             browserGestureMapping: browserMapping,
+            pointerGestureMapping: pointerMapping,
         });
     } catch (_) {}
 }
@@ -1337,6 +1462,10 @@ el.chkSkeleton.addEventListener('change', () => {
     chrome.storage.sync.set({ skeletonOnly: el.chkSkeleton.checked });
 });
 
+el.chkPointerMode?.addEventListener('change', () => {
+    setExperimentalPointerModeEnabled(el.chkPointerMode.checked);
+});
+
 el.chkMirror.addEventListener('change', () => {
     applyMirror(el.chkMirror.checked);
     chrome.storage.sync.set({ mirrorCamera: el.chkMirror.checked });
@@ -1357,6 +1486,9 @@ function setControlEnabled(enabled) {
     if (!enabled) {
         stopAllGestureActions();
         setWakeState(WAKE_STATE.IDLE);
+        sendAction('pointerHide');
+    } else if (operationMode === OPERATION_MODES.POINTER) {
+        sendAction('pointerShow');
     }
     playBeep(enabled ? 880 : 440, 0.2);
     log(enabled
@@ -1366,10 +1498,7 @@ function setControlEnabled(enabled) {
 
 document.querySelectorAll('.mode-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-        const nextMode = tab.dataset.mode === OPERATION_MODES.BROWSER
-            ? OPERATION_MODES.BROWSER
-            : OPERATION_MODES.MEDIA;
-        setOperationMode(nextMode, { beep: false });
+        setOperationMode(tab.dataset.mode, { beep: false });
     });
 });
 
@@ -1505,6 +1634,8 @@ selPreferredHand.addEventListener('change', () => {
 el.btnReset.addEventListener('click', () => {
     if (operationMode === OPERATION_MODES.BROWSER) {
         browserMapping = { ...DEFAULT_BROWSER_MAPPING };
+    } else if (operationMode === OPERATION_MODES.POINTER) {
+        pointerMapping = { ...DEFAULT_POINTER_MAPPING };
     } else {
         mediaMapping = { ...DEFAULT_MEDIA_MAPPING };
     }
@@ -1539,6 +1670,7 @@ $('btn-reset-settings').addEventListener('click', () => {
     wakeGestureType = d.wakeGestureType;
     wakeActiveDuration = d.wakeActiveDuration;
     operationMode = d.operationMode;
+    experimentalPointerModeEnabled = d.experimentalPointerModeEnabled;
     toggleGestureType = d.toggleGestureType;
     metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
     tracker.preferredHand = d.preferredHand;
@@ -1551,12 +1683,14 @@ $('btn-reset-settings').addEventListener('click', () => {
     // UIを復元
     $('chk-mirror').checked = d.mirrorCamera; applyMirror(d.mirrorCamera);
     $('chk-skeleton-only').checked = d.skeletonOnly; applySkeletonOnly(d.skeletonOnly);
+    if (el.chkPointerMode) el.chkPointerMode.checked = d.experimentalPointerModeEnabled;
     $('sel-wake-gesture').value = d.wakeGestureType;
     $('rng-wake-timeout').value = d.wakeActiveDuration / 1000;
     $('wake-timeout-value').textContent = fmtSeconds(d.wakeActiveDuration);
     updateWakeUI();
     updateOperationModeUI();
     buildMappingUI();
+    buildMetaMappingUI();
     $('sel-preferred-hand').value = d.preferredHand;
     $('rng-hold-time').value = d.gestureHoldTime;
     $('hold-time-value').textContent = fmtSeconds(d.gestureHoldTime);
@@ -1571,6 +1705,7 @@ $('btn-reset-settings').addEventListener('click', () => {
     $('rng-pip-font-scale').value = d.pipFontScale;
     $('pip-font-scale-value').textContent = fmtPercent(d.pipFontScale);
     document.body.style.zoom = d.uiScale / 100;
+    sendAction('pointerHide');
 
     // ストレージに保存
     chrome.storage.sync.set({ ...d, metaGestureMapping });

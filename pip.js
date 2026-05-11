@@ -28,8 +28,10 @@ const statusEl      = $('status');
 const tracker = new HandTracker();
 let mediaMapping = { ...DEFAULT_MEDIA_MAPPING };
 let browserMapping = { ...DEFAULT_BROWSER_MAPPING };
+let pointerMapping = { ...DEFAULT_POINTER_MAPPING };
 let currentMapping = { ...DEFAULT_MEDIA_MAPPING };
 let operationMode = DEFAULT_SETTINGS.operationMode;
+let experimentalPointerModeEnabled = DEFAULT_SETTINGS.experimentalPointerModeEnabled;
 let controlEnabled = true;
 let notifyVolume = DEFAULT_SETTINGS.notifyVolume;   // 通知音量 (0.0〜1.0)
 let pipFontScale = DEFAULT_SETTINGS.pipFontScale / 100; // PiP 文字サイズ倍率
@@ -60,6 +62,7 @@ let metaGestureController = null;
 // 方向スクロール
 let lastFrameHands = [];
 let directionalScrollController = null;
+let pointerMoveController = null;
 
 // PiP 合成
 let pipCanvas = null;
@@ -98,15 +101,68 @@ let targetTabAlive = true;
 let targetTabTitle = '';           // PiP canvas 描画用
 
 function modeLabel(mode) {
-    return mode === OPERATION_MODES.BROWSER ? msg('operationModeBrowser') : msg('operationModeMedia');
+    if (mode === OPERATION_MODES.BROWSER) return msg('operationModeBrowser');
+    if (mode === OPERATION_MODES.POINTER) return msg('operationModePointer');
+    return msg('operationModeMedia');
 }
 
 function getMappingForMode(mode) {
-    return mode === OPERATION_MODES.BROWSER ? browserMapping : mediaMapping;
+    if (mode === OPERATION_MODES.BROWSER) return browserMapping;
+    if (mode === OPERATION_MODES.POINTER) return pointerMapping;
+    return mediaMapping;
+}
+
+function isPointerModeAvailable() {
+    return experimentalPointerModeEnabled === true;
+}
+
+function normalizeOperationMode(mode) {
+    if (mode === OPERATION_MODES.POINTER) {
+        return isPointerModeAvailable() ? OPERATION_MODES.POINTER : OPERATION_MODES.BROWSER;
+    }
+    if (mode === OPERATION_MODES.BROWSER) return OPERATION_MODES.BROWSER;
+    return OPERATION_MODES.MEDIA;
+}
+
+function availableOperationModes() {
+    return OPERATION_MODE_ORDER.filter(mode => mode !== OPERATION_MODES.POINTER || isPointerModeAvailable());
+}
+
+function modeBeepFrequency(mode) {
+    if (mode === OPERATION_MODES.BROWSER) return 660;
+    if (mode === OPERATION_MODES.POINTER) return 740;
+    return 880;
 }
 
 function refreshCurrentMapping() {
+    operationMode = normalizeOperationMode(operationMode);
     currentMapping = getMappingForMode(operationMode);
+}
+
+function setOperationMode(mode, options = {}) {
+    const previousMode = operationMode;
+    operationMode = normalizeOperationMode(mode);
+    refreshCurrentMapping();
+    if (options.save !== false) chrome.storage.sync.set({ operationMode });
+    if (options.beep !== false) playBeep(modeBeepFrequency(operationMode), 0.18);
+    stopAllGestureActions();
+    continuousGestureGate?.reset();
+    syncPointerVisibility(previousMode);
+}
+
+function toggleOperationMode() {
+    const modes = availableOperationModes();
+    const index = Math.max(0, modes.indexOf(operationMode));
+    setOperationMode(modes[(index + 1) % modes.length]);
+}
+
+function syncPointerVisibility(previousMode = operationMode) {
+    if (previousMode === OPERATION_MODES.POINTER && operationMode !== OPERATION_MODES.POINTER) {
+        sendAction('pointerHide');
+    }
+    if (operationMode === OPERATION_MODES.POINTER && controlEnabled) {
+        sendAction('pointerShow');
+    }
 }
 
 /* ============================================================
@@ -115,13 +171,14 @@ function refreshCurrentMapping() {
 async function loadSettings() {
     try {
         const result = await chrome.storage.sync.get([
-            'gestureMapping', 'mediaGestureMapping', 'browserGestureMapping',
+            'gestureMapping', 'mediaGestureMapping', 'browserGestureMapping', 'pointerGestureMapping',
             'operationMode', 'controlEnabled', 'wakeGestureType',
             'wakeActiveDuration', 'toggleGestureType', 'gestureHoldTime',
             'actionRepeatInterval', 'skeletonOnly', 'mirrorCamera',
             'inferenceFps', 'preferredHand', 'notifyVolume', 'pipFontScale',
-            'metaGestureMapping',
+            'metaGestureMapping', 'experimentalPointerModeEnabled',
         ]);
+        experimentalPointerModeEnabled = result.experimentalPointerModeEnabled === true;
         const savedMedia = result.mediaGestureMapping || result.gestureMapping;
         if (savedMedia) mediaMapping = { ...DEFAULT_MEDIA_MAPPING, ...savedMedia };
         if (result.browserGestureMapping) {
@@ -129,7 +186,8 @@ async function loadSettings() {
                 ? { ...DEFAULT_BROWSER_MAPPING }
                 : { ...DEFAULT_BROWSER_MAPPING, ...result.browserGestureMapping };
         }
-        if (result.operationMode === OPERATION_MODES.BROWSER || result.operationMode === OPERATION_MODES.MEDIA) operationMode = result.operationMode;
+        if (result.pointerGestureMapping) pointerMapping = { ...DEFAULT_POINTER_MAPPING, ...result.pointerGestureMapping };
+        if (OPERATION_MODE_ORDER.includes(result.operationMode)) operationMode = normalizeOperationMode(result.operationMode);
         refreshCurrentMapping();
         if (result.controlEnabled !== undefined) controlEnabled = result.controlEnabled;
         if (result.wakeGestureType) wakeGestureType = result.wakeGestureType;
@@ -149,6 +207,7 @@ async function loadSettings() {
         if (result.preferredHand) tracker.preferredHand = result.preferredHand;
         if (result.notifyVolume !== undefined) notifyVolume = Math.max(0, Math.min(1, Number(result.notifyVolume)));
         if (result.pipFontScale !== undefined) pipFontScale = Math.max(0.5, Math.min(2, Number(result.pipFontScale) / 100));
+        syncPointerVisibility();
     } catch (_) {}
 }
 
@@ -163,16 +222,36 @@ chrome.storage.onChanged.addListener((changes) => {
         browserMapping = { ...DEFAULT_BROWSER_MAPPING, ...changes.browserGestureMapping.newValue };
         refreshCurrentMapping();
     }
+    if (changes.pointerGestureMapping) {
+        pointerMapping = { ...DEFAULT_POINTER_MAPPING, ...changes.pointerGestureMapping.newValue };
+        refreshCurrentMapping();
+    }
+    if (changes.experimentalPointerModeEnabled) {
+        experimentalPointerModeEnabled = changes.experimentalPointerModeEnabled.newValue === true;
+        const previousMode = operationMode;
+        operationMode = normalizeOperationMode(operationMode);
+        refreshCurrentMapping();
+        if (previousMode !== operationMode) {
+            chrome.storage.sync.set({ operationMode });
+            stopAllGestureActions();
+        }
+        syncPointerVisibility(previousMode);
+    }
     if (changes.operationMode) {
-        operationMode = changes.operationMode.newValue === OPERATION_MODES.BROWSER
-            ? OPERATION_MODES.BROWSER
-            : OPERATION_MODES.MEDIA;
+        const previousMode = operationMode;
+        operationMode = normalizeOperationMode(changes.operationMode.newValue);
         refreshCurrentMapping();
         stopAllGestureActions();
+        syncPointerVisibility(previousMode);
     }
     if (changes.controlEnabled) {
         controlEnabled = changes.controlEnabled.newValue;
-        if (!controlEnabled) stopAllGestureActions();
+        if (!controlEnabled) {
+            stopAllGestureActions();
+            sendAction('pointerHide');
+        } else if (operationMode === OPERATION_MODES.POINTER) {
+            sendAction('pointerShow');
+        }
     }
     if (changes.wakeGestureType) wakeGestureType = changes.wakeGestureType.newValue;
     if (changes.wakeActiveDuration) wakeActiveDuration = changes.wakeActiveDuration.newValue;
@@ -315,6 +394,7 @@ function setWakeState(newState) {
     if (wakeTimeout) { clearTimeout(wakeTimeout); wakeTimeout = null; }
     cancelPendingAction();
     stopDirectionalScroll();
+    stopPointerMove();
     stopRepeat();
 
     if (newState === WAKE_STATE.ACTIVE) {
@@ -364,11 +444,25 @@ function updateDirectionalScroll(hands, now) {
     directionalScrollController?.update(hands, now);
 }
 
+function startPointerMove(gesture) {
+    if (!pointerMoveController?.start(gesture, lastFrameHands)) return false;
+    return true;
+}
+
+function stopPointerMove() {
+    pointerMoveController?.stop();
+}
+
+function updatePointerMove(hands, now) {
+    pointerMoveController?.update(hands, now);
+}
+
 function stopAllGestureActions() {
     cancelPendingAction();
-    const wasRepeating = repeatingGesture !== null || !!directionalScrollController?.active;
+    const wasRepeating = repeatingGesture !== null || !!directionalScrollController?.active || !!pointerMoveController?.active;
     continuousGestureGate?.stop();
     stopDirectionalScroll();
+    stopPointerMove();
     stopRepeat();
     if (wasRepeating && wakeGestureType !== 'none') {
         setWakeState(WAKE_STATE.IDLE);
@@ -401,19 +495,32 @@ directionalScrollController = new DirectionalScrollController({
     isControlEnabled: () => controlEnabled,
 });
 
+pointerMoveController = new PointerMoveController({
+    tracker,
+    sendAction,
+    extendWakeTimeout,
+    stopAllGestureActions,
+    isControlEnabled: () => controlEnabled && operationMode === OPERATION_MODES.POINTER,
+});
+
 metaGestureController = new MetaGestureController({
-    getMetaAction: (type) => metaGestureMapping[type] || 'none',
+    getMetaAction: getEnabledMetaAction,
     getHoldMs: () => Math.max(gestureHoldTime, 200),
     executeMetaAction: (_type, action) => executeMetaAction(action),
     onActiveStart: () => {
         continuousGestureGate?.reset();
         cancelPendingAction();
         stopDirectionalScroll();
+        stopPointerMove();
         stopRepeat();
     },
 });
 
 function confirmAction(gesture, action) {
+    if (POINTER_MOVE_ACTIONS.has(action)) {
+        if (startPointerMove(gesture)) return;
+    }
+
     const now = Date.now();
     if (now - lastActionTime < ACTION_COOLDOWN) return;
     lastActionTime = now;
@@ -487,10 +594,12 @@ tracker.addEventListener('gesture', (e) => {
     // 操作コマンドとして発火するのでコマンド名を表示
     gestureText = `${icon} ${actionDisplay(action)}`;
 
+    if (pointerMoveController?.active && gesture === pointerMoveController.state?.gesture) return;
     if (gesture === repeatingGesture || gesture === pendingGesture) return;
 
     cancelPendingAction();
     stopDirectionalScroll();
+    stopPointerMove();
     stopRepeat();
     pendingGesture = gesture;
 
@@ -513,31 +622,38 @@ function resetMetaGestureState() {
     metaGestureController?.reset();
 }
 
+function getEnabledMetaAction(type) {
+    const action = metaGestureMapping[type] || 'none';
+    if (action === 'setModePointer' && !isPointerModeAvailable()) return 'none';
+    return action;
+}
+
 function executeMetaAction(action) {
     switch (action) {
         case 'toggleEnabled':
             controlEnabled = !controlEnabled;
             chrome.storage.sync.set({ controlEnabled });
             playBeep(controlEnabled ? 880 : 440, 0.2);
-            if (!controlEnabled) stopAllGestureActions();
+            if (!controlEnabled) {
+                stopAllGestureActions();
+                sendAction('pointerHide');
+            } else if (operationMode === OPERATION_MODES.POINTER) {
+                sendAction('pointerShow');
+            }
             return true;
         case 'toggleMode':
-            operationMode = operationMode === OPERATION_MODES.MEDIA ? OPERATION_MODES.BROWSER : OPERATION_MODES.MEDIA;
-            refreshCurrentMapping();
-            chrome.storage.sync.set({ operationMode });
-            playBeep(operationMode === OPERATION_MODES.BROWSER ? 660 : 880, 0.18);
-            stopAllGestureActions();
+            toggleOperationMode();
             return true;
         case 'setModeMedia':
-        case 'setModeBrowser': {
-            const nextMode = action === 'setModeBrowser' ? OPERATION_MODES.BROWSER : OPERATION_MODES.MEDIA;
-            operationMode = nextMode;
-            refreshCurrentMapping();
-            chrome.storage.sync.set({ operationMode });
-            playBeep(operationMode === OPERATION_MODES.BROWSER ? 660 : 880, 0.18);
-            stopAllGestureActions();
+            setOperationMode(OPERATION_MODES.MEDIA);
             return true;
-        }
+        case 'setModeBrowser':
+            setOperationMode(OPERATION_MODES.BROWSER);
+            return true;
+        case 'setModePointer':
+            if (!isPointerModeAvailable()) return false;
+            setOperationMode(OPERATION_MODES.POINTER);
+            return true;
         default:
             return false;
     }
@@ -550,6 +666,7 @@ tracker.addEventListener('frame', (e) => {
     const result = metaGestureController?.update(hands, now);
     if (result?.allowDirectional) {
         updateDirectionalScroll(hands, now);
+        updatePointerMove(hands, now);
     }
 });
 
@@ -578,12 +695,17 @@ function compositeFrame(ctx, canvas) {
     if (mirrored) ctx.restore();
 
     const isBrowserMode = operationMode === OPERATION_MODES.BROWSER;
-    const activeColor = isBrowserMode
-        ? 'rgba(74, 163, 255, 0.95)'
-        : 'rgba(80, 255, 120, 0.95)';
-    const modeBorderColor = isBrowserMode
-        ? 'rgba(74, 163, 255, 0.9)'
-        : 'rgba(80, 255, 120, 0.9)';
+    const isPointerMode = operationMode === OPERATION_MODES.POINTER;
+    const activeColor = isPointerMode
+        ? 'rgba(255, 193, 7, 0.95)'
+        : isBrowserMode
+            ? 'rgba(74, 163, 255, 0.95)'
+            : 'rgba(80, 255, 120, 0.95)';
+    const modeBorderColor = isPointerMode
+        ? 'rgba(255, 193, 7, 0.9)'
+        : isBrowserMode
+            ? 'rgba(74, 163, 255, 0.9)'
+            : 'rgba(80, 255, 120, 0.9)';
 
     // ジェスチャーテキスト
     if (gestureText) {

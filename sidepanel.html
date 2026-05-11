@@ -69,6 +69,7 @@
     <div class="mode-tabs" role="tablist" aria-label="Operation mode">
         <button class="mode-tab is-active" id="tab-media-mapping" type="button" data-mode="media" data-i18n="tabMediaActions">Media</button>
         <button class="mode-tab" id="tab-browser-mapping" type="button" data-mode="browser" data-i18n="tabBrowserActions">Browser</button>
+        <button class="mode-tab is-hidden" id="tab-pointer-mapping" type="button" data-mode="pointer" data-i18n="tabPointerActions">Pointer</button>
     </div>
 </div>
 
@@ -109,6 +110,15 @@
             <div class="setting-control">
                 <label class="toggle-switch">
                     <input type="checkbox" id="chk-skeleton-only">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+        <div class="setting-row" title="Enable experimental pointer operation mode" data-i18n-title="settingExperimentalPointerModeTitle">
+            <span data-i18n="settingExperimentalPointerModeLabel">Pointer mode</span>
+            <div class="setting-control">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="chk-experimental-pointer-mode">
                     <span class="slider"></span>
                 </label>
             </div>
@@ -205,7 +215,7 @@
 
 <!-- フッター -->
 <div class="footer">
-    <span class="version">v1.0.81</span>
+    <span class="version">v1.0.82</span>
     <a href="https://megane.8796.jp" target="_blank" rel="noopener">&copy; 8796.jp</a>
 </div>
 

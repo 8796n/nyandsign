@@ -51,6 +51,7 @@
     const BROWSER_PAGE_ACTIONS = new Set([
         'directionalScroll', 'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'pageTop', 'pageBottom',
         'cursorUp', 'cursorDown', 'cursorLeft', 'cursorRight',
+        'pointerShow', 'pointerHide', 'pointerMove', 'pointerClick',
     ]);
 
     const CURSOR_KEY_BY_ACTION = {
@@ -133,6 +134,178 @@
 
     function clamp(n, min, max) {
         return Math.max(min, Math.min(max, n));
+    }
+
+    const virtualPointer = {
+        x: null,
+        y: null,
+        cursorEl: null,
+        targetEl: null,
+        dimTimer: null,
+    };
+
+    function pointerRoot() {
+        return document.body || document.documentElement;
+    }
+
+    function initPointerPosition() {
+        if (typeof virtualPointer.x !== 'number') virtualPointer.x = Math.round(window.innerWidth / 2);
+        if (typeof virtualPointer.y !== 'number') virtualPointer.y = Math.round(window.innerHeight / 2);
+        virtualPointer.x = clamp(virtualPointer.x, 0, Math.max(0, window.innerWidth - 1));
+        virtualPointer.y = clamp(virtualPointer.y, 0, Math.max(0, window.innerHeight - 1));
+    }
+
+    function ensureVirtualPointer() {
+        initPointerPosition();
+        const root = pointerRoot();
+        if (!root) return null;
+
+        if (!virtualPointer.cursorEl) {
+            const el = document.createElement('div');
+            el.id = '__nyand_virtual_pointer';
+            Object.assign(el.style, {
+                position: 'fixed',
+                left: '0',
+                top: '0',
+                width: '22px',
+                height: '22px',
+                borderRadius: '50%',
+                border: '2px solid rgba(255, 193, 7, 0.95)',
+                background: 'rgba(255, 193, 7, 0.24)',
+                boxShadow: '0 0 0 4px rgba(0, 0, 0, 0.28), 0 0 18px rgba(255, 193, 7, 0.55)',
+                pointerEvents: 'none',
+                zIndex: '2147483647',
+                transform: 'translate(-50%, -50%) scale(1)',
+                opacity: '0.38',
+                transition: 'opacity 0.2s ease, transform 0.12s ease',
+            });
+            root.appendChild(el);
+            virtualPointer.cursorEl = el;
+        }
+
+        if (!virtualPointer.targetEl) {
+            const el = document.createElement('div');
+            el.id = '__nyand_pointer_target';
+            Object.assign(el.style, {
+                position: 'fixed',
+                left: '0',
+                top: '0',
+                width: '0',
+                height: '0',
+                border: '2px solid rgba(255, 193, 7, 0.85)',
+                borderRadius: '6px',
+                boxShadow: '0 0 0 2px rgba(0, 0, 0, 0.22)',
+                pointerEvents: 'none',
+                zIndex: '2147483646',
+                opacity: '0',
+                transition: 'opacity 0.15s ease, left 0.08s ease, top 0.08s ease, width 0.08s ease, height 0.08s ease',
+            });
+            root.appendChild(el);
+            virtualPointer.targetEl = el;
+        }
+
+        return virtualPointer.cursorEl;
+    }
+
+    function pointerTargetAtCurrentPosition() {
+        initPointerPosition();
+        return document.elementFromPoint(virtualPointer.x, virtualPointer.y);
+    }
+
+    function updatePointerTarget(active = false) {
+        if (!virtualPointer.targetEl) return;
+        const target = pointerTargetAtCurrentPosition();
+        if (!target || target === document.documentElement || target === document.body) {
+            virtualPointer.targetEl.style.opacity = '0';
+            return;
+        }
+
+        const rect = target.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) {
+            virtualPointer.targetEl.style.opacity = '0';
+            return;
+        }
+
+        Object.assign(virtualPointer.targetEl.style, {
+            left: `${Math.max(0, rect.left - 3)}px`,
+            top: `${Math.max(0, rect.top - 3)}px`,
+            width: `${Math.min(window.innerWidth, rect.width + 6)}px`,
+            height: `${Math.min(window.innerHeight, rect.height + 6)}px`,
+            opacity: active ? '0.85' : '0.35',
+        });
+    }
+
+    function updateVirtualPointer(active = false) {
+        const el = ensureVirtualPointer();
+        if (!el) return;
+
+        initPointerPosition();
+        el.style.left = `${virtualPointer.x}px`;
+        el.style.top = `${virtualPointer.y}px`;
+        el.style.opacity = active ? '0.96' : '0.38';
+        el.style.transform = active
+            ? 'translate(-50%, -50%) scale(1.12)'
+            : 'translate(-50%, -50%) scale(1)';
+        updatePointerTarget(active);
+
+        if (virtualPointer.dimTimer) clearTimeout(virtualPointer.dimTimer);
+        virtualPointer.dimTimer = setTimeout(() => {
+            if (!virtualPointer.cursorEl) return;
+            virtualPointer.cursorEl.style.opacity = '0.38';
+            virtualPointer.cursorEl.style.transform = 'translate(-50%, -50%) scale(1)';
+            updatePointerTarget(false);
+        }, 1800);
+    }
+
+    function hideVirtualPointer() {
+        if (virtualPointer.dimTimer) {
+            clearTimeout(virtualPointer.dimTimer);
+            virtualPointer.dimTimer = null;
+        }
+        virtualPointer.cursorEl?.remove();
+        virtualPointer.targetEl?.remove();
+        virtualPointer.cursorEl = null;
+        virtualPointer.targetEl = null;
+    }
+
+    function moveVirtualPointer(left, top) {
+        ensureVirtualPointer();
+        virtualPointer.x = clamp((virtualPointer.x ?? window.innerWidth / 2) + left, 0, Math.max(0, window.innerWidth - 1));
+        virtualPointer.y = clamp((virtualPointer.y ?? window.innerHeight / 2) + top, 0, Math.max(0, window.innerHeight - 1));
+        updateVirtualPointer(true);
+    }
+
+    function createPointerMouseEvent(type) {
+        return new MouseEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            view: window,
+            clientX: virtualPointer.x,
+            clientY: virtualPointer.y,
+            screenX: window.screenX + virtualPointer.x,
+            screenY: window.screenY + virtualPointer.y,
+            button: 0,
+            buttons: type === 'mouseup' || type === 'click' ? 0 : 1,
+        });
+    }
+
+    function clickVirtualPointerTarget() {
+        ensureVirtualPointer();
+        const target = pointerTargetAtCurrentPosition();
+        if (!target) return;
+
+        try {
+            if (typeof target.focus === 'function') {
+                target.focus({ preventScroll: true });
+            }
+        } catch (_) {}
+
+        target.dispatchEvent(createPointerMouseEvent('mousemove'));
+        target.dispatchEvent(createPointerMouseEvent('mousedown'));
+        target.dispatchEvent(createPointerMouseEvent('mouseup'));
+        target.dispatchEvent(createPointerMouseEvent('click'));
+        updateVirtualPointer(true);
     }
 
     function moveTextControlCursor(el, direction) {
@@ -250,6 +423,18 @@
             case 'directionalScroll':
                 scrollPageBy(Number(data.left) || 0, Number(data.top) || 0, false);
                 break;
+            case 'pointerShow':
+                updateVirtualPointer(false);
+                return null;
+            case 'pointerHide':
+                hideVirtualPointer();
+                return null;
+            case 'pointerMove':
+                moveVirtualPointer(Number(data.left) || 0, Number(data.top) || 0);
+                return null;
+            case 'pointerClick':
+                clickVirtualPointerTarget();
+                return null;
             case 'scrollDown':
                 scrollPageBy(0, Math.round(window.innerHeight * 0.55));
                 break;
@@ -406,6 +591,8 @@
         zoomIn:        '＋',
         zoomOut:       '−',
         resetZoom:     '100%',
+        pointerMove:   '🟡',
+        pointerClick:  '👆',
     };
 
     let overlayTimer = null;
@@ -458,4 +645,15 @@
         }
         return true;
     });
+
+    window.addEventListener('resize', () => {
+        if (!virtualPointer.cursorEl) return;
+        initPointerPosition();
+        updateVirtualPointer(false);
+    });
+
+    window.addEventListener('scroll', () => {
+        if (!virtualPointer.cursorEl) return;
+        updatePointerTarget(false);
+    }, true);
 })();

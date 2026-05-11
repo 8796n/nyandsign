@@ -69,6 +69,10 @@
     "message": "Browser Control",
     "description": "Current operation mode: browser"
   },
+  "operationModePointer": {
+    "message": "Pointer Control",
+    "description": "Current operation mode: virtual pointer"
+  },
   "tabMediaActions": {
     "message": "Media",
     "description": "Mapping tab for media actions"
@@ -76,6 +80,10 @@
   "tabBrowserActions": {
     "message": "Browser",
     "description": "Mapping tab for browser actions"
+  },
+  "tabPointerActions": {
+    "message": "Pointer",
+    "description": "Mapping tab for pointer actions"
   },
   "sectionTwoHandSigns": {
     "message": "Two-Hand Signs",
@@ -122,6 +130,14 @@
   "settingSkeletonTitle": {
     "message": "Hide camera image and show only hand skeleton",
     "description": "Tooltip for skeleton-only setting"
+  },
+  "settingExperimentalPointerModeLabel": {
+    "message": "Experimental: Pointer",
+    "description": "Setting label for experimental pointer mode"
+  },
+  "settingExperimentalPointerModeTitle": {
+    "message": "Enable the experimental mode that shows a virtual pointer in the page and moves or clicks it with hand signs",
+    "description": "Tooltip for experimental pointer mode"
   },
   "settingWakeLabel": {
     "message": "Wake",
@@ -434,6 +450,22 @@
     "message": "Reset Zoom",
     "description": "Browser action: reset zoom"
   },
+  "actionPointerMove": {
+    "message": "Move Pointer",
+    "description": "Pointer action: move the virtual pointer by holding a sign"
+  },
+  "actionPointerClick": {
+    "message": "Click",
+    "description": "Pointer action: click at the virtual pointer position"
+  },
+  "actionPointerShow": {
+    "message": "Show Pointer",
+    "description": "Internal pointer action: show virtual pointer"
+  },
+  "actionPointerHide": {
+    "message": "Hide Pointer",
+    "description": "Internal pointer action: hide virtual pointer"
+  },
   "actionNone": {
     "message": "None",
     "description": "Media action: no action assigned"
@@ -466,6 +498,10 @@
   "metaActionSetModeBrowser": {
     "message": "Set Browser Control",
     "description": "Two-hand action: set browser mode"
+  },
+  "metaActionSetModePointer": {
+    "message": "Set Pointer Control",
+    "description": "Two-hand action: set pointer mode"
   },
   "metaActionNone": {
     "message": "None",
