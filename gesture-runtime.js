@@ -113,6 +113,54 @@ const GestureRuntimeUtils = {
     },
 };
 
+class ContinuousGestureGate {
+    constructor() {
+        this.gesture = null;
+        this.releaseRequired = false;
+    }
+
+    get active() { return this.gesture !== null; }
+
+    start(gesture) {
+        this.gesture = gesture || null;
+        this.releaseRequired = false;
+    }
+
+    stop(options = {}) {
+        this.gesture = null;
+        if (options.requireRelease) this.releaseRequired = true;
+    }
+
+    reset() {
+        this.gesture = null;
+        this.releaseRequired = false;
+    }
+
+    handleGestureChange(gesture, isWakeGesture = () => false) {
+        if (!gesture) {
+            this.reset();
+            return { allowAction: true };
+        }
+
+        if (isWakeGesture(gesture)) {
+            this.reset();
+            return { allowAction: true };
+        }
+
+        if (this.releaseRequired) {
+            return { allowAction: false, interrupted: false };
+        }
+
+        if (this.gesture && gesture !== this.gesture) {
+            const previousGesture = this.gesture;
+            this.stop({ requireRelease: true });
+            return { allowAction: false, interrupted: true, previousGesture };
+        }
+
+        return { allowAction: true };
+    }
+}
+
 class DirectionalScrollController {
     constructor(options) {
         this.tracker = options.tracker;
@@ -127,7 +175,6 @@ class DirectionalScrollController {
         this.graceMs = options.graceMs ?? 250;
         this.maxTrackingJump = options.maxTrackingJump ?? 0.18;
         this.state = null;
-        this.releaseRequired = false;
     }
 
     get active() { return this.state !== null; }
@@ -144,40 +191,11 @@ class DirectionalScrollController {
             lastSeenAt: now,
             lastSentAt: 0,
         };
-        this.releaseRequired = false;
         return true;
     }
 
-    stop(options = {}) {
+    stop() {
         this.state = null;
-        if (options.requireRelease) this.releaseRequired = true;
-    }
-
-    resetRelease() {
-        this.releaseRequired = false;
-    }
-
-    handleGestureChange(gesture, isWakeGesture = () => false) {
-        if (!gesture) {
-            this.resetRelease();
-            return { allowAction: true };
-        }
-
-        if (isWakeGesture(gesture)) {
-            this.resetRelease();
-            return { allowAction: true };
-        }
-
-        if (this.releaseRequired) {
-            return { allowAction: false, stopped: false };
-        }
-
-        if (this.state && gesture !== this.state.gesture) {
-            this.stop({ requireRelease: true });
-            return { allowAction: false, stopped: true };
-        }
-
-        return { allowAction: true };
     }
 
     findTrackedHand(hands = []) {

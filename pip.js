@@ -50,6 +50,7 @@ let lastActionTime = 0;
 let actionRepeatInterval = DEFAULT_SETTINGS.actionRepeatInterval;
 let repeatTimer = null;
 let repeatingGesture = null;
+let continuousGestureGate = null;
 
 // メタサイン
 let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
@@ -351,6 +352,7 @@ function stopRepeat() {
 function startDirectionalScroll(gesture) {
     if (!directionalScrollController?.start(gesture, lastFrameHands)) return false;
     repeatingGesture = gesture;
+    continuousGestureGate?.start(gesture);
     return true;
 }
 
@@ -365,6 +367,7 @@ function updateDirectionalScroll(hands, now) {
 function stopAllGestureActions() {
     cancelPendingAction();
     const wasRepeating = repeatingGesture !== null || !!directionalScrollController?.active;
+    continuousGestureGate?.stop();
     stopDirectionalScroll();
     stopRepeat();
     if (wasRepeating && wakeGestureType !== 'none') {
@@ -388,6 +391,8 @@ async function sendAction(action, data) {
     } catch (_) {}
 }
 
+continuousGestureGate = new ContinuousGestureGate();
+
 directionalScrollController = new DirectionalScrollController({
     tracker,
     sendAction,
@@ -401,6 +406,7 @@ metaGestureController = new MetaGestureController({
     getHoldMs: () => Math.max(gestureHoldTime, 200),
     executeMetaAction: (_type, action) => executeMetaAction(action),
     onActiveStart: () => {
+        continuousGestureGate?.reset();
         cancelPendingAction();
         stopDirectionalScroll();
         stopRepeat();
@@ -420,6 +426,7 @@ function confirmAction(gesture, action) {
 
     if (REPEATABLE_ACTIONS.has(action) && actionRepeatInterval > 0) {
         repeatingGesture = gesture;
+        continuousGestureGate?.start(gesture);
         repeatTimer = setInterval(() => {
             sendAction(action);
             extendWakeTimeout();
@@ -441,7 +448,7 @@ function isWakeGesture(gesture) {
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
     if (!gesture) {
-        directionalScrollController?.resetRelease();
+        continuousGestureGate?.reset();
         gestureText = '';
         stopAllGestureActions();
         resetMetaGestureState();
@@ -457,7 +464,7 @@ tracker.addEventListener('gesture', (e) => {
 
     // ウェイクサイン検出で ACTIVE に遷移
     if (wakeGestureType !== 'none' && isWakeGesture(gesture)) {
-        directionalScrollController?.resetRelease();
+        continuousGestureGate?.reset();
         stopAllGestureActions();
         if (wakeState === WAKE_STATE.IDLE) {
             setWakeState(WAKE_STATE.ACTIVE);
@@ -466,8 +473,8 @@ tracker.addEventListener('gesture', (e) => {
         return;
     }
 
-    const directionalGate = directionalScrollController?.handleGestureChange(gesture, isWakeGesture);
-    if (directionalGate && !directionalGate.allowAction) {
+    const continuousGate = continuousGestureGate?.handleGestureChange(gesture, isWakeGesture);
+    if (continuousGate && !continuousGate.allowAction) {
         stopAllGestureActions();
         return;
     }
