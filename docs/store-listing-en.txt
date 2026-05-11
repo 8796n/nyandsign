@@ -112,6 +112,12 @@ Manifest V3 compliant
 
 WHAT'S NEW
 
+v1.0.81
+- Improved stability during Hold to Scroll when hand sign recognition briefly fluctuates
+- Prevented another sign from triggering accidentally when ending Hold to Scroll or repeatable actions
+- Improved scroll target detection on Google sites and similar pages
+- Shows a blocked-page indicator when page actions cannot run because script injection is unavailable
+
 v1.0.75
 - Added Browser Control mode
 - Added browser actions such as scroll, back/forward, tab switching, cursor movement, reload, and zoom
