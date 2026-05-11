@@ -335,12 +335,14 @@ class PointerMoveController {
             lastSeenAt: now,
             lastSentAt: 0,
         };
-        this.sendAction('pointerShow');
+        this.sendAction('pointerMoveStart');
         return true;
     }
 
     stop() {
+        if (!this.state) return;
         this.state = null;
+        this.sendAction('pointerMoveEnd');
     }
 
     findTrackedHand(hands = []) {

@@ -51,7 +51,7 @@
     const BROWSER_PAGE_ACTIONS = new Set([
         'directionalScroll', 'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'pageTop', 'pageBottom',
         'cursorUp', 'cursorDown', 'cursorLeft', 'cursorRight',
-        'pointerShow', 'pointerHide', 'pointerMove', 'pointerClick',
+        'pointerShow', 'pointerHide', 'pointerMoveStart', 'pointerMoveEnd', 'pointerMove', 'pointerClick',
     ]);
 
     const CURSOR_KEY_BY_ACTION = {
@@ -140,9 +140,11 @@
         x: null,
         y: null,
         cursorEl: null,
+        crossEl: null,
         targetEl: null,
         dimTimer: null,
         staleTimer: null,
+        moving: false,
     };
 
     function pointerRoot() {
@@ -170,6 +172,7 @@
                 top: '0',
                 width: '22px',
                 height: '22px',
+                boxSizing: 'border-box',
                 borderRadius: '50%',
                 border: '2px solid rgba(255, 193, 7, 0.95)',
                 background: 'rgba(255, 193, 7, 0.24)',
@@ -178,10 +181,29 @@
                 zIndex: '2147483647',
                 transform: 'translate(-50%, -50%) scale(1)',
                 opacity: '0.38',
-                transition: 'opacity 0.2s ease, transform 0.12s ease',
+                transition: 'opacity 0.2s ease, transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease',
             });
+            const cross = document.createElement('div');
+            cross.id = '__nyand_virtual_pointer_cross';
+            Object.assign(cross.style, {
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                width: '11px',
+                height: '11px',
+                transform: 'translate(-50%, -50%)',
+                background: [
+                    'linear-gradient(rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.98)) center / 11px 2px no-repeat',
+                    'linear-gradient(rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.98)) center / 2px 11px no-repeat',
+                ].join(', '),
+                filter: 'drop-shadow(0 0 2px rgba(0, 0, 0, 0.65))',
+                opacity: '0',
+                transition: 'opacity 0.12s ease',
+            });
+            el.appendChild(cross);
             root.appendChild(el);
             virtualPointer.cursorEl = el;
+            virtualPointer.crossEl = cross;
         }
 
         if (!virtualPointer.targetEl) {
@@ -236,7 +258,11 @@
         });
     }
 
-    function updateVirtualPointer(active = false) {
+    function updateVirtualPointer(options = {}) {
+        const opts = typeof options === 'boolean' ? { active: options } : options;
+        if (typeof opts.moving === 'boolean') virtualPointer.moving = opts.moving;
+        const moving = virtualPointer.moving;
+        const active = opts.active || moving;
         const el = ensureVirtualPointer();
         if (!el) return;
 
@@ -247,15 +273,26 @@
         el.style.transform = active
             ? 'translate(-50%, -50%) scale(1.12)'
             : 'translate(-50%, -50%) scale(1)';
+        el.style.borderColor = moving ? 'rgba(255, 224, 102, 1)' : 'rgba(255, 193, 7, 0.95)';
+        el.style.background = moving ? 'rgba(255, 193, 7, 0.38)' : 'rgba(255, 193, 7, 0.24)';
+        el.style.boxShadow = moving
+            ? '0 0 0 5px rgba(0, 0, 0, 0.34), 0 0 24px rgba(255, 193, 7, 0.72)'
+            : '0 0 0 4px rgba(0, 0, 0, 0.28), 0 0 18px rgba(255, 193, 7, 0.55)';
+        if (virtualPointer.crossEl) {
+            virtualPointer.crossEl.style.opacity = moving ? '0.96' : '0';
+        }
         updatePointerTarget(active);
 
         if (virtualPointer.dimTimer) clearTimeout(virtualPointer.dimTimer);
-        virtualPointer.dimTimer = setTimeout(() => {
-            if (!virtualPointer.cursorEl) return;
-            virtualPointer.cursorEl.style.opacity = '0.38';
-            virtualPointer.cursorEl.style.transform = 'translate(-50%, -50%) scale(1)';
-            updatePointerTarget(false);
-        }, 1800);
+        virtualPointer.dimTimer = null;
+        if (!moving) {
+            virtualPointer.dimTimer = setTimeout(() => {
+                if (!virtualPointer.cursorEl) return;
+                virtualPointer.cursorEl.style.opacity = '0.38';
+                virtualPointer.cursorEl.style.transform = 'translate(-50%, -50%) scale(1)';
+                updatePointerTarget(false);
+            }, 1800);
+        }
 
         if (virtualPointer.staleTimer) clearTimeout(virtualPointer.staleTimer);
         virtualPointer.staleTimer = setTimeout(() => {
@@ -275,14 +312,24 @@
         virtualPointer.cursorEl?.remove();
         virtualPointer.targetEl?.remove();
         virtualPointer.cursorEl = null;
+        virtualPointer.crossEl = null;
         virtualPointer.targetEl = null;
+        virtualPointer.moving = false;
+    }
+
+    function startVirtualPointerMove() {
+        updateVirtualPointer({ active: true, moving: true });
+    }
+
+    function endVirtualPointerMove() {
+        updateVirtualPointer({ active: false, moving: false });
     }
 
     function moveVirtualPointer(left, top) {
         ensureVirtualPointer();
         virtualPointer.x = clamp((virtualPointer.x ?? window.innerWidth / 2) + left, 0, Math.max(0, window.innerWidth - 1));
         virtualPointer.y = clamp((virtualPointer.y ?? window.innerHeight / 2) + top, 0, Math.max(0, window.innerHeight - 1));
-        updateVirtualPointer(true);
+        updateVirtualPointer({ active: true, moving: true });
     }
 
     function createPointerMouseEvent(type) {
@@ -438,6 +485,12 @@
                 return null;
             case 'pointerHide':
                 hideVirtualPointer();
+                return null;
+            case 'pointerMoveStart':
+                startVirtualPointerMove();
+                return null;
+            case 'pointerMoveEnd':
+                endVirtualPointerMove();
                 return null;
             case 'pointerMove':
                 moveVirtualPointer(Number(data.left) || 0, Number(data.top) || 0);
