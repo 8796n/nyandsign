@@ -904,6 +904,7 @@ function isWakeGesture(gesture) {
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
     if (!gesture) {
+        directionalScrollController?.resetRelease();
         setGestureText('—', '');
         stopAllGestureActions();
         // メタサイン状態もリセット（手が消えた）
@@ -920,11 +921,18 @@ tracker.addEventListener('gesture', (e) => {
 
     // ウェイクサインで ACTIVE に遷移
     if (wakeGestureType !== 'none' && isWakeGesture(gesture)) {
+        directionalScrollController?.resetRelease();
         stopAllGestureActions();
         if (wakeState === WAKE_STATE.IDLE) {
             setWakeState(WAKE_STATE.ACTIVE);
             log(msg('logWakeActivated'));
         }
+        return;
+    }
+
+    const directionalGate = directionalScrollController?.handleGestureChange(gesture, isWakeGesture);
+    if (directionalGate && !directionalGate.allowAction) {
+        stopAllGestureActions();
         return;
     }
 

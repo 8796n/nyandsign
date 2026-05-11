@@ -441,6 +441,7 @@ function isWakeGesture(gesture) {
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
     if (!gesture) {
+        directionalScrollController?.resetRelease();
         gestureText = '';
         stopAllGestureActions();
         resetMetaGestureState();
@@ -456,11 +457,18 @@ tracker.addEventListener('gesture', (e) => {
 
     // ウェイクサイン検出で ACTIVE に遷移
     if (wakeGestureType !== 'none' && isWakeGesture(gesture)) {
+        directionalScrollController?.resetRelease();
         stopAllGestureActions();
         if (wakeState === WAKE_STATE.IDLE) {
             setWakeState(WAKE_STATE.ACTIVE);
         }
         gestureText = icon;
+        return;
+    }
+
+    const directionalGate = directionalScrollController?.handleGestureChange(gesture, isWakeGesture);
+    if (directionalGate && !directionalGate.allowAction) {
+        stopAllGestureActions();
         return;
     }
 

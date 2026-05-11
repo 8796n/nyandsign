@@ -127,6 +127,7 @@ class DirectionalScrollController {
         this.graceMs = options.graceMs ?? 250;
         this.maxTrackingJump = options.maxTrackingJump ?? 0.18;
         this.state = null;
+        this.releaseRequired = false;
     }
 
     get active() { return this.state !== null; }
@@ -143,11 +144,40 @@ class DirectionalScrollController {
             lastSeenAt: now,
             lastSentAt: 0,
         };
+        this.releaseRequired = false;
         return true;
     }
 
-    stop() {
+    stop(options = {}) {
         this.state = null;
+        if (options.requireRelease) this.releaseRequired = true;
+    }
+
+    resetRelease() {
+        this.releaseRequired = false;
+    }
+
+    handleGestureChange(gesture, isWakeGesture = () => false) {
+        if (!gesture) {
+            this.resetRelease();
+            return { allowAction: true };
+        }
+
+        if (isWakeGesture(gesture)) {
+            this.resetRelease();
+            return { allowAction: true };
+        }
+
+        if (this.releaseRequired) {
+            return { allowAction: false, stopped: false };
+        }
+
+        if (this.state && gesture !== this.state.gesture) {
+            this.stop({ requireRelease: true });
+            return { allowAction: false, stopped: true };
+        }
+
+        return { allowAction: true };
     }
 
     findTrackedHand(hands = []) {
