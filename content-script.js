@@ -74,10 +74,6 @@
         cursorRight: 'right',
     };
 
-    function isEditableFocused() {
-        return !!getFocusedEditable();
-    }
-
     function getFocusedEditable() {
         const el = document.activeElement;
         if (!el) return null;
@@ -90,24 +86,36 @@
         return document.scrollingElement || document.documentElement || document.body;
     }
 
-    function findHorizontalScroller() {
+    function isScrollable(el, axis, allowVisible = false) {
+        if (!el) return false;
+        const scrollSize = axis === 'x' ? el.scrollWidth : el.scrollHeight;
+        const clientSize = axis === 'x' ? el.clientWidth : el.clientHeight;
+        if (scrollSize <= clientSize + 8) return false;
+
+        const style = getComputedStyle(el);
+        const overflow = axis === 'x' ? style.overflowX : style.overflowY;
+        return ['auto', 'scroll', 'overlay'].includes(overflow) || (allowVisible && overflow === 'visible');
+    }
+
+    function findScrollableElement(axis) {
         const root = getScrollRoot();
-        if (root && root.scrollWidth > root.clientWidth) return root;
+        if (isScrollable(root, axis, true)) return root;
 
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
         const underPointer = document.elementsFromPoint(centerX, centerY);
         for (const el of underPointer) {
-            if (el.scrollWidth > el.clientWidth + 8) return el;
+            if (isScrollable(el, axis)) return el;
         }
 
         let best = null;
         let bestArea = 0;
         for (const el of document.querySelectorAll('*')) {
-            if (el.scrollWidth <= el.clientWidth + 8) continue;
+            if (!isScrollable(el, axis)) continue;
             const rect = el.getBoundingClientRect();
             if (rect.width <= 0 || rect.height <= 0) continue;
             if (rect.bottom < 0 || rect.top > window.innerHeight) continue;
+            if (rect.right < 0 || rect.left > window.innerWidth) continue;
             const area = rect.width * rect.height;
             if (area > bestArea) {
                 best = el;
@@ -119,8 +127,8 @@
 
     function scrollPageBy(left, top, smooth = true) {
         const behavior = smooth ? 'smooth' : 'auto';
-        if (top) getScrollRoot().scrollBy({ top, behavior });
-        if (left) findHorizontalScroller().scrollBy({ left, behavior });
+        if (top) findScrollableElement('y').scrollBy({ top, behavior });
+        if (left) findScrollableElement('x').scrollBy({ left, behavior });
     }
 
     function clamp(n, min, max) {
@@ -237,7 +245,6 @@
     function executeBrowserPageAction(action, data = {}) {
         if (!BROWSER_PAGE_ACTIONS.has(action)) return false;
         if (CURSOR_KEY_BY_ACTION[action]) return executeCursorAction(action);
-        if (isEditableFocused()) return null;
 
         switch (action) {
             case 'directionalScroll':
@@ -256,10 +263,13 @@
                 scrollPageBy(-Math.round(window.innerWidth * 0.55), 0);
                 break;
             case 'pageTop':
-                getScrollRoot().scrollTo({ top: 0, behavior: 'smooth' });
+                findScrollableElement('y').scrollTo({ top: 0, behavior: 'smooth' });
                 break;
             case 'pageBottom':
-                getScrollRoot().scrollTo({ top: getScrollRoot().scrollHeight, behavior: 'smooth' });
+                {
+                    const scroller = findScrollableElement('y');
+                    scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
+                }
                 break;
         }
         return true;
