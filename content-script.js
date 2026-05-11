@@ -142,6 +142,7 @@
         cursorEl: null,
         targetEl: null,
         dimTimer: null,
+        staleTimer: null,
     };
 
     function pointerRoot() {
@@ -255,12 +256,21 @@
             virtualPointer.cursorEl.style.transform = 'translate(-50%, -50%) scale(1)';
             updatePointerTarget(false);
         }, 1800);
+
+        if (virtualPointer.staleTimer) clearTimeout(virtualPointer.staleTimer);
+        virtualPointer.staleTimer = setTimeout(() => {
+            hideVirtualPointer();
+        }, 6000);
     }
 
     function hideVirtualPointer() {
         if (virtualPointer.dimTimer) {
             clearTimeout(virtualPointer.dimTimer);
             virtualPointer.dimTimer = null;
+        }
+        if (virtualPointer.staleTimer) {
+            clearTimeout(virtualPointer.staleTimer);
+            virtualPointer.staleTimer = null;
         }
         virtualPointer.cursorEl?.remove();
         virtualPointer.targetEl?.remove();

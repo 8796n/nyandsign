@@ -99,6 +99,7 @@ let savedMirrorState = null;       // null=自動変更なし, boolean=変更前
 let lastFrameHands = [];
 let directionalScrollController = null;
 let pointerMoveController = null;
+let pointerKeepAliveTimer = null;
 
 // --- PiP (Picture-in-Picture) ---
 let pipWindowId = null;             // PiP ポップアップウィンドウの ID
@@ -423,6 +424,7 @@ async function startCamera() {
         $('sel-camera').disabled = true;
         show(el.cameraSection);
         stopCameraPolling();
+        syncPointerVisibility();
         log(msg('logCameraStarted'));
 
         // チュートリアル: カメラ起動でステップ自動進行
@@ -506,6 +508,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 function stopCamera() {
+    stopAllGestureActions();
+    stopPointerKeepAlive({ hide: true });
     // PiP ポップアップが開いている場合は閉じる
     if (pipWindowId) {
         chrome.windows.remove(pipWindowId).catch(() => {});
@@ -578,6 +582,8 @@ async function openPipWindow() {
             instanceId,
         }).catch(() => {});
 
+        stopAllGestureActions();
+        stopPointerKeepAlive({ hide: true });
         tracker.stop();
         if (cameraStream) {
             cameraStream.getTracks().forEach(t => t.stop());
@@ -672,6 +678,8 @@ chrome.runtime.onMessage.addListener((message) => {
     // 単一インスタンス制御: 別のインスタンスに所有権が移った
     if (message.type === 'instance-takeover' && message.instanceId !== instanceId) {
         takenOver = true;
+        stopAllGestureActions();
+        stopPointerKeepAlive({ hide: true });
         // カメラを停止（PiP ポップアップも含む）
         if (pipWindowId) {
             chrome.windows.remove(pipWindowId).catch(() => {});
@@ -825,12 +833,41 @@ function toggleOperationMode() {
     setOperationMode(modes[(index + 1) % modes.length]);
 }
 
+function shouldKeepPointerVisible() {
+    return operationMode === OPERATION_MODES.POINTER && controlEnabled && !!cameraStream;
+}
+
+function stopPointerKeepAlive(options = {}) {
+    if (pointerKeepAliveTimer) {
+        clearInterval(pointerKeepAliveTimer);
+        pointerKeepAliveTimer = null;
+    }
+    if (options.hide) sendAction('pointerHide');
+}
+
+function startPointerKeepAlive() {
+    if (!shouldKeepPointerVisible()) return;
+    if (!pointerKeepAliveTimer) {
+        pointerKeepAliveTimer = setInterval(() => {
+            if (shouldKeepPointerVisible()) {
+                sendAction('pointerShow');
+            } else {
+                stopPointerKeepAlive({ hide: true });
+            }
+        }, 2000);
+    }
+    sendAction('pointerShow');
+}
+
 function syncPointerVisibility(previousMode = operationMode) {
     if (previousMode === OPERATION_MODES.POINTER && operationMode !== OPERATION_MODES.POINTER) {
-        sendAction('pointerHide');
+        stopPointerKeepAlive({ hide: true });
+        return;
     }
-    if (operationMode === OPERATION_MODES.POINTER && controlEnabled) {
-        sendAction('pointerShow');
+    if (shouldKeepPointerVisible()) {
+        startPointerKeepAlive();
+    } else {
+        stopPointerKeepAlive({ hide: true });
     }
 }
 
@@ -1486,10 +1523,8 @@ function setControlEnabled(enabled) {
     if (!enabled) {
         stopAllGestureActions();
         setWakeState(WAKE_STATE.IDLE);
-        sendAction('pointerHide');
-    } else if (operationMode === OPERATION_MODES.POINTER) {
-        sendAction('pointerShow');
     }
+    syncPointerVisibility();
     playBeep(enabled ? 880 : 440, 0.2);
     log(enabled
         ? msg('logOperationEnabledOn', [modeLabel(operationMode)])
@@ -1705,7 +1740,7 @@ $('btn-reset-settings').addEventListener('click', () => {
     $('rng-pip-font-scale').value = d.pipFontScale;
     $('pip-font-scale-value').textContent = fmtPercent(d.pipFontScale);
     document.body.style.zoom = d.uiScale / 100;
-    sendAction('pointerHide');
+    stopPointerKeepAlive({ hide: true });
 
     // ストレージに保存
     chrome.storage.sync.set({ ...d, metaGestureMapping });
@@ -1984,5 +2019,12 @@ async function init() {
         }
     } catch (_) {}
 }
+
+function cleanupPointerForPageExit() {
+    stopPointerKeepAlive({ hide: true });
+}
+
+window.addEventListener('pagehide', cleanupPointerForPageExit);
+window.addEventListener('beforeunload', cleanupPointerForPageExit);
 
 init();

@@ -63,6 +63,7 @@ let metaGestureController = null;
 let lastFrameHands = [];
 let directionalScrollController = null;
 let pointerMoveController = null;
+let pointerKeepAliveTimer = null;
 
 // PiP 合成
 let pipCanvas = null;
@@ -156,12 +157,41 @@ function toggleOperationMode() {
     setOperationMode(modes[(index + 1) % modes.length]);
 }
 
+function shouldKeepPointerVisible() {
+    return operationMode === OPERATION_MODES.POINTER && controlEnabled && !!cameraStream;
+}
+
+function stopPointerKeepAlive(options = {}) {
+    if (pointerKeepAliveTimer) {
+        clearInterval(pointerKeepAliveTimer);
+        pointerKeepAliveTimer = null;
+    }
+    if (options.hide) sendAction('pointerHide');
+}
+
+function startPointerKeepAlive() {
+    if (!shouldKeepPointerVisible()) return;
+    if (!pointerKeepAliveTimer) {
+        pointerKeepAliveTimer = setInterval(() => {
+            if (shouldKeepPointerVisible()) {
+                sendAction('pointerShow');
+            } else {
+                stopPointerKeepAlive({ hide: true });
+            }
+        }, 2000);
+    }
+    sendAction('pointerShow');
+}
+
 function syncPointerVisibility(previousMode = operationMode) {
     if (previousMode === OPERATION_MODES.POINTER && operationMode !== OPERATION_MODES.POINTER) {
-        sendAction('pointerHide');
+        stopPointerKeepAlive({ hide: true });
+        return;
     }
-    if (operationMode === OPERATION_MODES.POINTER && controlEnabled) {
-        sendAction('pointerShow');
+    if (shouldKeepPointerVisible()) {
+        startPointerKeepAlive();
+    } else {
+        stopPointerKeepAlive({ hide: true });
     }
 }
 
@@ -248,10 +278,8 @@ chrome.storage.onChanged.addListener((changes) => {
         controlEnabled = changes.controlEnabled.newValue;
         if (!controlEnabled) {
             stopAllGestureActions();
-            sendAction('pointerHide');
-        } else if (operationMode === OPERATION_MODES.POINTER) {
-            sendAction('pointerShow');
         }
+        syncPointerVisibility();
     }
     if (changes.wakeGestureType) wakeGestureType = changes.wakeGestureType.newValue;
     if (changes.wakeActiveDuration) wakeActiveDuration = changes.wakeActiveDuration.newValue;
@@ -351,6 +379,8 @@ if (targetTabId) {
 chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'instance-takeover' && message.instanceId !== instanceId) {
         // 別のインスタンスに所有権が移った → 自身を停止
+        stopAllGestureActions();
+        stopPointerKeepAlive({ hide: true });
         stopPipComposite();
         if (document.pictureInPictureElement) {
             document.exitPictureInPicture().catch(() => {});
@@ -636,10 +666,8 @@ function executeMetaAction(action) {
             playBeep(controlEnabled ? 880 : 440, 0.2);
             if (!controlEnabled) {
                 stopAllGestureActions();
-                sendAction('pointerHide');
-            } else if (operationMode === OPERATION_MODES.POINTER) {
-                sendAction('pointerShow');
             }
+            syncPointerVisibility();
             return true;
         case 'toggleMode':
             toggleOperationMode();
@@ -845,6 +873,8 @@ async function startCamera() {
         track.addEventListener('ended', () => {
             console.log('[PiP] カメラ切断を検出');
             // カメラ・トラッキングを停止
+            stopAllGestureActions();
+            stopPointerKeepAlive({ hide: true });
             stopPipComposite();
             tracker.stop();
             if (cameraStream) {
@@ -892,6 +922,7 @@ async function startCamera() {
 
         statusEl.textContent = msg('pipStatusCameraReady');
         btnStartPip.disabled = false;
+        syncPointerVisibility();
 
         // プレビュー描画開始
         previewLoop();
@@ -1013,6 +1044,8 @@ async function returnToSidepanel(autoRestart) {
         document.exitPictureInPicture().catch(() => {});
     }
     // カメラを停止
+    stopAllGestureActions();
+    stopPointerKeepAlive({ hide: true });
     stopPipComposite();
     tracker.stop();
     if (cameraStream) {
@@ -1055,6 +1088,8 @@ window.addEventListener('beforeunload', (e) => {
     if (skipPortReturn && lifecyclePort) {
         try { lifecyclePort.postMessage({ skipReturn: true }); } catch (_) {}
     }
+    stopAllGestureActions();
+    stopPointerKeepAlive({ hide: true });
     stopPipComposite();
     if (document.pictureInPictureElement) {
         document.exitPictureInPicture().catch(() => {});
@@ -1066,6 +1101,11 @@ window.addEventListener('beforeunload', (e) => {
     }
     // 所有権を解放
     chrome.runtime.sendMessage({ type: 'release-active-instance', instanceId }).catch(() => {});
+});
+
+window.addEventListener('pagehide', () => {
+    stopAllGestureActions();
+    stopPointerKeepAlive({ hide: true });
 });
 
 // 起動
