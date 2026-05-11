@@ -136,6 +136,21 @@
         return Math.max(min, Math.min(max, n));
     }
 
+    const POINTER_EDGE_SCROLL_MIN_OVERFLOW = 2;
+    const POINTER_EDGE_SCROLL_SCALE = 1.2;
+    const POINTER_EDGE_SCROLL_MAX_STEP = 42;
+
+    function pointerEdgeScrollAmount(overflow) {
+        if (Math.abs(overflow) < POINTER_EDGE_SCROLL_MIN_OVERFLOW) return 0;
+        return Math.round(clamp(overflow * POINTER_EDGE_SCROLL_SCALE, -POINTER_EDGE_SCROLL_MAX_STEP, POINTER_EDGE_SCROLL_MAX_STEP));
+    }
+
+    function scrollByPointerOverflow(overflowX, overflowY) {
+        const left = pointerEdgeScrollAmount(overflowX);
+        const top = pointerEdgeScrollAmount(overflowY);
+        if (left || top) scrollPageBy(left, top, false);
+    }
+
     const virtualPointer = {
         x: null,
         y: null,
@@ -327,8 +342,26 @@
 
     function moveVirtualPointer(left, top) {
         ensureVirtualPointer();
-        virtualPointer.x = clamp((virtualPointer.x ?? window.innerWidth / 2) + left, 0, Math.max(0, window.innerWidth - 1));
-        virtualPointer.y = clamp((virtualPointer.y ?? window.innerHeight / 2) + top, 0, Math.max(0, window.innerHeight - 1));
+        const maxX = Math.max(0, window.innerWidth - 1);
+        const maxY = Math.max(0, window.innerHeight - 1);
+        const currentX = virtualPointer.x ?? window.innerWidth / 2;
+        const currentY = virtualPointer.y ?? window.innerHeight / 2;
+        const nextX = currentX + left;
+        const nextY = currentY + top;
+        const clampedX = clamp(nextX, 0, maxX);
+        const clampedY = clamp(nextY, 0, maxY);
+        const overflowX =
+            (currentX <= 0 && nextX < 0) || (currentX >= maxX && nextX > maxX)
+                ? nextX - clampedX
+                : 0;
+        const overflowY =
+            (currentY <= 0 && nextY < 0) || (currentY >= maxY && nextY > maxY)
+                ? nextY - clampedY
+                : 0;
+
+        virtualPointer.x = clampedX;
+        virtualPointer.y = clampedY;
+        scrollByPointerOverflow(overflowX, overflowY);
         updateVirtualPointer({ active: true, moving: true });
     }
 
