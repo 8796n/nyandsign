@@ -431,6 +431,12 @@
       "1": { "content": "$1" }
     }
   },
+  "logInjectionBlocked": {
+    "message": "🚫 このページではスクロールなどのページ内操作は利用できません"
+  },
+  "gestureBlockedPageAction": {
+    "message": "ページ内操作不可"
+  },
   "logMediaControlOn": {
     "message": "操作: ON ✅"
   },

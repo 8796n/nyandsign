@@ -39,8 +39,15 @@ async function broadcastTakeover(newInstance) {
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'gesture-action') {
-        forwardToActiveTab(message.action, message.targetTabId, message.data);
-        sendResponse({ ok: true });
+        forwardToActiveTab(message.action, message.targetTabId, message.data)
+            .then(sendResponse)
+            .catch((err) => {
+                sendResponse({
+                    ok: false,
+                    reason: 'unknown',
+                    message: err?.message || String(err),
+                });
+            });
         return true;
     }
 
@@ -175,15 +182,21 @@ async function executeBrowserTabAction(action, tab) {
 }
 
 async function forwardToActiveTab(action, targetTabId, data) {
-    if (!action || action === 'none') return;
+    if (!action || action === 'none') return { ok: true, handledBy: 'none' };
 
     const tab = await resolveTargetTab(targetTabId);
-    if (!tab?.id) return;
+    if (!tab?.id) return { ok: false, reason: 'noTargetTab' };
 
     try {
-        if (await executeBrowserTabAction(action, tab)) return;
-    } catch (_) {
-        return;
+        if (await executeBrowserTabAction(action, tab)) {
+            return { ok: true, handledBy: 'tab' };
+        }
+    } catch (err) {
+        return {
+            ok: false,
+            reason: 'tabActionFailed',
+            message: err?.message || String(err),
+        };
     }
 
     try {
@@ -192,6 +205,7 @@ async function forwardToActiveTab(action, targetTabId, data) {
             action,
             data,
         });
+        return { ok: true, handledBy: 'contentScript' };
     } catch (err) {
         try {
             await chrome.scripting.executeScript({
@@ -203,8 +217,14 @@ async function forwardToActiveTab(action, targetTabId, data) {
                 action,
                 data,
             });
-        } catch (_) {
-            // chrome:// 等の注入不可ページは無視
+            return { ok: true, handledBy: 'contentScript' };
+        } catch (injectErr) {
+            // chrome:// 等の注入不可ページ
+            return {
+                ok: false,
+                reason: 'injectionBlocked',
+                message: injectErr?.message || err?.message || String(injectErr || err),
+            };
         }
     }
 }

@@ -999,7 +999,15 @@ async function sendAction(action, data) {
         const payload = { type: 'gesture-action', action };
         if (data) payload.data = data;
         if (lockedTargetTabId) payload.targetTabId = lockedTargetTabId;
-        await chrome.runtime.sendMessage(payload);
+        const result = await chrome.runtime.sendMessage(payload);
+        if (result?.ok === false) {
+            if (result.reason === 'injectionBlocked') {
+                setGestureText('🚫', msg('gestureBlockedPageAction'));
+                log(msg('logInjectionBlocked'));
+            } else {
+                log(msg('logSendError', [result.message || result.reason || 'unknown']));
+            }
+        }
     } catch (e) {
         log(msg('logSendError', [e?.message || String(e)]));
     }

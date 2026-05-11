@@ -565,6 +565,14 @@
       "1": { "content": "$1", "example": "No active tab" }
     }
   },
+  "logInjectionBlocked": {
+    "message": "🚫 Page actions such as scroll are unavailable on this page",
+    "description": "Log when content script injection is blocked"
+  },
+  "gestureBlockedPageAction": {
+    "message": "Page action blocked",
+    "description": "Short status shown when page actions cannot run on the current page"
+  },
   "logMediaControlOn": {
     "message": "Operation: ON ✅",
     "description": "Log when operation sending is enabled"

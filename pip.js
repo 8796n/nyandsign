@@ -376,12 +376,15 @@ async function sendAction(action, data) {
     // ターゲットタブが閉じられている場合はアクションを送信しない
     if (!targetTabAlive && targetTabId) return;
     try {
-        await chrome.runtime.sendMessage({
+        const result = await chrome.runtime.sendMessage({
             type: 'gesture-action',
             action,
             data,
             targetTabId: targetTabId || undefined,
         });
+        if (result?.ok === false && result.reason === 'injectionBlocked') {
+            gestureText = `🚫 ${msg('gestureBlockedPageAction')}`;
+        }
     } catch (_) {}
 }
 
