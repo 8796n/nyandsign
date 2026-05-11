@@ -99,6 +99,7 @@ let savedMirrorState = null;       // null=自動変更なし, boolean=変更前
 let lastFrameHands = [];
 let directionalScrollController = null;
 let pointerMoveController = null;
+let holdGestureResumeController = null;
 let pointerVisibilityController = null;
 
 // --- PiP (Picture-in-Picture) ---
@@ -867,13 +868,13 @@ function setWakeState(newState) {
 }
 
 /** リピート中にアクティブ待機時間をリセット延長 */
-function extendWakeTimeout() {
+function extendWakeTimeout(durationMs = wakeActiveDuration) {
     if (wakeGestureType === 'none') return;
     if (wakeTimeout) { clearTimeout(wakeTimeout); wakeTimeout = null; }
     wakeTimeout = setTimeout(() => {
         setWakeState(WAKE_STATE.IDLE);
         log(msg('logWakeTimeout'));
-    }, wakeActiveDuration);
+    }, durationMs);
 }
 
 /* ============================================================
@@ -963,7 +964,11 @@ function confirmAction(gesture, action) {
 /** サイン変化時: 保留 + リピートを停止し、必要なら IDLE に戻す */
 function stopAllGestureActions() {
     cancelPendingAction();
-    const wasRepeating = repeatingGesture !== null || !!directionalScrollController?.active || !!pointerMoveController?.active;
+    const wasRepeating = repeatingGesture !== null ||
+        !!directionalScrollController?.active ||
+        !!directionalScrollController?.suspended ||
+        !!pointerMoveController?.active ||
+        !!pointerMoveController?.suspended;
     continuousGestureGate?.stop();
     stopDirectionalScroll();
     stopPointerMove();
@@ -981,9 +986,12 @@ function isWakeGesture(gesture) {
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
     if (!gesture) {
-        continuousGestureGate?.reset();
         setGestureText('—', '');
-        stopAllGestureActions();
+        const suspended = holdGestureResumeController?.suspend();
+        if (!suspended) {
+            continuousGestureGate?.reset();
+            stopAllGestureActions();
+        }
         // メタサイン状態もリセット（手が消えた）
         resetMetaGestureState();
         return;
@@ -1004,6 +1012,19 @@ tracker.addEventListener('gesture', (e) => {
             setWakeState(WAKE_STATE.ACTIVE);
             log(msg('logWakeActivated'));
         }
+        return;
+    }
+
+    const now = Date.now();
+    holdGestureResumeController?.expire(now);
+    const hadSuspendedHold = !!holdGestureResumeController?.hasSuspended();
+    const resumedAction = holdGestureResumeController?.resume(gesture, now);
+    if (resumedAction) {
+        setGestureText(GESTURE_ICONS[gesture] || '❓', actionDisplay(resumedAction));
+        return;
+    }
+    if (hadSuspendedHold) {
+        stopAllGestureActions();
         return;
     }
 
@@ -1126,6 +1147,19 @@ pointerMoveController = new PointerMoveController({
     extendWakeTimeout,
     stopAllGestureActions,
     isControlEnabled: () => controlEnabled && operationMode === OPERATION_MODES.POINTER,
+});
+
+holdGestureResumeController = new HoldGestureResumeController({
+    directionalScrollController,
+    pointerMoveController,
+    continuousGestureGate,
+    getLastFrameHands: () => lastFrameHands,
+    extendWakeTimeout,
+    stopRepeat,
+    setWakeIdle: () => setWakeState(WAKE_STATE.IDLE),
+    isWakeGestureEnabled: () => wakeGestureType !== 'none',
+    getWakeActiveDuration: () => wakeActiveDuration,
+    setRepeatingGesture: (gesture) => { repeatingGesture = gesture; },
 });
 
 pointerVisibilityController = new PointerVisibilityController({

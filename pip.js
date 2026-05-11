@@ -63,6 +63,7 @@ let metaGestureController = null;
 let lastFrameHands = [];
 let directionalScrollController = null;
 let pointerMoveController = null;
+let holdGestureResumeController = null;
 let pointerVisibilityController = null;
 
 // PiP 合成
@@ -384,12 +385,12 @@ function setWakeState(newState) {
     }
 }
 
-function extendWakeTimeout() {
+function extendWakeTimeout(durationMs = wakeActiveDuration) {
     if (wakeGestureType === 'none') return;
     if (wakeTimeout) { clearTimeout(wakeTimeout); wakeTimeout = null; }
     wakeTimeout = setTimeout(() => {
         setWakeState(WAKE_STATE.IDLE);
-    }, wakeActiveDuration);
+    }, durationMs);
 }
 
 /* ============================================================
@@ -435,7 +436,11 @@ function updatePointerMove(hands, now) {
 
 function stopAllGestureActions() {
     cancelPendingAction();
-    const wasRepeating = repeatingGesture !== null || !!directionalScrollController?.active || !!pointerMoveController?.active;
+    const wasRepeating = repeatingGesture !== null ||
+        !!directionalScrollController?.active ||
+        !!directionalScrollController?.suspended ||
+        !!pointerMoveController?.active ||
+        !!pointerMoveController?.suspended;
     continuousGestureGate?.stop();
     stopDirectionalScroll();
     stopPointerMove();
@@ -477,6 +482,19 @@ pointerMoveController = new PointerMoveController({
     extendWakeTimeout,
     stopAllGestureActions,
     isControlEnabled: () => controlEnabled && operationMode === OPERATION_MODES.POINTER,
+});
+
+holdGestureResumeController = new HoldGestureResumeController({
+    directionalScrollController,
+    pointerMoveController,
+    continuousGestureGate,
+    getLastFrameHands: () => lastFrameHands,
+    extendWakeTimeout,
+    stopRepeat,
+    setWakeIdle: () => setWakeState(WAKE_STATE.IDLE),
+    isWakeGestureEnabled: () => wakeGestureType !== 'none',
+    getWakeActiveDuration: () => wakeActiveDuration,
+    setRepeatingGesture: (gesture) => { repeatingGesture = gesture; },
 });
 
 pointerVisibilityController = new PointerVisibilityController({
@@ -538,9 +556,12 @@ function isWakeGesture(gesture) {
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
     if (!gesture) {
-        continuousGestureGate?.reset();
         gestureText = '';
-        stopAllGestureActions();
+        const suspended = holdGestureResumeController?.suspend();
+        if (!suspended) {
+            continuousGestureGate?.reset();
+            stopAllGestureActions();
+        }
         resetMetaGestureState();
         return;
     }
@@ -560,6 +581,19 @@ tracker.addEventListener('gesture', (e) => {
             setWakeState(WAKE_STATE.ACTIVE);
         }
         gestureText = icon;
+        return;
+    }
+
+    const now = Date.now();
+    holdGestureResumeController?.expire(now);
+    const hadSuspendedHold = !!holdGestureResumeController?.hasSuspended();
+    const resumedAction = holdGestureResumeController?.resume(gesture, now);
+    if (resumedAction) {
+        gestureText = `${icon} ${actionDisplay(resumedAction)}`;
+        return;
+    }
+    if (hadSuspendedHold) {
+        stopAllGestureActions();
         return;
     }
 

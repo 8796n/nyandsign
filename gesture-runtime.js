@@ -211,29 +211,67 @@ class DirectionalScrollController {
         this.maxOffset = options.maxOffset ?? 0.28;
         this.maxPixels = options.maxPixels ?? 180;
         this.graceMs = options.graceMs ?? 250;
+        this.resumeWindowMs = options.resumeWindowMs ?? HOLD_GESTURE_RESUME_WINDOW_MS;
         this.maxTrackingJump = options.maxTrackingJump ?? 0.18;
         this.state = null;
     }
 
-    get active() { return this.state !== null; }
+    get active() { return this.state?.phase === 'active'; }
+    get suspended() { return this.state?.phase === 'suspended'; }
 
     start(gesture, hands = [], now = Date.now()) {
         const hand = GestureRuntimeUtils.findHandForGesture(gesture, hands, this.tracker.preferredHand);
         const origin = GestureRuntimeUtils.handPosition(hand);
         if (!origin) return false;
         this.state = {
+            phase: 'active',
             gesture,
             hand: hand?.hand || 'unknown',
             origin,
             lastPosition: origin,
             lastSeenAt: now,
             lastSentAt: 0,
+            suspendedAt: 0,
         };
         return true;
     }
 
     stop() {
         this.state = null;
+    }
+
+    suspend(now = Date.now()) {
+        if (!this.active) return false;
+        this.state.phase = 'suspended';
+        this.state.suspendedAt = now;
+        return true;
+    }
+
+    canResume(gesture, now = Date.now()) {
+        return this.suspended &&
+            this.state.gesture === gesture &&
+            now - this.state.suspendedAt <= this.resumeWindowMs;
+    }
+
+    resume(gesture, hands = [], now = Date.now()) {
+        if (!this.canResume(gesture, now)) return false;
+        const hand = GestureRuntimeUtils.findHandForGesture(gesture, hands, this.tracker.preferredHand);
+        const origin = GestureRuntimeUtils.handPosition(hand);
+        if (!origin) return false;
+        this.state.phase = 'active';
+        this.state.hand = hand?.hand || this.state.hand;
+        this.state.origin = origin;
+        this.state.lastPosition = origin;
+        this.state.lastSeenAt = now;
+        this.state.lastSentAt = 0;
+        this.state.suspendedAt = 0;
+        return true;
+    }
+
+    expireSuspension(now = Date.now()) {
+        if (!this.suspended || now - this.state.suspendedAt <= this.resumeWindowMs) return false;
+        this.stop();
+        return true;
     }
 
     findTrackedHand(hands = []) {
@@ -261,6 +299,10 @@ class DirectionalScrollController {
 
     update(hands = [], now) {
         if (!this.state || !this.isControlEnabled()) return;
+        if (this.suspended) {
+            if (now - this.state.suspendedAt > this.resumeWindowMs) this.stopAllGestureActions();
+            return;
+        }
 
         const hand = GestureRuntimeUtils.findHandForGesture(
             this.state.gesture,
@@ -285,7 +327,7 @@ class DirectionalScrollController {
         }
 
         if (!pos) {
-            this.stopAllGestureActions();
+            this.suspend(now);
             return;
         }
 
@@ -317,23 +359,27 @@ class PointerMoveController {
         this.maxOffset = options.maxOffset ?? 0.22;
         this.maxPixels = options.maxPixels ?? 26;
         this.graceMs = options.graceMs ?? 250;
+        this.resumeWindowMs = options.resumeWindowMs ?? HOLD_GESTURE_RESUME_WINDOW_MS;
         this.maxTrackingJump = options.maxTrackingJump ?? 0.18;
         this.state = null;
     }
 
-    get active() { return this.state !== null; }
+    get active() { return this.state?.phase === 'active'; }
+    get suspended() { return this.state?.phase === 'suspended'; }
 
     start(gesture, hands = [], now = Date.now()) {
         const hand = GestureRuntimeUtils.findHandForGesture(gesture, hands, this.tracker.preferredHand);
         const origin = GestureRuntimeUtils.handPosition(hand);
         if (!origin) return false;
         this.state = {
+            phase: 'active',
             gesture,
             hand: hand?.hand || 'unknown',
             origin,
             lastPosition: origin,
             lastSeenAt: now,
             lastSentAt: 0,
+            suspendedAt: 0,
         };
         this.sendAction('pointerMoveStart');
         return true;
@@ -341,8 +387,45 @@ class PointerMoveController {
 
     stop() {
         if (!this.state) return;
+        const wasActive = this.active;
         this.state = null;
+        if (wasActive) this.sendAction('pointerMoveEnd');
+    }
+
+    suspend(now = Date.now()) {
+        if (!this.active) return false;
+        this.state.phase = 'suspended';
+        this.state.suspendedAt = now;
         this.sendAction('pointerMoveEnd');
+        return true;
+    }
+
+    canResume(gesture, now = Date.now()) {
+        return this.suspended &&
+            this.state.gesture === gesture &&
+            now - this.state.suspendedAt <= this.resumeWindowMs;
+    }
+
+    resume(gesture, hands = [], now = Date.now()) {
+        if (!this.canResume(gesture, now)) return false;
+        const hand = GestureRuntimeUtils.findHandForGesture(gesture, hands, this.tracker.preferredHand);
+        const origin = GestureRuntimeUtils.handPosition(hand);
+        if (!origin) return false;
+        this.state.phase = 'active';
+        this.state.hand = hand?.hand || this.state.hand;
+        this.state.origin = origin;
+        this.state.lastPosition = origin;
+        this.state.lastSeenAt = now;
+        this.state.lastSentAt = 0;
+        this.state.suspendedAt = 0;
+        this.sendAction('pointerMoveStart');
+        return true;
+    }
+
+    expireSuspension(now = Date.now()) {
+        if (!this.suspended || now - this.state.suspendedAt <= this.resumeWindowMs) return false;
+        this.stop();
+        return true;
     }
 
     findTrackedHand(hands = []) {
@@ -370,6 +453,10 @@ class PointerMoveController {
 
     update(hands = [], now) {
         if (!this.state || !this.isControlEnabled()) return;
+        if (this.suspended) {
+            if (now - this.state.suspendedAt > this.resumeWindowMs) this.stopAllGestureActions();
+            return;
+        }
 
         const hand = GestureRuntimeUtils.findHandForGesture(
             this.state.gesture,
@@ -394,7 +481,7 @@ class PointerMoveController {
         }
 
         if (!pos) {
-            this.stopAllGestureActions();
+            this.suspend(now);
             return;
         }
 
@@ -411,6 +498,66 @@ class PointerMoveController {
         this.state.lastSentAt = now;
         this.sendAction('pointerMove', { left, top });
         this.extendWakeTimeout();
+    }
+}
+
+class HoldGestureResumeController {
+    constructor(options) {
+        this.directionalScrollController = options.directionalScrollController;
+        this.pointerMoveController = options.pointerMoveController;
+        this.continuousGestureGate = options.continuousGestureGate;
+        this.getLastFrameHands = options.getLastFrameHands;
+        this.extendWakeTimeout = options.extendWakeTimeout;
+        this.stopRepeat = options.stopRepeat;
+        this.setWakeIdle = options.setWakeIdle;
+        this.isWakeGestureEnabled = options.isWakeGestureEnabled;
+        this.getWakeActiveDuration = options.getWakeActiveDuration;
+        this.setRepeatingGesture = options.setRepeatingGesture;
+        this.resumeWindowMs = options.resumeWindowMs ?? HOLD_GESTURE_RESUME_WINDOW_MS;
+    }
+
+    suspend(now = Date.now()) {
+        this.expire(now);
+        if (this.hasSuspended()) return true;
+        const directionalSuspended = !!this.directionalScrollController?.suspend(now);
+        const pointerSuspended = !!this.pointerMoveController?.suspend(now);
+        const suspended = directionalSuspended || pointerSuspended;
+        if (suspended && this.isWakeGestureEnabled()) {
+            this.extendWakeTimeout(Math.max(this.getWakeActiveDuration(), this.resumeWindowMs));
+        }
+        return suspended;
+    }
+
+    expire(now = Date.now()) {
+        const directionalExpired = !!this.directionalScrollController?.expireSuspension(now);
+        const pointerExpired = !!this.pointerMoveController?.expireSuspension(now);
+        const expired = directionalExpired || pointerExpired;
+        if (!expired) return false;
+        this.continuousGestureGate?.reset();
+        this.stopRepeat();
+        if (this.isWakeGestureEnabled()) {
+            this.setWakeIdle();
+        }
+        return true;
+    }
+
+    hasSuspended() {
+        return !!this.directionalScrollController?.suspended || !!this.pointerMoveController?.suspended;
+    }
+
+    resume(gesture, now = Date.now()) {
+        const hands = this.getLastFrameHands();
+        if (this.directionalScrollController?.resume(gesture, hands, now)) {
+            this.setRepeatingGesture(gesture);
+            this.continuousGestureGate?.start(gesture);
+            this.extendWakeTimeout();
+            return 'directionalScroll';
+        }
+        if (this.pointerMoveController?.resume(gesture, hands, now)) {
+            this.extendWakeTimeout();
+            return 'pointerMove';
+        }
+        return null;
     }
 }
 

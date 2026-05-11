@@ -131,6 +131,7 @@ const REPEATABLE_ACTIONS = new Set([
 
 const DIRECTIONAL_ACTIONS = new Set(['directionalScroll']);
 const POINTER_MOVE_ACTIONS = new Set(['pointerMove']);
+const HOLD_GESTURE_RESUME_WINDOW_MS = 2000;
 
 const DEFAULT_MAPPING = {
     fist: 'pause',
