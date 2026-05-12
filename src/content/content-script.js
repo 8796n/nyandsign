@@ -7,6 +7,8 @@
 
 (() => {
     'use strict';
+    if (globalThis.__nyandsignContentScriptLoaded) return;
+    globalThis.__nyandsignContentScriptLoaded = true;
 
     /**
      * ページ内で最も適切なメディア要素を取得する。

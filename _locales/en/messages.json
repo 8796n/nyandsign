@@ -673,6 +673,13 @@
     "message": "🔄 This page may need to be reloaded",
     "description": "Log when a normal page failed after reinjection and may need reload"
   },
+  "logFrameActionUnavailable": {
+    "message": "⚠ Could not reach the frame action target (injected frames: $1)",
+    "description": "Log when all-frame injection succeeded but the action still did not reach a content script",
+    "placeholders": {
+      "1": { "content": "$1", "example": "3" }
+    }
+  },
   "logNoTargetTab": {
     "message": "🎯 No target tab",
     "description": "Log when there is no target tab for a gesture action"
@@ -691,6 +698,10 @@
   "gestureReloadRequired": {
     "message": "Reload page",
     "description": "Short status shown when the target page should be reloaded"
+  },
+  "gestureFrameActionUnavailable": {
+    "message": "Frame action blocked",
+    "description": "Short status shown when a frame-heavy page cannot receive a page action"
   },
   "gestureNoTargetTab": {
     "message": "No target tab",

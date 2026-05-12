@@ -190,6 +190,21 @@ function pageActionFailureReason(tab) {
     return isRestrictedPageForInjection(tab) ? 'restrictedPage' : 'reloadRequired';
 }
 
+async function sendContentAction(tabId, action, data) {
+    await chrome.tabs.sendMessage(tabId, {
+        type: 'mediaAction',
+        action,
+        data,
+    });
+}
+
+async function injectContentScriptAllFrames(tabId) {
+    return await chrome.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        files: ['src/content/content-script.js'],
+    });
+}
+
 async function forwardToActiveTab(action, targetTabId, data) {
     if (!action || action === 'none') return { ok: true, handledBy: 'none' };
 
@@ -209,30 +224,43 @@ async function forwardToActiveTab(action, targetTabId, data) {
     }
 
     try {
-        await chrome.tabs.sendMessage(tab.id, {
-            type: 'mediaAction',
-            action,
-            data,
-        });
+        await sendContentAction(tab.id, action, data);
         return { ok: true, handledBy: 'contentScript' };
     } catch (err) {
+        let injectionResults = [];
         try {
-            await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                files: ['src/content/content-script.js'],
-            });
-            await chrome.tabs.sendMessage(tab.id, {
-                type: 'mediaAction',
-                action,
-                data,
-            });
-            return { ok: true, handledBy: 'contentScript' };
+            injectionResults = await injectContentScriptAllFrames(tab.id);
         } catch (injectErr) {
             // chrome:// 等は注入不可。通常ページで失敗した場合は再読み込み候補として扱う。
             return {
                 ok: false,
                 reason: pageActionFailureReason(tab),
                 message: injectErr?.message || err?.message || String(injectErr || err),
+            };
+        }
+        if (!injectionResults.length) {
+            return {
+                ok: false,
+                reason: pageActionFailureReason(tab),
+                injectedFrameCount: 0,
+                message: err?.message || 'no injected frame',
+            };
+        }
+
+        try {
+            await sendContentAction(tab.id, action, data);
+            return {
+                ok: true,
+                handledBy: 'contentScript',
+                reinjected: true,
+                injectedFrameCount: injectionResults.length,
+            };
+        } catch (retryErr) {
+            return {
+                ok: false,
+                reason: injectionResults.length > 1 ? 'frameActionUnavailable' : 'reloadRequired',
+                injectedFrameCount: injectionResults.length,
+                message: retryErr?.message || err?.message || String(retryErr || err),
             };
         }
     }

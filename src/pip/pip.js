@@ -518,6 +518,8 @@ async function sendAction(action, data) {
                 setPageActionStatus(`🚫 ${msg('gestureBlockedPageAction')}`);
             } else if (result.reason === 'reloadRequired') {
                 setPageActionStatus(`🔄 ${msg('gestureReloadRequired')}`);
+            } else if (result.reason === 'frameActionUnavailable') {
+                setPageActionStatus(`⚠ ${msg('gestureFrameActionUnavailable')}`);
             } else if (result.reason === 'noTargetTab') {
                 setPageActionStatus(`🎯 ${msg('gestureNoTargetTab')}`);
             } else if (result.reason === 'tabActionFailed') {
