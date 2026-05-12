@@ -39,18 +39,21 @@ Fist, Peace, Three, Four, OK, Aloha (shaka), Rock, Point Right, Point Left, Thum
 ＋− Zoom In / Zoom Out
 100% Reset Zoom
 
+🧪 Experimental: Pointer Control Mode
+Display a virtual cursor inside the page, hold an assigned hand sign, and move your hand to move the cursor. Use a separate click sign to click links, buttons, and other page elements. This is implemented as an in-page virtual cursor within what a Chrome extension can control; it does not move the operating system mouse cursor itself.
+
 ⚡ Fully Customizable
-Switch between Media Control and Browser Control modes
+Switch between Media Control, Browser Control, and experimental Pointer Control modes
 Customize hand sign mappings separately for each mode
 Adjustable gesture hold time to reduce accidental triggers
 Repeatable actions for continuous volume, seek, scroll, and zoom control
 Wake sign mode — require an activation sign before commands are accepted
 Wake sign options — Open Hand (either side), Open Hand (palm only), or always active
-Two-hand signs — toggle operation ON/OFF or switch between Media and Browser modes
-Built-in tutorial — explains both operation modes and the basic flow
+Two-hand signs — toggle operation ON/OFF or switch operation modes
+Built-in tutorial — explains the basic flow and core operation modes
 
 📌 PiP (Picture-in-Picture) Mode
-When fullscreen video makes the side panel intrusive, switch to a compact popup window. In PiP, Media Control mode uses a green border and Browser Control mode uses a blue border, so you can tell which mode is active at a glance.
+When fullscreen video makes the side panel intrusive, switch to a compact popup window. In PiP, Media Control mode uses a green border, Browser Control mode uses a blue border, and Pointer Control mode uses an amber border, so you can tell which mode is active at a glance.
 
 🎯 Target Tab Control
 Send gesture actions to a specific tab. Pin a target tab to control background media or a specific page while browsing elsewhere.
@@ -111,6 +114,13 @@ Manifest V3 compliant
 
 
 WHAT'S NEW
+
+v1.0.91
+- Added experimental Pointer Control mode, which lets you move an in-page virtual cursor with hand signs
+- Added click support and edge scrolling while using Pointer Control mode
+- Improved the visual feedback while pointer movement is active
+- Improved cleanup so the virtual cursor and camera stream are less likely to remain after stopping the camera or closing the extension
+- Improved recovery when your hand briefly leaves the camera view during Hold to Scroll or pointer movement
 
 v1.0.81
 - Improved stability during Hold to Scroll when hand sign recognition briefly fluctuates
