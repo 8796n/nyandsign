@@ -456,6 +456,12 @@
       "2": { "content": "$2" }
     }
   },
+  "logCameraRestartingForSettings": {
+    "message": "推論解像度変更のためカメラを再起動中..."
+  },
+  "logCameraRestartedForSettings": {
+    "message": "カメラを再起動しました"
+  },
   "logXrealMirrorAuto": {
     "message": "メガネカメラ: ミラー自動OFF"
   },

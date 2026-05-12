@@ -22,6 +22,8 @@ const pipVideoEl    = $('pip-video');
 const btnStartPip   = $('btn-start-pip');
 const statusEl      = $('status');
 
+const CAMERA_RESTART_DEBOUNCE_MS = 400;
+
 /* ============================================================
  * 状態
  * ============================================================ */
@@ -81,6 +83,8 @@ let wakeActive = false;
 let cameraStream = null;
 let mirrorCamera = DEFAULT_SETTINGS.mirrorCamera;
 let pipActive = false;
+let cameraRestartTimer = null;
+let cameraRestartSeq = 0;
 
 // ターゲットタブ（ジェスチャーアクションの送信先 — アクティブタブに自動追従）
 let targetTabId = (() => {
@@ -264,7 +268,7 @@ chrome.storage.onChanged.addListener((changes) => {
     if (changes.inferenceResolution) {
         inferenceResolution = normalizeInferenceResolution(changes.inferenceResolution.newValue);
         updateTrackerInferenceResolution();
-        if (cameraStream) logInferenceResolution();
+        if (cameraStream) scheduleCameraRestartForSettings();
     }
     if (changes.preferredHand) tracker.preferredHand = changes.preferredHand.newValue;
 });
@@ -438,6 +442,20 @@ function logInferenceResolution() {
         inferenceResolutionLabel(inferenceResolution),
         CameraRuntime.formatResolution(size),
     ]));
+}
+
+function currentCameraRequestOptions() {
+    return inferenceResolutionToCameraOptions(inferenceResolution)
+        || CameraRuntime.defaultVideoOptions();
+}
+
+function scheduleCameraRestartForSettings() {
+    if (!cameraStream) return;
+    if (cameraRestartTimer) clearTimeout(cameraRestartTimer);
+    cameraRestartTimer = setTimeout(() => {
+        cameraRestartTimer = null;
+        restartCameraForSettings();
+    }, CAMERA_RESTART_DEBOUNCE_MS);
 }
 
 /* ============================================================
@@ -872,10 +890,96 @@ function stopPipComposite() {
     if (pipTimerId) { clearInterval(pipTimerId); pipTimerId = null; }
 }
 
+function attachCameraEndedHandler(track) {
+    track?.addEventListener('ended', () => {
+        console.log('[PiP] カメラ切断を検出');
+        // カメラ・トラッキングを停止
+        stopAllGestureActions();
+        pointerVisibilityController?.stop({ hide: true });
+        stopPipComposite();
+        tracker.stop();
+        cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
+        // PiP が動作中なら終了
+        if (document.pictureInPictureElement) {
+            document.exitPictureInPicture().catch(() => {});
+        }
+        // カメラ切断メッセージを表示
+        const container = $('preview-container');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.justifyContent = 'center';
+        const pipMsg = $('pip-active-msg');
+        pipMsg.style.display = 'none';
+        const previewCanvas = $('preview-canvas');
+        previewCanvas.style.display = 'none';
+        $('btn-start-pip').style.display = 'none';
+        $('target-tab-bar').style.display = 'none';
+        $('status').textContent = msg('pipStatusCameraDisconnected');
+        $('status').style.position = 'static';
+        $('status').style.transform = 'none';
+        $('status').style.fontSize = '15px';
+        $('status').style.marginBottom = '12px';
+        // 戻るボタンを中央に大きく表示
+        const btnBack = $('btn-back');
+        btnBack.style.position = 'static';
+        btnBack.style.fontSize = '15px';
+        btnBack.style.padding = '10px 24px';
+        btnBack.style.opacity = '1';
+    });
+}
+
+async function restartCameraForSettings() {
+    if (!cameraStream) return;
+    const seq = ++cameraRestartSeq;
+    console.log('[PiP] ' + msg('logCameraRestartingForSettings'));
+    statusEl.textContent = msg('pipStatusConnecting');
+    stopAllGestureActions();
+    pointerVisibilityController?.stop({ hide: true });
+    tracker.stop();
+    cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
+
+    const params = new URLSearchParams(location.search);
+    const cameraId = params.get('camera');
+
+    try {
+        const cameraRequestOptions = currentCameraRequestOptions();
+        const nextStream = await CameraRuntime.requestCameraStream(cameraId, cameraRequestOptions);
+        if (seq !== cameraRestartSeq) {
+            CameraRuntime.releaseCameraStream(nextStream, null);
+            return;
+        }
+
+        cameraStream = nextStream;
+        const track = CameraRuntime.primaryVideoTrack(cameraStream);
+        logCameraResolution(cameraRequestOptions, track);
+        if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
+        attachCameraEndedHandler(track);
+
+        tracker.displayMirrored = mirrorCamera;
+        await CameraRuntime.attachStreamToVideo(cameraVideo, cameraStream, { play: true });
+        await tracker.start(cameraVideo, handCanvas, {
+            skeletonOnly: tracker.skeletonOnly,
+        });
+        logInferenceResolution();
+        pointerVisibilityController?.sync();
+        statusEl.textContent = msg('pipStatusCameraReady');
+        btnStartPip.disabled = false;
+        if (!pipActive) previewLoop();
+        console.log('[PiP] ' + msg('logCameraRestartedForSettings'));
+    } catch (e) {
+        statusEl.textContent = msg('pipStatusError', [e?.message || String(e)]);
+        console.error('[PiP] Camera restart error:', e);
+    }
+}
+
 /* ============================================================
  * カメラ起動
  * ============================================================ */
 async function startCamera() {
+    if (cameraRestartTimer) {
+        clearTimeout(cameraRestartTimer);
+        cameraRestartTimer = null;
+    }
     statusEl.textContent = msg('pipStatusPreparing');
 
     // URL パラメータからカメラ ID を取得
@@ -891,8 +995,7 @@ async function startCamera() {
 
         // カメラ取得
         statusEl.textContent = msg('pipStatusConnecting');
-        const cameraRequestOptions = inferenceResolutionToCameraOptions(inferenceResolution)
-            || CameraRuntime.defaultVideoOptions();
+        const cameraRequestOptions = currentCameraRequestOptions();
         cameraStream = await CameraRuntime.requestCameraStream(cameraId, cameraRequestOptions);
 
         const track = CameraRuntime.primaryVideoTrack(cameraStream);
@@ -902,41 +1005,7 @@ async function startCamera() {
         if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
 
         // カメラ切断監視 — ポップアップ内に案内を表示
-        track?.addEventListener('ended', () => {
-            console.log('[PiP] カメラ切断を検出');
-            // カメラ・トラッキングを停止
-            stopAllGestureActions();
-            pointerVisibilityController?.stop({ hide: true });
-            stopPipComposite();
-            tracker.stop();
-            cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
-            // PiP が動作中なら終了
-            if (document.pictureInPictureElement) {
-                document.exitPictureInPicture().catch(() => {});
-            }
-            // カメラ切断メッセージを表示
-            const container = $('preview-container');
-            container.style.display = 'flex';
-            container.style.alignItems = 'center';
-            container.style.justifyContent = 'center';
-            const pipMsg = $('pip-active-msg');
-            pipMsg.style.display = 'none';
-            const previewCanvas = $('preview-canvas');
-            previewCanvas.style.display = 'none';
-            $('btn-start-pip').style.display = 'none';
-            $('target-tab-bar').style.display = 'none';
-            $('status').textContent = msg('pipStatusCameraDisconnected');
-            $('status').style.position = 'static';
-            $('status').style.transform = 'none';
-            $('status').style.fontSize = '15px';
-            $('status').style.marginBottom = '12px';
-            // 戻るボタンを中央に大きく表示
-            const btnBack = $('btn-back');
-            btnBack.style.position = 'static';
-            btnBack.style.fontSize = '15px';
-            btnBack.style.padding = '10px 24px';
-            btnBack.style.opacity = '1';
-        });
+        attachCameraEndedHandler(track);
 
         tracker.displayMirrored = mirrorCamera;
 
@@ -1072,6 +1141,11 @@ async function returnToSidepanel(autoRestart) {
         document.exitPictureInPicture().catch(() => {});
     }
     // カメラを停止
+    if (cameraRestartTimer) {
+        clearTimeout(cameraRestartTimer);
+        cameraRestartTimer = null;
+    }
+    cameraRestartSeq++;
     stopAllGestureActions();
     pointerVisibilityController?.stop({ hide: true });
     stopPipComposite();
@@ -1113,6 +1187,11 @@ window.addEventListener('beforeunload', (e) => {
     if (skipPortReturn && lifecyclePort) {
         try { lifecyclePort.postMessage({ skipReturn: true }); } catch (_) {}
     }
+    if (cameraRestartTimer) {
+        clearTimeout(cameraRestartTimer);
+        cameraRestartTimer = null;
+    }
+    cameraRestartSeq++;
     stopAllGestureActions();
     pointerVisibilityController?.stop({ hide: true });
     stopPipComposite();

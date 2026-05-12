@@ -46,6 +46,7 @@ const GESTURABLE_TYPES = [
 ];
 
 const CAMERA_POLL_INTERVAL = 3000;
+const CAMERA_RESTART_DEBOUNCE_MS = 400;
 
 /* ============================================================
  * 状態
@@ -63,6 +64,8 @@ let lastActionTime = 0;
 let cameraPollId = null;
 let selectedCameraId = null;    // UI で選択中のカメラ
 let activeCameraId = null;      // 実際に動作中のカメラ
+let cameraRestartTimer = null;
+let cameraRestartSeq = 0;
 let availableCameras = [];      // 検出済みカメラリスト
 let cameraCheckSeq = 0;         // checkCamera 排他制御用
 let prevSelectedBeforeXreal = null;  // 電気メガネカメラ自動切替前の選択
@@ -346,10 +349,19 @@ function saveSelectedCamera() {
     try { chrome.storage.local.set({ selectedCameraId }); } catch (_) {}
 }
 
+function currentCameraRequestOptions() {
+    return inferenceResolutionToCameraOptions(inferenceResolution)
+        || CameraRuntime.defaultVideoOptions();
+}
+
 /* ============================================================
  * カメラ制御
  * ============================================================ */
 async function startCamera() {
+    if (cameraRestartTimer) {
+        clearTimeout(cameraRestartTimer);
+        cameraRestartTimer = null;
+    }
     // EyeCon 誘導が選択されている場合はセットアップページを開く
     if ($('sel-camera').value === EYECON_VALUE) {
         chrome.tabs.create({ url: 'https://megane.8796.jp/eyecon/' });
@@ -364,8 +376,7 @@ async function startCamera() {
             await tracker.loadModel((key) => log(msg(key)));
         }
 
-        const cameraRequestOptions = inferenceResolutionToCameraOptions(inferenceResolution)
-            || CameraRuntime.defaultVideoOptions();
+        const cameraRequestOptions = currentCameraRequestOptions();
         cameraStream = await CameraRuntime.requestCameraStream(selectedCameraId, cameraRequestOptions);
 
         const track = CameraRuntime.primaryVideoTrack(cameraStream);
@@ -373,15 +384,7 @@ async function startCamera() {
         log(msg('logCameraAcquired', [track?.label || 'Camera']));
         logCameraResolution(cameraRequestOptions, track);
 
-        // メガネカメラの場合、ミラーを一時的にOFF
-        if (CameraRuntime.isXrealCamera(track)) {
-            savedMirrorState = el.chkMirror.checked;
-            if (savedMirrorState) {
-                el.chkMirror.checked = false;
-                applyMirror(false);
-                log(msg('logXrealMirrorAuto'));
-            }
-        }
+        applyXrealMirrorAuto(track);
 
         // 権限取得直後（selectedCameraId 未設定）: カメラリストを構築して選択反映
         if (!selectedCameraId) {
@@ -446,6 +449,84 @@ async function startCamera() {
     }
 }
 
+function applyXrealMirrorAuto(track) {
+    if (!CameraRuntime.isXrealCamera(track)) return;
+    if (savedMirrorState === null) {
+        savedMirrorState = el.chkMirror.checked;
+    }
+    if (el.chkMirror.checked) {
+        el.chkMirror.checked = false;
+        applyMirror(false);
+        log(msg('logXrealMirrorAuto'));
+    }
+}
+
+function scheduleCameraRestartForSettings() {
+    if (!cameraStream) return;
+    if (cameraRestartTimer) clearTimeout(cameraRestartTimer);
+    cameraRestartTimer = setTimeout(() => {
+        cameraRestartTimer = null;
+        restartCameraForSettings();
+    }, CAMERA_RESTART_DEBOUNCE_MS);
+}
+
+async function restartCameraForSettings() {
+    if (!cameraStream) return;
+    const seq = ++cameraRestartSeq;
+    log(msg('logCameraRestartingForSettings'));
+    stopAllGestureActions();
+    pointerVisibilityController?.stop({ hide: true });
+    resetMetaGestureState();
+    setGestureText('—', '');
+    tracker.stop();
+    cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
+    activeCameraId = null;
+
+    try {
+        const cameraRequestOptions = currentCameraRequestOptions();
+        const nextStream = await CameraRuntime.requestCameraStream(selectedCameraId, cameraRequestOptions);
+        if (seq !== cameraRestartSeq) {
+            CameraRuntime.releaseCameraStream(nextStream, null);
+            return;
+        }
+
+        cameraStream = nextStream;
+        const track = CameraRuntime.primaryVideoTrack(cameraStream);
+        activeCameraId = CameraRuntime.cameraDeviceId(cameraStream);
+        log(msg('logCameraAcquired', [track?.label || 'Camera']));
+        logCameraResolution(cameraRequestOptions, track);
+        applyXrealMirrorAuto(track);
+
+        track?.addEventListener('ended', () => {
+            log(msg('logCameraDisconnected'));
+            stopCamera();
+        });
+
+        await CameraRuntime.attachStreamToVideo(el.cameraVideo, cameraStream);
+        applySkeletonOnly(el.chkSkeleton.checked);
+        await tracker.start(el.cameraVideo, el.handCanvas, {
+            skeletonOnly: el.chkSkeleton.checked,
+        });
+        logInferenceResolution();
+        pointerVisibilityController?.sync();
+        log(msg('logCameraRestartedForSettings'));
+    } catch (e) {
+        const errMsg = e?.message || e?.name || String(e);
+        log(msg('logCameraError', [errMsg]));
+        console.error('[GW] Camera restart error:', e);
+        cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
+        show(el.btnStartCam);
+        el.btnStartCam.disabled = false;
+        el.btnStartCam.textContent = msg('btnStartCamera');
+        hide(el.btnStopCam);
+        hide($('btn-pip'));
+        hide(el.cameraSection);
+        activeCameraId = null;
+        $('sel-camera').disabled = false;
+        startCameraPolling();
+    }
+}
+
 /** セットアップページを開いたかどうか（無限ループ防止） */
 let setupPageOpened = false;
 
@@ -505,6 +586,11 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 function stopCamera() {
+    if (cameraRestartTimer) {
+        clearTimeout(cameraRestartTimer);
+        cameraRestartTimer = null;
+    }
+    cameraRestartSeq++;
     stopAllGestureActions();
     pointerVisibilityController?.stop({ hide: true });
     // PiP ポップアップが開いている場合は閉じる
@@ -575,6 +661,11 @@ async function openPipWindow() {
             instanceId,
         }).catch(() => {});
 
+        if (cameraRestartTimer) {
+            clearTimeout(cameraRestartTimer);
+            cameraRestartTimer = null;
+        }
+        cameraRestartSeq++;
         stopAllGestureActions();
         pointerVisibilityController?.stop({ hide: true });
         tracker.stop();
@@ -668,6 +759,11 @@ chrome.runtime.onMessage.addListener((message) => {
     // 単一インスタンス制御: 別のインスタンスに所有権が移った
     if (message.type === 'instance-takeover' && message.instanceId !== instanceId) {
         takenOver = true;
+        if (cameraRestartTimer) {
+            clearTimeout(cameraRestartTimer);
+            cameraRestartTimer = null;
+        }
+        cameraRestartSeq++;
         stopAllGestureActions();
         pointerVisibilityController?.stop({ hide: true });
         // カメラを停止（PiP ポップアップも含む）
@@ -1675,7 +1771,9 @@ selInferenceResolution.addEventListener('change', () => {
     inferenceResolution = normalizeInferenceResolution(selInferenceResolution.value);
     updateTrackerInferenceResolution();
     chrome.storage.sync.set({ inferenceResolution });
-    if (cameraStream) logInferenceResolution();
+    if (cameraStream) {
+        scheduleCameraRestartForSettings();
+    }
 });
 
 const rngNotifyVolume = $('rng-notify-volume');
@@ -2078,6 +2176,11 @@ async function init() {
 }
 
 function cleanupForPageExit() {
+    if (cameraRestartTimer) {
+        clearTimeout(cameraRestartTimer);
+        cameraRestartTimer = null;
+    }
+    cameraRestartSeq++;
     stopAllGestureActions();
     pointerVisibilityController?.stop({ hide: true });
     tracker.stop();

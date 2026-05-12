@@ -599,6 +599,14 @@
       "2": { "content": "$2", "example": "640x360" }
     }
   },
+  "logCameraRestartingForSettings": {
+    "message": "Restarting camera for inference resolution change...",
+    "description": "Log when camera restart begins after inference resolution changes"
+  },
+  "logCameraRestartedForSettings": {
+    "message": "Camera restarted",
+    "description": "Log when camera restart after settings change succeeds"
+  },
   "logXrealMirrorAuto": {
     "message": "Smart glasses camera: mirror auto OFF",
     "description": "Log when mirror is auto-disabled for glasses camera"
