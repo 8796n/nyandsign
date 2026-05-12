@@ -158,6 +158,7 @@ nyandsign-chrome/
 ├── src/
 │   ├── shared/
 │   │   ├── constants.js         # アクション・デフォルト設定・モード定義
+│   │   ├── camera-runtime.js    # カメラストリーム取得・接続・解放の共有処理
 │   │   └── gesture-runtime.js   # サイドパネル / PiP で共有するジェスチャー実行補助
 │   ├── background/
 │   │   └── service-worker.js    # メッセージルーティング・タブ操作・単一インスタンス制御
@@ -189,7 +190,7 @@ nyandsign-chrome/
 HandTracker (src/tracking/hand-tracker.js)
   ↓ gesture イベント
 src/sidepanel/sidepanel.js / src/pip/pip.js
-  ↓ src/shared/gesture-runtime.js + src/shared/constants.js
+  ↓ src/shared/gesture-runtime.js + src/shared/camera-runtime.js + src/shared/constants.js
 chrome.runtime.sendMessage
   ↓
 src/background/service-worker.js

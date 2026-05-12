@@ -170,11 +170,6 @@ function log(text) {
  * 未取得なら「カメラ開始」ボタンで getUserMedia → 権限取得 → 検出。
  */
 
-/** 電気メガネのカメラかどうかを判定 */
-function isXrealCamera(device) {
-    return /XREAL|3318|Nreal|0486|0817|0909/.test(device.label);
-}
-
 function startCameraPolling() {
     stopCameraPolling();
     checkCamera();
@@ -209,14 +204,14 @@ async function checkCamera() {
         availableCameras = videoCams;
         populateCameraSelect(videoCams);
 
-        const hasXreal = videoCams.some(d => isXrealCamera(d));
+        const hasXreal = videoCams.some(d => CameraRuntime.isXrealCamera(d));
         const xrealJustConnected = hasXreal && !hadXrealCamera;
         const xrealJustDisconnected = !hasXreal && hadXrealCamera;
         hadXrealCamera = hasXreal;
 
         // 電気メガネカメラが新しく接続 → カメラ未稼働なら自動選択
         if (xrealJustConnected && !activeCameraId) {
-            const xreal = videoCams.find(d => isXrealCamera(d));
+            const xreal = videoCams.find(d => CameraRuntime.isXrealCamera(d));
             if (xreal && selectedCameraId !== xreal.deviceId) {
                 prevSelectedBeforeXreal = selectedCameraId;
                 selectedCameraId = xreal.deviceId;
@@ -240,7 +235,7 @@ async function checkCamera() {
 
         // 有効な選択が無ければ自動選択（電気メガネ優先）
         if (!selectedCameraId || !videoCams.find(d => d.deviceId === selectedCameraId)) {
-            const xreal = videoCams.find(d => isXrealCamera(d));
+            const xreal = videoCams.find(d => CameraRuntime.isXrealCamera(d));
             selectedCameraId = xreal ? xreal.deviceId : videoCams[0].deviceId;
             $('sel-camera').value = selectedCameraId;
             saveSelectedCamera();
@@ -253,7 +248,7 @@ async function checkCamera() {
 /** カメラドロップダウンを更新（差分がある場合のみ再構築） */
 function populateCameraSelect(cameras) {
     const sel = $('sel-camera');
-    const hasXreal = cameras.some(c => isXrealCamera(c));
+    const hasXreal = cameras.some(c => CameraRuntime.isXrealCamera(c));
     // 電気メガネ未検出時は EyeCon 誘導を含めた ID で差分比較
     const newIds = cameras.map(c => c.deviceId).join(',') + (hasXreal ? '' : ',__eyecon__');
     if (sel.dataset.cameraIds === newIds) return;
@@ -263,8 +258,8 @@ function populateCameraSelect(cameras) {
     for (const cam of cameras) {
         const opt = document.createElement('option');
         opt.value = cam.deviceId;
-        const prefix = isXrealCamera(cam) ? '🕶️ ' : '📷 ';
-        const label = isXrealCamera(cam)
+        const prefix = CameraRuntime.isXrealCamera(cam) ? '🕶️ ' : '📷 ';
+        const label = CameraRuntime.isXrealCamera(cam)
             ? msg('xrealCameraLabel')
             : (cam.label || msg('cameraFallbackName', [String(cameras.indexOf(cam) + 1)]));
         opt.textContent = prefix + label;
@@ -365,20 +360,14 @@ async function startCamera() {
             await tracker.loadModel((key) => log(msg(key)));
         }
 
-        // getUserMedia — 選択カメラ or 任意カメラ（権限取得用）
-        const constraints = {
-            video: selectedCameraId
-                ? { deviceId: { exact: selectedCameraId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-                : { width: { ideal: 1280 }, height: { ideal: 720 } }
-        };
-        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        cameraStream = await CameraRuntime.requestCameraStream(selectedCameraId);
 
-        const track = cameraStream.getVideoTracks()[0];
-        activeCameraId = track.getSettings().deviceId;
+        const track = CameraRuntime.primaryVideoTrack(cameraStream);
+        activeCameraId = CameraRuntime.cameraDeviceId(cameraStream);
         log(msg('logCameraAcquired', [track?.label || 'Camera']));
 
         // メガネカメラの場合、ミラーを一時的にOFF
-        if (isXrealCamera(track)) {
+        if (CameraRuntime.isXrealCamera(track)) {
             savedMirrorState = el.chkMirror.checked;
             if (savedMirrorState) {
                 el.chkMirror.checked = false;
@@ -397,13 +386,12 @@ async function startCamera() {
         }
 
         // トラック終了監視 — USB抜けなどで自動停止
-        track.addEventListener('ended', () => {
+        track?.addEventListener('ended', () => {
             log(msg('logCameraDisconnected'));
             stopCamera();
         });
 
-        el.cameraVideo.srcObject = cameraStream;
-        await new Promise(r => { el.cameraVideo.onloadeddata = r; });
+        await CameraRuntime.attachStreamToVideo(el.cameraVideo, cameraStream);
 
         applySkeletonOnly(el.chkSkeleton.checked);
         await tracker.start(el.cameraVideo, el.handCanvas, {
@@ -519,11 +507,7 @@ function stopCamera() {
         chrome.storage.session.remove('pipState');
     }
     tracker.stop();
-    if (cameraStream) {
-        cameraStream.getTracks().forEach(t => t.stop());
-        cameraStream = null;
-    }
-    el.cameraVideo.srcObject = null;
+    cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
     show(el.btnStartCam);
     el.btnStartCam.disabled = false;
     el.btnStartCam.textContent = msg('btnStartCamera');
@@ -586,11 +570,7 @@ async function openPipWindow() {
         stopAllGestureActions();
         pointerVisibilityController?.stop({ hide: true });
         tracker.stop();
-        if (cameraStream) {
-            cameraStream.getTracks().forEach(t => t.stop());
-            cameraStream = null;
-        }
-        el.cameraVideo.srcObject = null;
+        cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
         activeCameraId = null;
         hide(el.cameraSection);
         hide($('btn-pip'));
@@ -690,11 +670,7 @@ chrome.runtime.onMessage.addListener((message) => {
             chrome.storage.session.remove('pipState');
         }
         tracker.stop();
-        if (cameraStream) {
-            cameraStream.getTracks().forEach(t => t.stop());
-            cameraStream = null;
-        }
-        el.cameraVideo.srcObject = null;
+        cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
         activeCameraId = null;
         // UI を「別ウィンドウで実行中」表示に切替
         hide(el.cameraSection);
@@ -2011,11 +1987,17 @@ async function init() {
     } catch (_) {}
 }
 
-function cleanupPointerForPageExit() {
+function cleanupForPageExit() {
+    stopAllGestureActions();
     pointerVisibilityController?.stop({ hide: true });
+    tracker.stop();
+    cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
+    if (!takenOver) {
+        chrome.runtime.sendMessage({ type: 'release-active-instance', instanceId }).catch(() => {});
+    }
 }
 
-window.addEventListener('pagehide', cleanupPointerForPageExit);
-window.addEventListener('beforeunload', cleanupPointerForPageExit);
+window.addEventListener('pagehide', cleanupForPageExit);
+window.addEventListener('beforeunload', cleanupForPageExit);
 
 init();

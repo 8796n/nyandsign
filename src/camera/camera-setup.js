@@ -25,12 +25,10 @@
         btn.textContent = msg('setupBtnLoading');
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: { ideal: 640 }, height: { ideal: 480 } }
-            });
+            const stream = await CameraRuntime.requestCameraStream(null, { width: 640, height: 480 });
 
             // ストリームを即座に解放（サイドパネルとの競合を防止）
-            stream.getTracks().forEach(t => t.stop());
+            CameraRuntime.releaseMediaStream(stream);
 
             // 成功状態を保存（サイドパネルが閉じていた場合の復元用）
             await chrome.storage.local.set({ cameraPermissionReady: true });

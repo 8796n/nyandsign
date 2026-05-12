@@ -333,10 +333,7 @@ chrome.runtime.onMessage.addListener((message) => {
             document.exitPictureInPicture().catch(() => {});
         }
         tracker.stop();
-        if (cameraStream) {
-            cameraStream.getTracks().forEach(t => t.stop());
-            cameraStream = null;
-        }
+        cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
         chrome.runtime.sendMessage({ type: 'pip-closed' }).catch(() => {});
         window.close();
     }
@@ -842,31 +839,22 @@ async function startCamera() {
 
         // カメラ取得
         statusEl.textContent = msg('pipStatusConnecting');
-        const constraints = {
-            video: cameraId
-                ? { deviceId: { exact: cameraId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-                : { width: { ideal: 1280 }, height: { ideal: 720 } },
-        };
-        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        cameraStream = await CameraRuntime.requestCameraStream(cameraId);
 
-        const track = cameraStream.getVideoTracks()[0];
+        const track = CameraRuntime.primaryVideoTrack(cameraStream);
 
         // メガネカメラの場合ミラー OFF
-        const isXreal = /XREAL|3318|Nreal|0486|0817|0909/.test(track.label);
-        if (isXreal) mirrorCamera = false;
+        if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
 
         // カメラ切断監視 — ポップアップ内に案内を表示
-        track.addEventListener('ended', () => {
+        track?.addEventListener('ended', () => {
             console.log('[PiP] カメラ切断を検出');
             // カメラ・トラッキングを停止
             stopAllGestureActions();
             pointerVisibilityController?.stop({ hide: true });
             stopPipComposite();
             tracker.stop();
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(t => t.stop());
-                cameraStream = null;
-            }
+            cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
             // PiP が動作中なら終了
             if (document.pictureInPictureElement) {
                 document.exitPictureInPicture().catch(() => {});
@@ -897,9 +885,7 @@ async function startCamera() {
 
         tracker.displayMirrored = mirrorCamera;
 
-        cameraVideo.srcObject = cameraStream;
-        await new Promise(r => { cameraVideo.onloadeddata = r; });
-        await cameraVideo.play();
+        await CameraRuntime.attachStreamToVideo(cameraVideo, cameraStream, { play: true });
 
         // トラッキング開始
         await tracker.start(cameraVideo, handCanvas, {
@@ -977,7 +963,7 @@ async function enterPiP() {
         if (document.pictureInPictureElement) {
             document.exitPictureInPicture().catch(() => {});
         }
-        pipVideoEl.srcObject = null;
+        CameraRuntime.releaseElementStream(pipVideoEl);
         pipCanvas = null;
         pipCanvasCtx = null;
 
@@ -994,7 +980,7 @@ function exitPiP() {
         document.exitPictureInPicture().catch(() => {});
     }
 
-    pipVideoEl.srcObject = null;
+    CameraRuntime.releaseElementStream(pipVideoEl);
     pipCanvas = null;
     pipCanvasCtx = null;
     pipActive = false;
@@ -1034,10 +1020,7 @@ async function returnToSidepanel(autoRestart) {
     pointerVisibilityController?.stop({ hide: true });
     stopPipComposite();
     tracker.stop();
-    if (cameraStream) {
-        cameraStream.getTracks().forEach(t => t.stop());
-        cameraStream = null;
-    }
+    cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
 
     // 戻るボタン経由: await で確実に処理（ポート切断での二重処理を防止）
     if (autoRestart) {
@@ -1081,10 +1064,7 @@ window.addEventListener('beforeunload', (e) => {
         document.exitPictureInPicture().catch(() => {});
     }
     tracker.stop();
-    if (cameraStream) {
-        cameraStream.getTracks().forEach(t => t.stop());
-        cameraStream = null;
-    }
+    cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
     // 所有権を解放
     chrome.runtime.sendMessage({ type: 'release-active-instance', instanceId }).catch(() => {});
 });
