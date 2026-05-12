@@ -56,6 +56,7 @@ let continuousGestureGate = null;
 let holdScrollSpeed = DEFAULT_SETTINGS.holdScrollSpeed;
 let pointerMoveSpeed = DEFAULT_SETTINGS.pointerMoveSpeed;
 let inferenceFps = DEFAULT_SETTINGS.inferenceFps;
+let idleInferenceFpsEnabled = DEFAULT_SETTINGS.idleInferenceFpsEnabled;
 let inferenceResolution = DEFAULT_SETTINGS.inferenceResolution;
 
 // メタサイン
@@ -161,7 +162,7 @@ async function loadSettings() {
             'operationMode', 'controlEnabled', 'wakeGestureType',
             'wakeActiveDuration', 'toggleGestureType', 'gestureHoldTime',
             'actionRepeatInterval', 'skeletonOnly', 'mirrorCamera',
-            'inferenceFps', 'preferredHand', 'notifyVolume', 'pipFontScale',
+            'inferenceFps', 'idleInferenceFpsEnabled', 'preferredHand', 'notifyVolume', 'pipFontScale',
             'inferenceResolution',
             'holdScrollSpeed', 'pointerMoveSpeed',
             'metaGestureMapping', 'experimentalPointerModeEnabled',
@@ -194,6 +195,7 @@ async function loadSettings() {
         if (result.skeletonOnly) tracker.skeletonOnly = result.skeletonOnly;
         if (result.mirrorCamera !== undefined) mirrorCamera = result.mirrorCamera;
         if (result.inferenceFps) inferenceFps = normalizeInferenceFps(result.inferenceFps);
+        idleInferenceFpsEnabled = result.idleInferenceFpsEnabled === true;
         inferenceResolution = normalizeInferenceResolution(result.inferenceResolution, DEFAULT_SETTINGS.inferenceResolution);
         updateTrackerInferenceResolution();
         if (result.preferredHand) tracker.preferredHand = result.preferredHand;
@@ -264,6 +266,10 @@ chrome.storage.onChanged.addListener((changes) => {
     }
     if (changes.inferenceFps) {
         inferenceFps = normalizeInferenceFps(changes.inferenceFps.newValue);
+        updateTrackerFps();
+    }
+    if (changes.idleInferenceFpsEnabled) {
+        idleInferenceFpsEnabled = changes.idleInferenceFpsEnabled.newValue === true;
         updateTrackerFps();
     }
     if (changes.inferenceResolution) {
@@ -423,7 +429,7 @@ function extendWakeTimeout(durationMs = wakeActiveDuration) {
 }
 
 function updateTrackerFps() {
-    tracker.targetFps = resolveWakeInferenceFps(inferenceFps, wakeState, wakeGestureType);
+    tracker.targetFps = resolveWakeInferenceFps(inferenceFps, wakeState, wakeGestureType, idleInferenceFpsEnabled);
 }
 
 function updateTrackerInferenceResolution() {

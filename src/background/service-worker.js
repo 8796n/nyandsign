@@ -20,6 +20,12 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
  * 旧インスタンスに停止を通知する。
  */
 let activeInstance = null; // { instanceId, type, windowId, targetTabId }
+const CONTENT_FRAME_CACHE_TTL_MS = 5000;
+const contentFrameCache = new Map(); // tabId -> { frameIds, at }
+
+const POINTER_CONTENT_ACTIONS = new Set([
+    'pointerShow', 'pointerHide', 'pointerMoveStart', 'pointerMoveEnd', 'pointerMove', 'pointerClick',
+]);
 
 /** 全拡張ページに instance-takeover をブロードキャスト */
 async function broadcastTakeover(newInstance) {
@@ -106,6 +112,16 @@ chrome.runtime.onConnect.addListener((port) => {
     });
 });
 
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.status === 'loading') {
+        contentFrameCache.delete(tabId);
+    }
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+    contentFrameCache.delete(tabId);
+});
+
 /**
  * アクションをアクティブタブに送信する。
  * targetTabId が指定されている場合はそのタブに直接送信する。
@@ -190,12 +206,33 @@ function pageActionFailureReason(tab) {
     return isRestrictedPageForInjection(tab) ? 'restrictedPage' : 'reloadRequired';
 }
 
-async function sendContentAction(tabId, action, data) {
-    await chrome.tabs.sendMessage(tabId, {
+function shouldBroadcastContentAction(action) {
+    return !POINTER_CONTENT_ACTIONS.has(action);
+}
+
+function contentActionMessage(action, data) {
+    return {
         type: 'mediaAction',
         action,
         data,
-    });
+    };
+}
+
+async function sendContentAction(tabId, action, data, frameId = null) {
+    const message = contentActionMessage(action, data);
+    if (Number.isInteger(frameId)) {
+        await chrome.tabs.sendMessage(tabId, message, { frameId });
+        return;
+    }
+    await chrome.tabs.sendMessage(tabId, message);
+}
+
+function normalizeFrameIds(injectionResults) {
+    const frameIds = new Set();
+    for (const result of injectionResults || []) {
+        if (Number.isInteger(result.frameId)) frameIds.add(result.frameId);
+    }
+    return [...frameIds];
 }
 
 async function injectContentScriptAllFrames(tabId) {
@@ -203,6 +240,33 @@ async function injectContentScriptAllFrames(tabId) {
         target: { tabId, allFrames: true },
         files: ['src/content/content-script.js'],
     });
+}
+
+async function ensureContentScriptAllFrames(tabId) {
+    const cached = contentFrameCache.get(tabId);
+    if (cached && performance.now() - cached.at < CONTENT_FRAME_CACHE_TTL_MS) {
+        return cached.frameIds;
+    }
+
+    const results = await injectContentScriptAllFrames(tabId);
+    const frameIds = normalizeFrameIds(results);
+    contentFrameCache.set(tabId, { frameIds, at: performance.now() });
+    return frameIds;
+}
+
+async function sendContentActionToFrames(tabId, action, data, frameIds) {
+    const results = await Promise.allSettled(
+        frameIds.map(frameId => sendContentAction(tabId, action, data, frameId)
+            .then(() => ({ frameId })))
+    );
+    const sent = results.filter(result => result.status === 'fulfilled');
+    const failed = results.filter(result => result.status === 'rejected');
+    return {
+        ok: sent.length > 0,
+        sentFrameCount: sent.length,
+        failedFrameCount: failed.length,
+        firstError: failed[0]?.reason,
+    };
 }
 
 async function forwardToActiveTab(action, targetTabId, data) {
@@ -221,6 +285,57 @@ async function forwardToActiveTab(action, targetTabId, data) {
             reason: 'tabActionFailed',
             message: err?.message || String(err),
         };
+    }
+
+    if (shouldBroadcastContentAction(action)) {
+        try {
+            const frameIds = await ensureContentScriptAllFrames(tab.id);
+            if (!frameIds.length) {
+                return {
+                    ok: false,
+                    reason: pageActionFailureReason(tab),
+                    injectedFrameCount: 0,
+                    message: 'no injected frame',
+                };
+            }
+
+            const frameResult = await sendContentActionToFrames(tab.id, action, data, frameIds);
+            if (frameResult.ok) {
+                return {
+                    ok: true,
+                    handledBy: 'contentScriptFrames',
+                    injectedFrameCount: frameIds.length,
+                    sentFrameCount: frameResult.sentFrameCount,
+                    failedFrameCount: frameResult.failedFrameCount,
+                };
+            }
+
+            contentFrameCache.delete(tab.id);
+            return {
+                ok: false,
+                reason: frameIds.length > 1 ? 'frameActionUnavailable' : pageActionFailureReason(tab),
+                injectedFrameCount: frameIds.length,
+                sentFrameCount: 0,
+                failedFrameCount: frameResult.failedFrameCount,
+                message: frameResult.firstError?.message || String(frameResult.firstError || ''),
+            };
+        } catch (frameErr) {
+            // 一部のページでは全フレーム注入自体が拒否される。トップフレームだけでも届く場合は従来通り成功扱いにする。
+            try {
+                await sendContentAction(tab.id, action, data);
+                return {
+                    ok: true,
+                    handledBy: 'contentScript',
+                    frameBroadcastFailed: true,
+                };
+            } catch (singleErr) {
+                return {
+                    ok: false,
+                    reason: pageActionFailureReason(tab),
+                    message: frameErr?.message || singleErr?.message || String(frameErr || singleErr),
+                };
+            }
+        }
     }
 
     try {

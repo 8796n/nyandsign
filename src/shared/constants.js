@@ -236,6 +236,7 @@ const DEFAULT_SETTINGS = {
     gestureHoldTime: 300,
     actionRepeatInterval: 1000,
     inferenceFps: 15,
+    idleInferenceFpsEnabled: false,
     idleInferenceFps: 5,
     inferenceResolution: INFERENCE_RESOLUTION_SOURCE,
     notifyVolume: 0.3,
@@ -266,8 +267,9 @@ function normalizeInferenceFps(value, fallback = DEFAULT_SETTINGS.inferenceFps) 
     return Math.max(INFERENCE_FPS_MIN, Math.min(INFERENCE_FPS_MAX, base));
 }
 
-function resolveWakeInferenceFps(baseFps, wakeState, wakeGestureType, idleFps = DEFAULT_SETTINGS.idleInferenceFps) {
+function resolveWakeInferenceFps(baseFps, wakeState, wakeGestureType, idleFpsEnabled = DEFAULT_SETTINGS.idleInferenceFpsEnabled, idleFps = DEFAULT_SETTINGS.idleInferenceFps) {
     const activeFps = normalizeInferenceFps(baseFps);
+    if (!idleFpsEnabled) return activeFps;
     if (wakeGestureType !== 'none' && wakeState === WAKE_STATE.IDLE) {
         return Math.min(activeFps, normalizeInferenceFps(idleFps));
     }

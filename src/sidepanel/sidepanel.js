@@ -91,6 +91,7 @@ let uiScale = DEFAULT_SETTINGS.uiScale;
 let holdScrollSpeed = DEFAULT_SETTINGS.holdScrollSpeed;
 let pointerMoveSpeed = DEFAULT_SETTINGS.pointerMoveSpeed;
 let inferenceFps = DEFAULT_SETTINGS.inferenceFps;
+let idleInferenceFpsEnabled = DEFAULT_SETTINGS.idleInferenceFpsEnabled;
 let inferenceResolution = DEFAULT_SETTINGS.inferenceResolution;
 
 // --- メタサイン（NyandSign 自体の操作）---
@@ -155,6 +156,7 @@ const el = {
     operationModeLabel: $('operation-mode-label'),
     chkEnabled:      $('chk-enabled'),
     chkPointerMode:  $('chk-experimental-pointer-mode'),
+    chkIdleInferenceFps: $('chk-idle-inference-fps'),
     btnReset:        $('btn-reset-mapping'),
 
     log:             $('log'),
@@ -950,9 +952,9 @@ function extendWakeTimeout(durationMs = wakeActiveDuration) {
     }, durationMs);
 }
 
-/** ウェイク待機中は推論FPSを落として、操作可能状態だけ設定値に戻す */
+/** 設定が有効な場合のみ、ウェイク待機中の推論FPSを落とす */
 function updateTrackerFps() {
-    tracker.targetFps = resolveWakeInferenceFps(inferenceFps, wakeState, wakeGestureType);
+    tracker.targetFps = resolveWakeInferenceFps(inferenceFps, wakeState, wakeGestureType, idleInferenceFpsEnabled);
 }
 
 function updateTrackerInferenceResolution() {
@@ -1489,11 +1491,15 @@ async function loadMapping() {
             ? normalizeInferenceFps(result.inferenceFps, d.inferenceFps)
             : d.inferenceFps;
         inferenceFps = fps;
+        idleInferenceFpsEnabled = result.idleInferenceFpsEnabled === true;
         updateTrackerFps();
         const rngFps = $('rng-inference-fps');
         if (rngFps) {
             rngFps.value = fps;
             $('inference-fps-value').textContent = fmtFps(fps);
+        }
+        if (el.chkIdleInferenceFps) {
+            el.chkIdleInferenceFps.checked = idleInferenceFpsEnabled;
         }
 
         inferenceResolution = normalizeInferenceResolution(result.inferenceResolution, d.inferenceResolution);
@@ -1764,6 +1770,12 @@ rngInferenceFps.addEventListener('input', () => {
     chrome.storage.sync.set({ inferenceFps: fps });
 });
 
+el.chkIdleInferenceFps?.addEventListener('change', () => {
+    idleInferenceFpsEnabled = el.chkIdleInferenceFps.checked;
+    updateTrackerFps();
+    chrome.storage.sync.set({ idleInferenceFpsEnabled });
+});
+
 const selInferenceResolution = $('sel-inference-resolution');
 selInferenceResolution.addEventListener('change', () => {
     inferenceResolution = normalizeInferenceResolution(selInferenceResolution.value);
@@ -1862,6 +1874,7 @@ $('btn-reset-settings').addEventListener('click', () => {
     gestureHoldTime = d.gestureHoldTime;
     actionRepeatInterval = d.actionRepeatInterval;
     inferenceFps = d.inferenceFps;
+    idleInferenceFpsEnabled = d.idleInferenceFpsEnabled;
     inferenceResolution = d.inferenceResolution;
     updateTrackerInferenceResolution();
     setWakeState(WAKE_STATE.IDLE);
@@ -1892,6 +1905,7 @@ $('btn-reset-settings').addEventListener('click', () => {
     $('pointer-move-speed-value').textContent = fmtPercent(d.pointerMoveSpeed);
     $('rng-inference-fps').value = d.inferenceFps;
     $('inference-fps-value').textContent = fmtFps(d.inferenceFps);
+    if (el.chkIdleInferenceFps) el.chkIdleInferenceFps.checked = d.idleInferenceFpsEnabled;
     $('sel-inference-resolution').value = d.inferenceResolution;
     $('rng-notify-volume').value = Math.round(d.notifyVolume * 100);
     $('notify-volume-value').textContent = fmtVolume(d.notifyVolume);

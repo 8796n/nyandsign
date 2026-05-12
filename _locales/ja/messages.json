@@ -157,7 +157,13 @@
     "message": "推論FPS"
   },
   "settingInferenceFpsTitle": {
-    "message": "操作可能状態のハンドサイン推論頻度。待機中は自動的に低いFPSへ落とします"
+    "message": "ハンドサイン推論頻度。低いほど負荷は下がりますが反応は遅くなります"
+  },
+  "settingIdleInferenceFpsLabel": {
+    "message": "待機中FPS低下"
+  },
+  "settingIdleInferenceFpsTitle": {
+    "message": "ウェイクサイン待機中だけ推論FPSを5fpsへ下げます。反応が渋い場合はOFFにしてください"
   },
   "settingInferenceResolutionLabel": {
     "message": "推論解像度"

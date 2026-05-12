@@ -208,8 +208,16 @@
     "description": "Setting label for inference FPS"
   },
   "settingInferenceFpsTitle": {
-    "message": "Hand sign inference frequency while actions are available. Idle waiting automatically uses a lower FPS",
+    "message": "Hand sign inference frequency. Lower values reduce load but slow response",
     "description": "Tooltip for inference FPS setting"
+  },
+  "settingIdleInferenceFpsLabel": {
+    "message": "Idle FPS limit",
+    "description": "Setting label for lowering inference FPS while idle"
+  },
+  "settingIdleInferenceFpsTitle": {
+    "message": "Lower inference to 5fps only while waiting for the wake sign. Turn this off if wake feels sluggish",
+    "description": "Tooltip for idle inference FPS setting"
   },
   "settingInferenceResolutionLabel": {
     "message": "Inference Resolution",
