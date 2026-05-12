@@ -460,7 +460,7 @@ function showCameraPermissionHint() {
     if (!setupPageOpened) {
         setupPageOpened = true;
         log(msg('logCameraPermissionViaSetup'));
-        chrome.tabs.create({ url: chrome.runtime.getURL('camera-setup.html') });
+        chrome.tabs.create({ url: chrome.runtime.getURL('src/camera/camera-setup.html') });
     } else {
         log(msg('logCameraPermissionInstructions'));
     }
@@ -551,7 +551,7 @@ function stopCamera() {
 /* ============================================================
  * PiP (Picture-in-Picture) モード
  * ============================================================
- * 独立したポップアップウィンドウ (pip.html) でカメラ＋ハンドトラッキングを
+ * 独立したポップアップウィンドウ (src/pip/pip.html) でカメラ＋ハンドトラッキングを
  * 実行し、標準 Video PiP API で常に最前面のフロートウィンドウを表示する。
  * トップレベルウィンドウなので PiP API が確実に動作する。
  * サイドパネルを閉じても PiP は継続する。
@@ -607,9 +607,10 @@ async function openPipWindow() {
         const screenW = currentWindow.width || screen.availWidth;
         const screenLeft = currentWindow.left || 0;
         const screenTop = currentWindow.top || 0;
+        const pipUrl = `${chrome.runtime.getURL('src/pip/pip.html')}?${params}`;
         const pip = await chrome.windows.create({
             type: 'popup',
-            url: `pip.html?${params}`,
+            url: pipUrl,
             width: popupWidth,
             height: popupHeight,
             left: screenLeft + screenW - popupWidth,

@@ -17,20 +17,9 @@ if (Test-Path $outPath) { Remove-Item $outPath }
 $includes = @(
     'manifest.json'
     '_locales'
-    'camera-setup.html'
-    'camera-setup.js'
-    'constants.js'
-    'content-script.js'
-    'gesture-runtime.js'
-    'hand-tracker.js'
     'icons'
     'lib'
-    'pip.html'
-    'pip.js'
-    'service-worker.js'
-    'sidepanel.css'
-    'sidepanel.html'
-    'sidepanel.js'
+    'src'
 )
 
 # 一時ディレクトリにコピーして ZIP 化

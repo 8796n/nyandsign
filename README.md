@@ -144,9 +144,9 @@ Chrome Web Store からインストールするか、開発者モードでロー
 
 変更の反映:
 
-- `manifest.json` / `service-worker.js` を変更した場合: 拡張機能を再読み込み
-- `sidepanel.js` / `content-script.js` を変更した場合: サイドパネルを開き直す、または対象タブをリロード
-- `hand-tracker.js` を変更した場合: サイドパネルまたは PiP を再起動
+- `manifest.json` / `src/background/service-worker.js` を変更した場合: 拡張機能を再読み込み
+- `src/sidepanel/sidepanel.js` / `src/content/content-script.js` を変更した場合: サイドパネルを開き直す、または対象タブをリロード
+- `src/tracking/hand-tracker.js` を変更した場合: サイドパネルまたは PiP を再起動
 
 リリース用アーカイブは `pack.ps1` で作成します。
 
@@ -155,18 +155,26 @@ Chrome Web Store からインストールするか、開発者モードでロー
 ```text
 nyandsign-chrome/
 ├── manifest.json        # Chrome 拡張マニフェスト (Manifest V3)
-├── constants.js         # アクション・デフォルト設定・モード定義
-├── gesture-runtime.js   # sidepanel / PiP で共有するジェスチャー実行補助
-├── service-worker.js    # メッセージルーティング・タブ操作・単一インスタンス制御
-├── content-script.js    # ページ内のメディア操作・スクロール・キーイベント補助
-├── sidepanel.html       # サイドパネル UI
-├── sidepanel.css        # サイドパネルと PiP のスタイル
-├── sidepanel.js         # メイン UI・設定・カメラ管理・チュートリアル
-├── pip.html             # PiP ポップアップ
-├── pip.js               # PiP 側のカメラ管理・ジェスチャー実行
-├── hand-tracker.js      # MediaPipe HandLandmarker ラッパーとサイン判定
-├── camera-setup.html    # カメラ権限取得ページ
-├── camera-setup.js      # カメラ権限取得処理
+├── src/
+│   ├── shared/
+│   │   ├── constants.js         # アクション・デフォルト設定・モード定義
+│   │   └── gesture-runtime.js   # サイドパネル / PiP で共有するジェスチャー実行補助
+│   ├── background/
+│   │   └── service-worker.js    # メッセージルーティング・タブ操作・単一インスタンス制御
+│   ├── content/
+│   │   └── content-script.js    # ページ内のメディア操作・スクロール・キーイベント補助
+│   ├── sidepanel/
+│   │   ├── sidepanel.html       # サイドパネル UI
+│   │   ├── sidepanel.css        # サイドパネルと PiP のスタイル
+│   │   └── sidepanel.js         # メイン UI・設定・カメラ管理・チュートリアル
+│   ├── pip/
+│   │   ├── pip.html             # PiP ポップアップ
+│   │   └── pip.js               # PiP 側のカメラ管理・ジェスチャー実行
+│   ├── tracking/
+│   │   └── hand-tracker.js      # MediaPipe HandLandmarker ラッパーとサイン判定
+│   └── camera/
+│       ├── camera-setup.html    # カメラ権限取得ページ
+│       └── camera-setup.js      # カメラ権限取得処理
 ├── lib/mediapipe/       # MediaPipe Vision (vendored)
 ├── _locales/            # i18n メッセージ (ja / en)
 ├── icons/               # 拡張アイコン
@@ -178,20 +186,20 @@ nyandsign-chrome/
 ```text
 カメラ
   ↓
-HandTracker (hand-tracker.js)
+HandTracker (src/tracking/hand-tracker.js)
   ↓ gesture イベント
-sidepanel.js / pip.js
-  ↓ gesture-runtime.js + constants.js
+src/sidepanel/sidepanel.js / src/pip/pip.js
+  ↓ src/shared/gesture-runtime.js + src/shared/constants.js
 chrome.runtime.sendMessage
   ↓
-service-worker.js
+src/background/service-worker.js
   ↓
-content-script.js / chrome.tabs API
+src/content/content-script.js / chrome.tabs API
   ↓
 メディア要素・ページ・タブを操作
 ```
 
-サイドパネルと PiP はそれぞれ独立してカメラと HandTracker を起動します。複数ウィンドウでカメラ認識が競合しないよう、`service-worker.js` が単一インスタンス制御を行います。
+サイドパネルと PiP はそれぞれ独立してカメラと HandTracker を起動します。複数ウィンドウでカメラ認識が競合しないよう、`src/background/service-worker.js` が単一インスタンス制御を行います。
 
 ## 📄 サードパーティライセンス
 

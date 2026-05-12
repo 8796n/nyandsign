@@ -210,7 +210,7 @@ async function forwardToActiveTab(action, targetTabId, data) {
         try {
             await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
-                files: ['content-script.js'],
+                files: ['src/content/content-script.js'],
             });
             await chrome.tabs.sendMessage(tab.id, {
                 type: 'mediaAction',
