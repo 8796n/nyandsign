@@ -87,6 +87,8 @@ let repeatingGesture = null;
 let continuousGestureGate = null;
 let notifyVolume = DEFAULT_SETTINGS.notifyVolume;
 let uiScale = DEFAULT_SETTINGS.uiScale;
+let holdScrollSpeed = DEFAULT_SETTINGS.holdScrollSpeed;
+let pointerMoveSpeed = DEFAULT_SETTINGS.pointerMoveSpeed;
 
 // --- メタサイン（NyandSign 自体の操作）---
 let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
@@ -1120,6 +1122,7 @@ directionalScrollController = new DirectionalScrollController({
     extendWakeTimeout,
     stopAllGestureActions,
     isControlEnabled: () => controlEnabled,
+    getSpeedMultiplier: () => moveSpeedToMultiplier(holdScrollSpeed),
 });
 
 pointerMoveController = new PointerMoveController({
@@ -1128,6 +1131,7 @@ pointerMoveController = new PointerMoveController({
     extendWakeTimeout,
     stopAllGestureActions,
     isControlEnabled: () => controlEnabled && operationMode === OPERATION_MODES.POINTER,
+    getSpeedMultiplier: () => moveSpeedToMultiplier(pointerMoveSpeed),
 });
 
 holdGestureResumeController = new HoldGestureResumeController({
@@ -1340,6 +1344,20 @@ async function loadMapping() {
         if (rngRepeat) {
             rngRepeat.value = actionRepeatInterval;
             $('repeat-interval-value').textContent = fmtSeconds(actionRepeatInterval);
+        }
+
+        holdScrollSpeed = normalizeMoveSpeed(result.holdScrollSpeed, d.holdScrollSpeed);
+        const rngHoldScroll = $('rng-hold-scroll-speed');
+        if (rngHoldScroll) {
+            rngHoldScroll.value = holdScrollSpeed;
+            $('hold-scroll-speed-value').textContent = fmtPercent(holdScrollSpeed);
+        }
+
+        pointerMoveSpeed = normalizeMoveSpeed(result.pointerMoveSpeed, d.pointerMoveSpeed);
+        const rngPointerMove = $('rng-pointer-move-speed');
+        if (rngPointerMove) {
+            rngPointerMove.value = pointerMoveSpeed;
+            $('pointer-move-speed-value').textContent = fmtPercent(pointerMoveSpeed);
         }
 
         const fps = result.inferenceFps !== undefined
@@ -1583,6 +1601,20 @@ rngHoldTime.addEventListener('input', () => {
     chrome.storage.sync.set({ gestureHoldTime });
 });
 
+const rngHoldScrollSpeed = $('rng-hold-scroll-speed');
+rngHoldScrollSpeed.addEventListener('input', () => {
+    holdScrollSpeed = normalizeMoveSpeed(rngHoldScrollSpeed.value);
+    $('hold-scroll-speed-value').textContent = fmtPercent(holdScrollSpeed);
+    chrome.storage.sync.set({ holdScrollSpeed });
+});
+
+const rngPointerMoveSpeed = $('rng-pointer-move-speed');
+rngPointerMoveSpeed.addEventListener('input', () => {
+    pointerMoveSpeed = normalizeMoveSpeed(rngPointerMoveSpeed.value);
+    $('pointer-move-speed-value').textContent = fmtPercent(pointerMoveSpeed);
+    chrome.storage.sync.set({ pointerMoveSpeed });
+});
+
 const rngRepeatInterval = $('rng-repeat-interval');
 rngRepeatInterval.addEventListener('input', () => {
     actionRepeatInterval = Number(rngRepeatInterval.value);
@@ -1681,6 +1713,8 @@ $('btn-reset-settings').addEventListener('click', () => {
     tracker.targetFps = d.inferenceFps;
     notifyVolume = d.notifyVolume;
     uiScale = d.uiScale;
+    holdScrollSpeed = d.holdScrollSpeed;
+    pointerMoveSpeed = d.pointerMoveSpeed;
 
     // UIを復元
     $('chk-mirror').checked = d.mirrorCamera; applyMirror(d.mirrorCamera);
@@ -1698,6 +1732,10 @@ $('btn-reset-settings').addEventListener('click', () => {
     $('hold-time-value').textContent = fmtSeconds(d.gestureHoldTime);
     $('rng-repeat-interval').value = d.actionRepeatInterval;
     $('repeat-interval-value').textContent = fmtSeconds(d.actionRepeatInterval);
+    $('rng-hold-scroll-speed').value = d.holdScrollSpeed;
+    $('hold-scroll-speed-value').textContent = fmtPercent(d.holdScrollSpeed);
+    $('rng-pointer-move-speed').value = d.pointerMoveSpeed;
+    $('pointer-move-speed-value').textContent = fmtPercent(d.pointerMoveSpeed);
     $('rng-inference-fps').value = d.inferenceFps;
     $('inference-fps-value').textContent = fmtFps(d.inferenceFps);
     $('rng-notify-volume').value = Math.round(d.notifyVolume * 100);

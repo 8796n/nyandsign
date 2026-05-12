@@ -53,6 +53,8 @@ let actionRepeatInterval = DEFAULT_SETTINGS.actionRepeatInterval;
 let repeatTimer = null;
 let repeatingGesture = null;
 let continuousGestureGate = null;
+let holdScrollSpeed = DEFAULT_SETTINGS.holdScrollSpeed;
+let pointerMoveSpeed = DEFAULT_SETTINGS.pointerMoveSpeed;
 
 // メタサイン
 let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
@@ -153,6 +155,7 @@ async function loadSettings() {
             'wakeActiveDuration', 'toggleGestureType', 'gestureHoldTime',
             'actionRepeatInterval', 'skeletonOnly', 'mirrorCamera',
             'inferenceFps', 'preferredHand', 'notifyVolume', 'pipFontScale',
+            'holdScrollSpeed', 'pointerMoveSpeed',
             'metaGestureMapping', 'experimentalPointerModeEnabled',
         ]);
         experimentalPointerModeEnabled = result.experimentalPointerModeEnabled === true;
@@ -178,6 +181,8 @@ async function loadSettings() {
         }
         if (result.gestureHoldTime !== undefined) gestureHoldTime = result.gestureHoldTime;
         if (result.actionRepeatInterval) actionRepeatInterval = result.actionRepeatInterval;
+        holdScrollSpeed = normalizeMoveSpeed(result.holdScrollSpeed, DEFAULT_SETTINGS.holdScrollSpeed);
+        pointerMoveSpeed = normalizeMoveSpeed(result.pointerMoveSpeed, DEFAULT_SETTINGS.pointerMoveSpeed);
         if (result.skeletonOnly) tracker.skeletonOnly = result.skeletonOnly;
         if (result.mirrorCamera !== undefined) mirrorCamera = result.mirrorCamera;
         if (result.inferenceFps) tracker.targetFps = result.inferenceFps;
@@ -234,6 +239,8 @@ chrome.storage.onChanged.addListener((changes) => {
     if (changes.metaGestureMapping) metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING, ...changes.metaGestureMapping.newValue };
     if (changes.gestureHoldTime) gestureHoldTime = changes.gestureHoldTime.newValue;
     if (changes.actionRepeatInterval) actionRepeatInterval = changes.actionRepeatInterval.newValue;
+    if (changes.holdScrollSpeed) holdScrollSpeed = normalizeMoveSpeed(changes.holdScrollSpeed.newValue, DEFAULT_SETTINGS.holdScrollSpeed);
+    if (changes.pointerMoveSpeed) pointerMoveSpeed = normalizeMoveSpeed(changes.pointerMoveSpeed.newValue, DEFAULT_SETTINGS.pointerMoveSpeed);
     if (changes.notifyVolume) notifyVolume = Math.max(0, Math.min(1, Number(changes.notifyVolume.newValue)));
     if (changes.pipFontScale) pipFontScale = Math.max(0.5, Math.min(2, Number(changes.pipFontScale.newValue) / 100));
     if (changes.skeletonOnly) tracker.skeletonOnly = changes.skeletonOnly.newValue;
@@ -471,6 +478,7 @@ directionalScrollController = new DirectionalScrollController({
     extendWakeTimeout,
     stopAllGestureActions,
     isControlEnabled: () => controlEnabled,
+    getSpeedMultiplier: () => moveSpeedToMultiplier(holdScrollSpeed),
 });
 
 pointerMoveController = new PointerMoveController({
@@ -479,6 +487,7 @@ pointerMoveController = new PointerMoveController({
     extendWakeTimeout,
     stopAllGestureActions,
     isControlEnabled: () => controlEnabled && operationMode === OPERATION_MODES.POINTER,
+    getSpeedMultiplier: () => moveSpeedToMultiplier(pointerMoveSpeed),
 });
 
 holdGestureResumeController = new HoldGestureResumeController({

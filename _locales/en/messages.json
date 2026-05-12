@@ -179,6 +179,22 @@
     "message": "How long a sign must be held to confirm. Shorter = faster response, longer = fewer mistakes",
     "description": "Tooltip for hold time setting"
   },
+  "settingHoldScrollSpeedLabel": {
+    "message": "Hold Scroll Speed",
+    "description": "Setting label for Hold to Scroll speed"
+  },
+  "settingHoldScrollSpeedTitle": {
+    "message": "Adjust the maximum scroll amount for Hold to Scroll",
+    "description": "Tooltip for Hold to Scroll speed setting"
+  },
+  "settingPointerMoveSpeedLabel": {
+    "message": "Pointer Speed",
+    "description": "Setting label for pointer movement speed"
+  },
+  "settingPointerMoveSpeedTitle": {
+    "message": "Adjust the maximum movement amount for Pointer Control mode",
+    "description": "Tooltip for pointer movement speed setting"
+  },
   "settingRepeatIntervalLabel": {
     "message": "🔁 Interval",
     "description": "Setting label for repeat interval"

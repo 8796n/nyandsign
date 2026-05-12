@@ -229,8 +229,24 @@ const DEFAULT_SETTINGS = {
     notifyVolume: 0.3,
     uiScale: 100,
     pipFontScale: 100,
+    holdScrollSpeed: 100,
+    pointerMoveSpeed: 100,
     experimentalPointerModeEnabled: false,
 };
+
+const MOVE_SPEED_MIN = 50;
+const MOVE_SPEED_MAX = 200;
+const MOVE_SPEED_DEFAULT = 100;
+
+function normalizeMoveSpeed(value, fallback = MOVE_SPEED_DEFAULT) {
+    const n = Number(value);
+    const base = Number.isFinite(n) ? n : fallback;
+    return Math.max(MOVE_SPEED_MIN, Math.min(MOVE_SPEED_MAX, base));
+}
+
+function moveSpeedToMultiplier(value) {
+    return normalizeMoveSpeed(value) / 100;
+}
 
 const META_GESTURE_TYPES = ['frame', 'both-peace', 'peace-fist'];
 

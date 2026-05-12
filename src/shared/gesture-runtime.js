@@ -146,12 +146,15 @@ const GestureRuntimeUtils = {
         return null;
     },
 
-    directionalAmount(delta, deadzone = 0.045, maxOffset = 0.28, maxPixels = 180) {
+    directionalAmount(delta, deadzone = 0.045, maxOffset = 0.28, maxPixels = 180, curvePower = 1) {
         const sign = Math.sign(delta);
         const distance = Math.abs(delta);
         if (distance <= deadzone) return 0;
-        const ratio = Math.min(1, (distance - deadzone) / (maxOffset - deadzone));
-        return Math.round(sign * ratio * maxPixels);
+        const range = Math.max(0.0001, maxOffset - deadzone);
+        const ratio = Math.min(1, (distance - deadzone) / range);
+        const power = Number.isFinite(curvePower) && curvePower > 0 ? curvePower : 1;
+        const curvedRatio = power === 1 ? ratio : Math.pow(ratio, power);
+        return Math.round(sign * curvedRatio * maxPixels);
     },
 };
 
@@ -214,6 +217,8 @@ class DirectionalScrollController {
         this.deadzone = options.deadzone ?? 0.045;
         this.maxOffset = options.maxOffset ?? 0.28;
         this.maxPixels = options.maxPixels ?? 180;
+        this.getSpeedMultiplier = options.getSpeedMultiplier ?? (() => 1);
+        this.curvePower = options.curvePower ?? 1;
         this.graceMs = options.graceMs ?? 250;
         this.resumeWindowMs = options.resumeWindowMs ?? HOLD_GESTURE_RESUME_WINDOW_MS;
         this.maxTrackingJump = options.maxTrackingJump ?? 0.18;
@@ -340,8 +345,9 @@ class DirectionalScrollController {
         const dy = pos.y - this.state.origin.y;
         if (this.tracker.displayMirrored) dx = -dx;
 
-        const left = GestureRuntimeUtils.directionalAmount(dx, this.deadzone, this.maxOffset, this.maxPixels);
-        const top = GestureRuntimeUtils.directionalAmount(dy, this.deadzone, this.maxOffset, this.maxPixels);
+        const maxPixels = this.maxPixels * (Number(this.getSpeedMultiplier()) || 1);
+        const left = GestureRuntimeUtils.directionalAmount(dx, this.deadzone, this.maxOffset, maxPixels, this.curvePower);
+        const top = GestureRuntimeUtils.directionalAmount(dy, this.deadzone, this.maxOffset, maxPixels, this.curvePower);
         if (!left && !top) return;
 
         this.state.lastSentAt = now;
@@ -361,6 +367,8 @@ class PointerMoveController {
         this.deadzone = options.deadzone ?? 0.025;
         this.maxOffset = options.maxOffset ?? 0.22;
         this.maxPixels = options.maxPixels ?? 26;
+        this.getSpeedMultiplier = options.getSpeedMultiplier ?? (() => 1);
+        this.curvePower = options.curvePower ?? 1.6;
         this.graceMs = options.graceMs ?? 250;
         this.resumeWindowMs = options.resumeWindowMs ?? HOLD_GESTURE_RESUME_WINDOW_MS;
         this.maxTrackingJump = options.maxTrackingJump ?? 0.18;
@@ -501,8 +509,9 @@ class PointerMoveController {
         const dy = pos.y - this.state.origin.y;
         if (this.tracker.displayMirrored) dx = -dx;
 
-        const left = GestureRuntimeUtils.directionalAmount(dx, this.deadzone, this.maxOffset, this.maxPixels);
-        const top = GestureRuntimeUtils.directionalAmount(dy, this.deadzone, this.maxOffset, this.maxPixels);
+        const maxPixels = this.maxPixels * (Number(this.getSpeedMultiplier()) || 1);
+        const left = GestureRuntimeUtils.directionalAmount(dx, this.deadzone, this.maxOffset, maxPixels, this.curvePower);
+        const top = GestureRuntimeUtils.directionalAmount(dy, this.deadzone, this.maxOffset, maxPixels, this.curvePower);
         if (!left && !top) return;
 
         this.state.lastSentAt = now;

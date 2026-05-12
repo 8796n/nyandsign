@@ -115,10 +115,11 @@ Manifest V3 compliant
 
 WHAT'S NEW
 
-v1.0.91
+v1.0.92
 - Added experimental Pointer Control mode, which lets you move an in-page virtual cursor with hand signs
 - Added click support and edge scrolling while using Pointer Control mode
 - Improved the visual feedback while pointer movement is active
+- Added speed settings for Hold to Scroll and pointer movement
 - Improved cleanup so the virtual cursor and camera stream are less likely to remain after stopping the camera or closing the extension
 - Improved recovery when your hand briefly leaves the camera view during Hold to Scroll or pointer movement
 

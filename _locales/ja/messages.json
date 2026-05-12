@@ -135,6 +135,18 @@
   "settingHoldTimeTitle": {
     "message": "ハンドサインが確定するまでの持続時間。短いほど反応が速く、長いほど誤操作が減ります"
   },
+  "settingHoldScrollSpeedLabel": {
+    "message": "保持スクロール速度"
+  },
+  "settingHoldScrollSpeedTitle": {
+    "message": "保持してスクロールの最大スクロール量を調整します"
+  },
+  "settingPointerMoveSpeedLabel": {
+    "message": "ポインタ移動速度"
+  },
+  "settingPointerMoveSpeedTitle": {
+    "message": "ポインタ操作モードの最大移動量を調整します"
+  },
   "settingRepeatIntervalLabel": {
     "message": "🔁 間隔"
   },
