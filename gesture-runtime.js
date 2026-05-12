@@ -260,12 +260,11 @@ class DirectionalScrollController {
     resume(gesture, hands = [], now = Date.now()) {
         if (!this.canResume(gesture, now)) return false;
         const hand = GestureRuntimeUtils.findHandForGesture(gesture, hands, this.tracker.preferredHand);
-        const origin = GestureRuntimeUtils.handPosition(hand);
-        if (!origin) return false;
+        const pos = GestureRuntimeUtils.handPosition(hand);
+        if (!pos) return false;
         this.state.phase = 'active';
         this.state.hand = hand?.hand || this.state.hand;
-        this.state.origin = origin;
-        this.state.lastPosition = origin;
+        this.state.lastPosition = pos;
         this.state.lastSeenAt = now;
         this.state.lastSentAt = 0;
         this.state.suspendedAt = 0;
@@ -384,6 +383,7 @@ class PointerMoveController {
             lastSeenAt: now,
             lastSentAt: 0,
             suspendedAt: 0,
+            skipNextUpdate: false,
         };
         this.sendAction('pointerMoveStart');
         return true;
@@ -413,15 +413,15 @@ class PointerMoveController {
     resume(gesture, hands = [], now = Date.now()) {
         if (!this.canResume(gesture, now)) return false;
         const hand = GestureRuntimeUtils.findHandForGesture(gesture, hands, this.tracker.preferredHand);
-        const origin = GestureRuntimeUtils.handPosition(hand);
-        if (!origin) return false;
+        const pos = GestureRuntimeUtils.handPosition(hand);
+        if (!pos) return false;
         this.state.phase = 'active';
         this.state.hand = hand?.hand || this.state.hand;
-        this.state.origin = origin;
-        this.state.lastPosition = origin;
+        this.state.lastPosition = pos;
         this.state.lastSeenAt = now;
-        this.state.lastSentAt = 0;
+        this.state.lastSentAt = now;
         this.state.suspendedAt = 0;
+        this.state.skipNextUpdate = true;
         this.sendAction('pointerMoveStart');
         return true;
     }
@@ -486,6 +486,12 @@ class PointerMoveController {
 
         if (!pos) {
             this.suspend(now);
+            return;
+        }
+
+        if (this.state.skipNextUpdate) {
+            this.state.skipNextUpdate = false;
+            this.state.lastSentAt = now;
             return;
         }
 
