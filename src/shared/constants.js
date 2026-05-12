@@ -213,6 +213,8 @@ const WAKE_STATE = {
 };
 
 const ACTION_COOLDOWN = 800;
+const INFERENCE_FPS_MIN = 5;
+const INFERENCE_FPS_MAX = 30;
 
 /** 設定のデフォルト値 — sidepanel.js / pip.js で共有 */
 const DEFAULT_SETTINGS = {
@@ -226,6 +228,7 @@ const DEFAULT_SETTINGS = {
     gestureHoldTime: 300,
     actionRepeatInterval: 1000,
     inferenceFps: 15,
+    idleInferenceFps: 5,
     notifyVolume: 0.3,
     uiScale: 100,
     pipFontScale: 100,
@@ -246,6 +249,20 @@ function normalizeMoveSpeed(value, fallback = MOVE_SPEED_DEFAULT) {
 
 function moveSpeedToMultiplier(value) {
     return normalizeMoveSpeed(value) / 100;
+}
+
+function normalizeInferenceFps(value, fallback = DEFAULT_SETTINGS.inferenceFps) {
+    const n = Number(value);
+    const base = Number.isFinite(n) ? n : fallback;
+    return Math.max(INFERENCE_FPS_MIN, Math.min(INFERENCE_FPS_MAX, base));
+}
+
+function resolveWakeInferenceFps(baseFps, wakeState, wakeGestureType, idleFps = DEFAULT_SETTINGS.idleInferenceFps) {
+    const activeFps = normalizeInferenceFps(baseFps);
+    if (wakeGestureType !== 'none' && wakeState === WAKE_STATE.IDLE) {
+        return Math.min(activeFps, normalizeInferenceFps(idleFps));
+    }
+    return activeFps;
 }
 
 const META_GESTURE_TYPES = ['frame', 'both-peace', 'peace-fist'];

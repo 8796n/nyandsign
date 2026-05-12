@@ -55,6 +55,7 @@ let repeatingGesture = null;
 let continuousGestureGate = null;
 let holdScrollSpeed = DEFAULT_SETTINGS.holdScrollSpeed;
 let pointerMoveSpeed = DEFAULT_SETTINGS.pointerMoveSpeed;
+let inferenceFps = DEFAULT_SETTINGS.inferenceFps;
 
 // メタサイン
 let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
@@ -185,10 +186,11 @@ async function loadSettings() {
         pointerMoveSpeed = normalizeMoveSpeed(result.pointerMoveSpeed, DEFAULT_SETTINGS.pointerMoveSpeed);
         if (result.skeletonOnly) tracker.skeletonOnly = result.skeletonOnly;
         if (result.mirrorCamera !== undefined) mirrorCamera = result.mirrorCamera;
-        if (result.inferenceFps) tracker.targetFps = result.inferenceFps;
+        if (result.inferenceFps) inferenceFps = normalizeInferenceFps(result.inferenceFps);
         if (result.preferredHand) tracker.preferredHand = result.preferredHand;
         if (result.notifyVolume !== undefined) notifyVolume = Math.max(0, Math.min(1, Number(result.notifyVolume)));
         if (result.pipFontScale !== undefined) pipFontScale = Math.max(0.5, Math.min(2, Number(result.pipFontScale) / 100));
+        updateTrackerFps();
         pointerVisibilityController?.sync();
     } catch (_) {}
 }
@@ -233,7 +235,10 @@ chrome.storage.onChanged.addListener((changes) => {
         }
         pointerVisibilityController?.sync();
     }
-    if (changes.wakeGestureType) wakeGestureType = changes.wakeGestureType.newValue;
+    if (changes.wakeGestureType) {
+        wakeGestureType = changes.wakeGestureType.newValue;
+        updateTrackerFps();
+    }
     if (changes.wakeActiveDuration) wakeActiveDuration = changes.wakeActiveDuration.newValue;
     if (changes.toggleGestureType) toggleGestureType = changes.toggleGestureType.newValue;
     if (changes.metaGestureMapping) metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING, ...changes.metaGestureMapping.newValue };
@@ -248,7 +253,10 @@ chrome.storage.onChanged.addListener((changes) => {
         mirrorCamera = changes.mirrorCamera.newValue;
         tracker.displayMirrored = mirrorCamera;
     }
-    if (changes.inferenceFps) tracker.targetFps = changes.inferenceFps.newValue;
+    if (changes.inferenceFps) {
+        inferenceFps = normalizeInferenceFps(changes.inferenceFps.newValue);
+        updateTrackerFps();
+    }
     if (changes.preferredHand) tracker.preferredHand = changes.preferredHand.newValue;
 });
 
@@ -372,6 +380,7 @@ function playBeep(freq = 880, duration = 0.12) {
  * ============================================================ */
 function setWakeState(newState) {
     wakeState = newState;
+    updateTrackerFps();
     if (wakeTimeout) { clearTimeout(wakeTimeout); wakeTimeout = null; }
     cancelPendingAction();
     stopDirectionalScroll();
@@ -395,6 +404,10 @@ function extendWakeTimeout(durationMs = wakeActiveDuration) {
     wakeTimeout = setTimeout(() => {
         setWakeState(WAKE_STATE.IDLE);
     }, durationMs);
+}
+
+function updateTrackerFps() {
+    tracker.targetFps = resolveWakeInferenceFps(inferenceFps, wakeState, wakeGestureType);
 }
 
 /* ============================================================

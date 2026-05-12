@@ -157,7 +157,7 @@
     "message": "推論FPS"
   },
   "settingInferenceFpsTitle": {
-    "message": "ハンドサイン推論の頻度。低いほどCPU負荷が減りますが反応が遅くなります"
+    "message": "操作可能状態のハンドサイン推論頻度。待機中は自動的に低いFPSへ落とします"
   },
   "settingNotifyVolumeLabel": {
     "message": "通知音量"

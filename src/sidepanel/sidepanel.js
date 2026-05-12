@@ -89,6 +89,7 @@ let notifyVolume = DEFAULT_SETTINGS.notifyVolume;
 let uiScale = DEFAULT_SETTINGS.uiScale;
 let holdScrollSpeed = DEFAULT_SETTINGS.holdScrollSpeed;
 let pointerMoveSpeed = DEFAULT_SETTINGS.pointerMoveSpeed;
+let inferenceFps = DEFAULT_SETTINGS.inferenceFps;
 
 // --- メタサイン（NyandSign 自体の操作）---
 let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
@@ -815,6 +816,7 @@ function setExperimentalPointerModeEnabled(enabled) {
  * ============================================================ */
 function setWakeState(newState) {
     wakeState = newState;
+    updateTrackerFps();
     if (wakeTimeout) { clearTimeout(wakeTimeout); wakeTimeout = null; }
     cancelPendingAction();
     stopDirectionalScroll();
@@ -854,6 +856,11 @@ function extendWakeTimeout(durationMs = wakeActiveDuration) {
         setWakeState(WAKE_STATE.IDLE);
         log(msg('logWakeTimeout'));
     }, durationMs);
+}
+
+/** ウェイク待機中は推論FPSを落として、操作可能状態だけ設定値に戻す */
+function updateTrackerFps() {
+    tracker.targetFps = resolveWakeInferenceFps(inferenceFps, wakeState, wakeGestureType);
 }
 
 /* ============================================================
@@ -1361,9 +1368,10 @@ async function loadMapping() {
         }
 
         const fps = result.inferenceFps !== undefined
-            ? Math.max(5, Math.min(30, Number(result.inferenceFps) || d.inferenceFps))
+            ? normalizeInferenceFps(result.inferenceFps, d.inferenceFps)
             : d.inferenceFps;
-        tracker.targetFps = fps;
+        inferenceFps = fps;
+        updateTrackerFps();
         const rngFps = $('rng-inference-fps');
         if (rngFps) {
             rngFps.value = fps;
@@ -1624,8 +1632,9 @@ rngRepeatInterval.addEventListener('input', () => {
 
 const rngInferenceFps = $('rng-inference-fps');
 rngInferenceFps.addEventListener('input', () => {
-    const fps = Number(rngInferenceFps.value);
-    tracker.targetFps = fps;
+    const fps = normalizeInferenceFps(rngInferenceFps.value);
+    inferenceFps = fps;
+    updateTrackerFps();
     $('inference-fps-value').textContent = fmtFps(fps);
     chrome.storage.sync.set({ inferenceFps: fps });
 });
@@ -1710,7 +1719,8 @@ $('btn-reset-settings').addEventListener('click', () => {
     tracker.preferredHand = d.preferredHand;
     gestureHoldTime = d.gestureHoldTime;
     actionRepeatInterval = d.actionRepeatInterval;
-    tracker.targetFps = d.inferenceFps;
+    inferenceFps = d.inferenceFps;
+    setWakeState(WAKE_STATE.IDLE);
     notifyVolume = d.notifyVolume;
     uiScale = d.uiScale;
     holdScrollSpeed = d.holdScrollSpeed;

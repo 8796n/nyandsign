@@ -208,7 +208,7 @@
     "description": "Setting label for inference FPS"
   },
   "settingInferenceFpsTitle": {
-    "message": "Hand sign inference frequency. Lower values reduce CPU usage but slow down response",
+    "message": "Hand sign inference frequency while actions are available. Idle waiting automatically uses a lower FPS",
     "description": "Tooltip for inference FPS setting"
   },
   "settingNotifyVolumeLabel": {
