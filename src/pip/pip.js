@@ -22,8 +22,6 @@ const pipVideoEl    = $('pip-video');
 const btnStartPip   = $('btn-start-pip');
 const statusEl      = $('status');
 
-const CAMERA_RESTART_DEBOUNCE_MS = 400;
-
 /* ============================================================
  * 状態
  * ============================================================ */
@@ -83,8 +81,10 @@ let wakeActive = false;
 let cameraStream = null;
 let mirrorCamera = DEFAULT_SETTINGS.mirrorCamera;
 let pipActive = false;
-let cameraRestartTimer = null;
-let cameraRestartSeq = 0;
+const cameraRestartController = CameraRuntime.createRestartController({
+    isActive: () => !!cameraStream,
+    restart: () => restartCameraForSettings(),
+});
 
 // ターゲットタブ（ジェスチャーアクションの送信先 — アクティブタブに自動追従）
 let targetTabId = (() => {
@@ -428,34 +428,19 @@ function updateTrackerInferenceResolution() {
 }
 
 function logCameraResolution(requestOptions, track) {
-    const requested = CameraRuntime.requestedVideoSize(requestOptions);
-    const actual = CameraRuntime.trackResolution(track);
-    console.log('[PiP] ' + msg('logCameraResolution', [
-        CameraRuntime.formatResolution(requested),
-        CameraRuntime.formatResolution(actual),
-    ]));
+    console.log('[PiP] ' + msg('logCameraResolution', CameraRuntime.cameraResolutionLogArgs(requestOptions, track)));
 }
 
 function logInferenceResolution() {
-    const size = tracker.getInferenceInputSize();
-    console.log('[PiP] ' + msg('logInferenceResolution', [
-        inferenceResolutionLabel(inferenceResolution),
-        CameraRuntime.formatResolution(size),
-    ]));
+    console.log('[PiP] ' + msg('logInferenceResolution', CameraRuntime.inferenceResolutionLogArgs(tracker, inferenceResolution)));
 }
 
 function currentCameraRequestOptions() {
-    return inferenceResolutionToCameraOptions(inferenceResolution)
-        || CameraRuntime.defaultVideoOptions();
+    return CameraRuntime.requestOptionsForInferenceResolution(inferenceResolution);
 }
 
 function scheduleCameraRestartForSettings() {
-    if (!cameraStream) return;
-    if (cameraRestartTimer) clearTimeout(cameraRestartTimer);
-    cameraRestartTimer = setTimeout(() => {
-        cameraRestartTimer = null;
-        restartCameraForSettings();
-    }, CAMERA_RESTART_DEBOUNCE_MS);
+    cameraRestartController.schedule();
 }
 
 /* ============================================================
@@ -930,36 +915,41 @@ function attachCameraEndedHandler(track) {
 
 async function restartCameraForSettings() {
     if (!cameraStream) return;
-    const seq = ++cameraRestartSeq;
+    const seq = cameraRestartController.nextSeq();
     console.log('[PiP] ' + msg('logCameraRestartingForSettings'));
     statusEl.textContent = msg('pipStatusConnecting');
-    stopAllGestureActions();
-    pointerVisibilityController?.stop({ hide: true });
-    tracker.stop();
-    cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
+    const previousStream = cameraStream;
 
     const params = new URLSearchParams(location.search);
     const cameraId = params.get('camera');
 
     try {
-        const cameraRequestOptions = currentCameraRequestOptions();
-        const nextStream = await CameraRuntime.requestCameraStream(cameraId, cameraRequestOptions);
-        if (seq !== cameraRestartSeq) {
-            CameraRuntime.releaseCameraStream(nextStream, null);
-            return;
-        }
+        const result = await CameraRuntime.restartTrackingCamera({
+            currentStream: previousStream,
+            videoEl: cameraVideo,
+            tracker,
+            canvasEl: handCanvas,
+            cameraId,
+            requestOptions: currentCameraRequestOptions(),
+            attachOptions: { play: true },
+            trackerOptions: { skeletonOnly: tracker.skeletonOnly },
+            isCurrent: () => cameraRestartController.isCurrent(seq),
+            beforeStop: () => {
+                stopAllGestureActions();
+                pointerVisibilityController?.stop({ hide: true });
+            },
+            beforeStart: ({ track }) => {
+                if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
+                tracker.displayMirrored = mirrorCamera;
+            },
+        });
+        if (result.stale) return;
 
-        cameraStream = nextStream;
-        const track = CameraRuntime.primaryVideoTrack(cameraStream);
-        logCameraResolution(cameraRequestOptions, track);
+        cameraStream = result.stream;
+        const track = result.track;
+        logCameraResolution(result.requestOptions, track);
         if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
         attachCameraEndedHandler(track);
-
-        tracker.displayMirrored = mirrorCamera;
-        await CameraRuntime.attachStreamToVideo(cameraVideo, cameraStream, { play: true });
-        await tracker.start(cameraVideo, handCanvas, {
-            skeletonOnly: tracker.skeletonOnly,
-        });
         logInferenceResolution();
         pointerVisibilityController?.sync();
         statusEl.textContent = msg('pipStatusCameraReady');
@@ -967,6 +957,7 @@ async function restartCameraForSettings() {
         if (!pipActive) previewLoop();
         console.log('[PiP] ' + msg('logCameraRestartedForSettings'));
     } catch (e) {
+        cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
         statusEl.textContent = msg('pipStatusError', [e?.message || String(e)]);
         console.error('[PiP] Camera restart error:', e);
     }
@@ -976,10 +967,7 @@ async function restartCameraForSettings() {
  * カメラ起動
  * ============================================================ */
 async function startCamera() {
-    if (cameraRestartTimer) {
-        clearTimeout(cameraRestartTimer);
-        cameraRestartTimer = null;
-    }
+    cameraRestartController.cancel();
     statusEl.textContent = msg('pipStatusPreparing');
 
     // URL パラメータからカメラ ID を取得
@@ -1141,11 +1129,7 @@ async function returnToSidepanel(autoRestart) {
         document.exitPictureInPicture().catch(() => {});
     }
     // カメラを停止
-    if (cameraRestartTimer) {
-        clearTimeout(cameraRestartTimer);
-        cameraRestartTimer = null;
-    }
-    cameraRestartSeq++;
+    cameraRestartController.cancel();
     stopAllGestureActions();
     pointerVisibilityController?.stop({ hide: true });
     stopPipComposite();
@@ -1187,11 +1171,7 @@ window.addEventListener('beforeunload', (e) => {
     if (skipPortReturn && lifecyclePort) {
         try { lifecyclePort.postMessage({ skipReturn: true }); } catch (_) {}
     }
-    if (cameraRestartTimer) {
-        clearTimeout(cameraRestartTimer);
-        cameraRestartTimer = null;
-    }
-    cameraRestartSeq++;
+    cameraRestartController.cancel();
     stopAllGestureActions();
     pointerVisibilityController?.stop({ hide: true });
     stopPipComposite();
