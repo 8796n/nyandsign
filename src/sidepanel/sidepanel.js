@@ -60,6 +60,7 @@ let experimentalPointerModeEnabled = DEFAULT_SETTINGS.experimentalPointerModeEna
 let controlEnabled = true;
 let cameraStream = null;
 let lastActionTime = 0;
+let pageActionStatusVisible = false;
 let cameraPollId = null;
 let selectedCameraId = null;    // UI で選択中のカメラ
 let activeCameraId = null;      // 実際に動作中のカメラ
@@ -777,9 +778,15 @@ chrome.runtime.onMessage.addListener((message) => {
  * ============================================================ */
 
 /** サイドパネルのジェスチャー表示テキストを更新 */
-function setGestureText(emoji, name) {
+function setGestureText(emoji, name, options = {}) {
+    pageActionStatusVisible = options.pageActionStatus === true;
     el.gestureEmoji.textContent = emoji;
     el.gestureName.textContent = name;
+}
+
+function clearPageActionStatus() {
+    if (!pageActionStatusVisible) return;
+    setGestureText('—', '');
 }
 
 
@@ -1206,12 +1213,23 @@ async function sendAction(action, data) {
         if (lockedTargetTabId) payload.targetTabId = lockedTargetTabId;
         const result = await chrome.runtime.sendMessage(payload);
         if (result?.ok === false) {
-            if (result.reason === 'injectionBlocked') {
-                setGestureText('🚫', msg('gestureBlockedPageAction'));
+            if (result.reason === 'restrictedPage' || result.reason === 'injectionBlocked') {
+                setGestureText('🚫', msg('gestureBlockedPageAction'), { pageActionStatus: true });
                 log(msg('logInjectionBlocked'));
+            } else if (result.reason === 'reloadRequired') {
+                setGestureText('🔄', msg('gestureReloadRequired'), { pageActionStatus: true });
+                log(msg('logReloadRequired'));
+            } else if (result.reason === 'noTargetTab') {
+                setGestureText('🎯', msg('gestureNoTargetTab'), { pageActionStatus: true });
+                log(msg('logNoTargetTab'));
+            } else if (result.reason === 'tabActionFailed') {
+                setGestureText('⚠', msg('gestureTabActionFailed'), { pageActionStatus: true });
+                log(msg('logTabActionFailed', [result.message || 'unknown']));
             } else {
                 log(msg('logSendError', [result.message || result.reason || 'unknown']));
             }
+        } else {
+            clearPageActionStatus();
         }
     } catch (e) {
         log(msg('logSendError', [e?.message || String(e)]));
@@ -1649,6 +1667,7 @@ async function lockCurrentTab() {
         if (!tabs.length) return;
         const tab = tabs[0];
         lockedTargetTabId = tab.id;
+        clearPageActionStatus();
         const nameEl = $('target-tab-name');
         const title = tab.title || tab.url || String(tab.id);
         nameEl.textContent = title;
@@ -1665,6 +1684,7 @@ async function lockCurrentTab() {
 /** ターゲットタブ固定を解除 */
 function unlockTab() {
     lockedTargetTabId = null;
+    clearPageActionStatus();
     const nameEl = $('target-tab-name');
     nameEl.textContent = msg('targetTabActive');
     nameEl.title = '';
@@ -1811,10 +1831,17 @@ chrome.tabs.onRemoved.addListener((tabId) => {
     }
 });
 
+chrome.tabs.onActivated.addListener(() => {
+    if (!lockedTargetTabId) clearPageActionStatus();
+});
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (lockedTargetTabId === tabId && changeInfo.title !== undefined) {
         $('target-tab-name').textContent = tab.title || String(tab.id);
         $('target-tab-name').title = tab.title || String(tab.id);
+    }
+    if (pageActionStatusVisible && changeInfo.status === 'complete' && (!lockedTargetTabId || lockedTargetTabId === tabId)) {
+        clearPageActionStatus();
     }
 });
 

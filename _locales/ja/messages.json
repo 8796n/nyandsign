@@ -511,8 +511,29 @@
   "logInjectionBlocked": {
     "message": "🚫 このページではスクロールなどのページ内操作は利用できません"
   },
+  "logReloadRequired": {
+    "message": "🔄 このページは再読み込みが必要な可能性があります"
+  },
+  "logNoTargetTab": {
+    "message": "🎯 操作対象タブがありません"
+  },
+  "logTabActionFailed": {
+    "message": "タブ操作エラー: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
   "gestureBlockedPageAction": {
     "message": "ページ内操作不可"
+  },
+  "gestureReloadRequired": {
+    "message": "再読み込みしてください"
+  },
+  "gestureNoTargetTab": {
+    "message": "対象タブなし"
+  },
+  "gestureTabActionFailed": {
+    "message": "タブ操作不可"
   },
   "logMediaControlOn": {
     "message": "操作: ON ✅"

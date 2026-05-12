@@ -669,9 +669,36 @@
     "message": "🚫 Page actions such as scroll are unavailable on this page",
     "description": "Log when content script injection is blocked"
   },
+  "logReloadRequired": {
+    "message": "🔄 This page may need to be reloaded",
+    "description": "Log when a normal page failed after reinjection and may need reload"
+  },
+  "logNoTargetTab": {
+    "message": "🎯 No target tab",
+    "description": "Log when there is no target tab for a gesture action"
+  },
+  "logTabActionFailed": {
+    "message": "Tab action error: $1",
+    "description": "Log when a tabs API based action fails",
+    "placeholders": {
+      "1": { "content": "$1", "example": "Cannot navigate back" }
+    }
+  },
   "gestureBlockedPageAction": {
     "message": "Page action blocked",
     "description": "Short status shown when page actions cannot run on the current page"
+  },
+  "gestureReloadRequired": {
+    "message": "Reload page",
+    "description": "Short status shown when the target page should be reloaded"
+  },
+  "gestureNoTargetTab": {
+    "message": "No target tab",
+    "description": "Short status shown when there is no target tab"
+  },
+  "gestureTabActionFailed": {
+    "message": "Tab action blocked",
+    "description": "Short status shown when a browser tab action fails"
   },
   "logMediaControlOn": {
     "message": "Operation: ON ✅",

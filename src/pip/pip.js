@@ -75,6 +75,7 @@ let pipCanvas = null;
 let pipCanvasCtx = null;
 let pipTimerId = null;
 let gestureText = '';
+let pageActionStatusVisible = false;
 let wakeActive = false;
 
 // カメラ
@@ -285,6 +286,7 @@ const targetTabBar = $('target-tab-bar');
 /** ターゲットタブの情報を表示更新 */
 function updateTargetTabInfo(tab) {
     if (!tab) return;
+    clearPageActionStatus();
     const title = tab.title || tab.url || msg('pipTabTitleUnknown');
     targetTitleEl.textContent = title;
     targetTabTitle = title;
@@ -300,6 +302,7 @@ function updateTargetTabInfo(tab) {
 
 /** ターゲットタブが閉じられた時の処理 */
 function onTargetTabLost() {
+    clearPageActionStatus();
     targetTabAlive = false;
     const lostMsg = msg('pipTabLost');
     targetTitleEl.textContent = lostMsg;
@@ -510,10 +513,34 @@ async function sendAction(action, data) {
             data,
             targetTabId: targetTabId || undefined,
         });
-        if (result?.ok === false && result.reason === 'injectionBlocked') {
-            gestureText = `🚫 ${msg('gestureBlockedPageAction')}`;
+        if (result?.ok === false) {
+            if (result.reason === 'restrictedPage' || result.reason === 'injectionBlocked') {
+                setPageActionStatus(`🚫 ${msg('gestureBlockedPageAction')}`);
+            } else if (result.reason === 'reloadRequired') {
+                setPageActionStatus(`🔄 ${msg('gestureReloadRequired')}`);
+            } else if (result.reason === 'noTargetTab') {
+                setPageActionStatus(`🎯 ${msg('gestureNoTargetTab')}`);
+            } else if (result.reason === 'tabActionFailed') {
+                setPageActionStatus(`⚠ ${msg('gestureTabActionFailed')}`);
+            }
+        } else {
+            clearPageActionStatus();
         }
     } catch (_) {}
+}
+
+function setPipGestureText(text, options = {}) {
+    pageActionStatusVisible = options.pageActionStatus === true;
+    gestureText = text;
+}
+
+function setPageActionStatus(text) {
+    setPipGestureText(text, { pageActionStatus: true });
+}
+
+function clearPageActionStatus() {
+    if (!pageActionStatusVisible) return;
+    setPipGestureText('');
 }
 
 continuousGestureGate = new ContinuousGestureGate();
@@ -608,7 +635,7 @@ function isWakeGesture(gesture) {
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
     if (GestureRuntimeUtils.isUncertainGesture(gesture)) {
-        gestureText = gesture === 'unknown' ? (GESTURE_ICONS.unknown || '❓') : '';
+        setPipGestureText(gesture === 'unknown' ? (GESTURE_ICONS.unknown || '❓') : '');
         const suspended = holdGestureResumeController?.suspend();
         if (!suspended) {
             continuousGestureGate?.reset();
@@ -620,7 +647,7 @@ tracker.addEventListener('gesture', (e) => {
 
     const icon = GESTURE_ICONS[gesture] || '❓';
     // デフォルトは絵文字のみ（発火時のみコマンド名を付加）
-    gestureText = icon;
+    setPipGestureText(icon);
 
     if (metaGestureController?.isBlocking()) return;
     if (!controlEnabled) return;
@@ -632,7 +659,7 @@ tracker.addEventListener('gesture', (e) => {
         if (wakeState === WAKE_STATE.IDLE) {
             setWakeState(WAKE_STATE.ACTIVE);
         }
-        gestureText = icon;
+        setPipGestureText(icon);
         return;
     }
 
@@ -641,7 +668,7 @@ tracker.addEventListener('gesture', (e) => {
     const hadSuspendedHold = !!holdGestureResumeController?.hasSuspended();
     const resumedAction = holdGestureResumeController?.resume(gesture, now);
     if (resumedAction) {
-        gestureText = `${icon} ${actionDisplay(resumedAction)}`;
+        setPipGestureText(`${icon} ${actionDisplay(resumedAction)}`);
         return;
     }
     if (hadSuspendedHold) {
@@ -661,7 +688,7 @@ tracker.addEventListener('gesture', (e) => {
     if (!action || action === 'none') { stopAllGestureActions(); return; }
 
     // 操作コマンドとして発火するのでコマンド名を表示
-    gestureText = `${icon} ${actionDisplay(action)}`;
+    setPipGestureText(`${icon} ${actionDisplay(action)}`);
 
     if (pointerMoveController?.active && gesture === pointerMoveController.state?.gesture) return;
     if (gesture === repeatingGesture || gesture === pendingGesture) return;

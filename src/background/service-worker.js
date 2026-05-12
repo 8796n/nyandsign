@@ -181,6 +181,15 @@ async function executeBrowserTabAction(action, tab) {
     }
 }
 
+function isRestrictedPageForInjection(tab) {
+    const url = tab?.url || '';
+    return /^(chrome|chrome-extension|chrome-untrusted|edge|about|devtools|view-source):/i.test(url);
+}
+
+function pageActionFailureReason(tab) {
+    return isRestrictedPageForInjection(tab) ? 'restrictedPage' : 'reloadRequired';
+}
+
 async function forwardToActiveTab(action, targetTabId, data) {
     if (!action || action === 'none') return { ok: true, handledBy: 'none' };
 
@@ -219,10 +228,10 @@ async function forwardToActiveTab(action, targetTabId, data) {
             });
             return { ok: true, handledBy: 'contentScript' };
         } catch (injectErr) {
-            // chrome:// 等の注入不可ページ
+            // chrome:// 等は注入不可。通常ページで失敗した場合は再読み込み候補として扱う。
             return {
                 ok: false,
-                reason: 'injectionBlocked',
+                reason: pageActionFailureReason(tab),
                 message: injectErr?.message || err?.message || String(injectErr || err),
             };
         }
