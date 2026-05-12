@@ -56,6 +56,7 @@ let continuousGestureGate = null;
 let holdScrollSpeed = DEFAULT_SETTINGS.holdScrollSpeed;
 let pointerMoveSpeed = DEFAULT_SETTINGS.pointerMoveSpeed;
 let inferenceFps = DEFAULT_SETTINGS.inferenceFps;
+let inferenceResolution = DEFAULT_SETTINGS.inferenceResolution;
 
 // メタサイン
 let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
@@ -156,6 +157,7 @@ async function loadSettings() {
             'wakeActiveDuration', 'toggleGestureType', 'gestureHoldTime',
             'actionRepeatInterval', 'skeletonOnly', 'mirrorCamera',
             'inferenceFps', 'preferredHand', 'notifyVolume', 'pipFontScale',
+            'inferenceResolution',
             'holdScrollSpeed', 'pointerMoveSpeed',
             'metaGestureMapping', 'experimentalPointerModeEnabled',
         ]);
@@ -187,6 +189,8 @@ async function loadSettings() {
         if (result.skeletonOnly) tracker.skeletonOnly = result.skeletonOnly;
         if (result.mirrorCamera !== undefined) mirrorCamera = result.mirrorCamera;
         if (result.inferenceFps) inferenceFps = normalizeInferenceFps(result.inferenceFps);
+        inferenceResolution = normalizeInferenceResolution(result.inferenceResolution, DEFAULT_SETTINGS.inferenceResolution);
+        updateTrackerInferenceResolution();
         if (result.preferredHand) tracker.preferredHand = result.preferredHand;
         if (result.notifyVolume !== undefined) notifyVolume = Math.max(0, Math.min(1, Number(result.notifyVolume)));
         if (result.pipFontScale !== undefined) pipFontScale = Math.max(0.5, Math.min(2, Number(result.pipFontScale) / 100));
@@ -256,6 +260,11 @@ chrome.storage.onChanged.addListener((changes) => {
     if (changes.inferenceFps) {
         inferenceFps = normalizeInferenceFps(changes.inferenceFps.newValue);
         updateTrackerFps();
+    }
+    if (changes.inferenceResolution) {
+        inferenceResolution = normalizeInferenceResolution(changes.inferenceResolution.newValue);
+        updateTrackerInferenceResolution();
+        if (cameraStream) logInferenceResolution();
     }
     if (changes.preferredHand) tracker.preferredHand = changes.preferredHand.newValue;
 });
@@ -408,6 +417,27 @@ function extendWakeTimeout(durationMs = wakeActiveDuration) {
 
 function updateTrackerFps() {
     tracker.targetFps = resolveWakeInferenceFps(inferenceFps, wakeState, wakeGestureType);
+}
+
+function updateTrackerInferenceResolution() {
+    tracker.setInferenceMaxWidth(inferenceResolutionToMaxWidth(inferenceResolution));
+}
+
+function logCameraResolution(requestOptions, track) {
+    const requested = CameraRuntime.requestedVideoSize(requestOptions);
+    const actual = CameraRuntime.trackResolution(track);
+    console.log('[PiP] ' + msg('logCameraResolution', [
+        CameraRuntime.formatResolution(requested),
+        CameraRuntime.formatResolution(actual),
+    ]));
+}
+
+function logInferenceResolution() {
+    const size = tracker.getInferenceInputSize();
+    console.log('[PiP] ' + msg('logInferenceResolution', [
+        inferenceResolutionLabel(inferenceResolution),
+        CameraRuntime.formatResolution(size),
+    ]));
 }
 
 /* ============================================================
@@ -861,9 +891,12 @@ async function startCamera() {
 
         // カメラ取得
         statusEl.textContent = msg('pipStatusConnecting');
-        cameraStream = await CameraRuntime.requestCameraStream(cameraId);
+        const cameraRequestOptions = inferenceResolutionToCameraOptions(inferenceResolution)
+            || CameraRuntime.defaultVideoOptions();
+        cameraStream = await CameraRuntime.requestCameraStream(cameraId, cameraRequestOptions);
 
         const track = CameraRuntime.primaryVideoTrack(cameraStream);
+        logCameraResolution(cameraRequestOptions, track);
 
         // メガネカメラの場合ミラー OFF
         if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
@@ -913,6 +946,7 @@ async function startCamera() {
         await tracker.start(cameraVideo, handCanvas, {
             skeletonOnly: tracker.skeletonOnly,
         });
+        logInferenceResolution();
 
         statusEl.textContent = msg('pipStatusCameraReady');
         btnStartPip.disabled = false;

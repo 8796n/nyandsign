@@ -211,6 +211,30 @@
     "message": "Hand sign inference frequency while actions are available. Idle waiting automatically uses a lower FPS",
     "description": "Tooltip for inference FPS setting"
   },
+  "settingInferenceResolutionLabel": {
+    "message": "Inference Resolution",
+    "description": "Setting label for inference resolution"
+  },
+  "settingInferenceResolutionTitle": {
+    "message": "Maximum width requested from the camera and passed to hand sign inference. Lower values may reduce load",
+    "description": "Tooltip for inference resolution setting"
+  },
+  "inferenceResolutionSource": {
+    "message": "Original",
+    "description": "Inference resolution option using the source size"
+  },
+  "inferenceResolution640": {
+    "message": "640px width",
+    "description": "Inference resolution option capped to 640px width"
+  },
+  "inferenceResolution480": {
+    "message": "480px width",
+    "description": "Inference resolution option capped to 480px width"
+  },
+  "inferenceResolution320": {
+    "message": "320px width",
+    "description": "Inference resolution option capped to 320px width"
+  },
   "settingNotifyVolumeLabel": {
     "message": "Notify Volume",
     "description": "Setting label for notification volume"
@@ -557,6 +581,22 @@
     "description": "Log when camera is obtained",
     "placeholders": {
       "1": { "content": "$1", "example": "USB Camera" }
+    }
+  },
+  "logCameraResolution": {
+    "message": "Camera resolution: requested $1 / actual $2",
+    "description": "Log camera requested and actual resolution",
+    "placeholders": {
+      "1": { "content": "$1", "example": "1280x720" },
+      "2": { "content": "$2", "example": "1920x1080" }
+    }
+  },
+  "logInferenceResolution": {
+    "message": "Inference resolution: $1 -> $2",
+    "description": "Log inference resolution setting and actual input size",
+    "placeholders": {
+      "1": { "content": "$1", "example": "640px width" },
+      "2": { "content": "$2", "example": "640x360" }
     }
   },
   "logXrealMirrorAuto": {

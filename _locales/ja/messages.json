@@ -159,6 +159,24 @@
   "settingInferenceFpsTitle": {
     "message": "操作可能状態のハンドサイン推論頻度。待機中は自動的に低いFPSへ落とします"
   },
+  "settingInferenceResolutionLabel": {
+    "message": "推論解像度"
+  },
+  "settingInferenceResolutionTitle": {
+    "message": "カメラに要求し、ハンドサイン推論へ渡す映像の最大幅。低いほど負荷が減る可能性があります"
+  },
+  "inferenceResolutionSource": {
+    "message": "原寸"
+  },
+  "inferenceResolution640": {
+    "message": "640px幅"
+  },
+  "inferenceResolution480": {
+    "message": "480px幅"
+  },
+  "inferenceResolution320": {
+    "message": "320px幅"
+  },
   "settingNotifyVolumeLabel": {
     "message": "通知音量"
   },
@@ -422,6 +440,20 @@
     "message": "カメラ取得: $1",
     "placeholders": {
       "1": { "content": "$1" }
+    }
+  },
+  "logCameraResolution": {
+    "message": "カメラ解像度: 指定 $1 / 実際 $2",
+    "placeholders": {
+      "1": { "content": "$1" },
+      "2": { "content": "$2" }
+    }
+  },
+  "logInferenceResolution": {
+    "message": "推論解像度: $1 → $2",
+    "placeholders": {
+      "1": { "content": "$1" },
+      "2": { "content": "$2" }
     }
   },
   "logXrealMirrorAuto": {

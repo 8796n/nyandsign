@@ -90,6 +90,7 @@ let uiScale = DEFAULT_SETTINGS.uiScale;
 let holdScrollSpeed = DEFAULT_SETTINGS.holdScrollSpeed;
 let pointerMoveSpeed = DEFAULT_SETTINGS.pointerMoveSpeed;
 let inferenceFps = DEFAULT_SETTINGS.inferenceFps;
+let inferenceResolution = DEFAULT_SETTINGS.inferenceResolution;
 
 // --- メタサイン（NyandSign 自体の操作）---
 let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
@@ -363,11 +364,14 @@ async function startCamera() {
             await tracker.loadModel((key) => log(msg(key)));
         }
 
-        cameraStream = await CameraRuntime.requestCameraStream(selectedCameraId);
+        const cameraRequestOptions = inferenceResolutionToCameraOptions(inferenceResolution)
+            || CameraRuntime.defaultVideoOptions();
+        cameraStream = await CameraRuntime.requestCameraStream(selectedCameraId, cameraRequestOptions);
 
         const track = CameraRuntime.primaryVideoTrack(cameraStream);
         activeCameraId = CameraRuntime.cameraDeviceId(cameraStream);
         log(msg('logCameraAcquired', [track?.label || 'Camera']));
+        logCameraResolution(cameraRequestOptions, track);
 
         // メガネカメラの場合、ミラーを一時的にOFF
         if (CameraRuntime.isXrealCamera(track)) {
@@ -400,6 +404,7 @@ async function startCamera() {
         await tracker.start(el.cameraVideo, el.handCanvas, {
             skeletonOnly: el.chkSkeleton.checked,
         });
+        logInferenceResolution();
 
         // 認識インスタンスの所有権を要求（他インスタンスを停止させる）
         takenOver = false;
@@ -861,6 +866,27 @@ function extendWakeTimeout(durationMs = wakeActiveDuration) {
 /** ウェイク待機中は推論FPSを落として、操作可能状態だけ設定値に戻す */
 function updateTrackerFps() {
     tracker.targetFps = resolveWakeInferenceFps(inferenceFps, wakeState, wakeGestureType);
+}
+
+function updateTrackerInferenceResolution() {
+    tracker.setInferenceMaxWidth(inferenceResolutionToMaxWidth(inferenceResolution));
+}
+
+function logCameraResolution(requestOptions, track) {
+    const requested = CameraRuntime.requestedVideoSize(requestOptions);
+    const actual = CameraRuntime.trackResolution(track);
+    log(msg('logCameraResolution', [
+        CameraRuntime.formatResolution(requested),
+        CameraRuntime.formatResolution(actual),
+    ]));
+}
+
+function logInferenceResolution() {
+    const size = tracker.getInferenceInputSize();
+    log(msg('logInferenceResolution', [
+        inferenceResolutionLabel(inferenceResolution),
+        CameraRuntime.formatResolution(size),
+    ]));
 }
 
 /* ============================================================
@@ -1378,6 +1404,11 @@ async function loadMapping() {
             $('inference-fps-value').textContent = fmtFps(fps);
         }
 
+        inferenceResolution = normalizeInferenceResolution(result.inferenceResolution, d.inferenceResolution);
+        updateTrackerInferenceResolution();
+        const selInferenceResolution = $('sel-inference-resolution');
+        if (selInferenceResolution) selInferenceResolution.value = inferenceResolution;
+
         notifyVolume = result.notifyVolume !== undefined
             ? Math.max(0, Math.min(1, Number(result.notifyVolume)))
             : d.notifyVolume;
@@ -1639,6 +1670,14 @@ rngInferenceFps.addEventListener('input', () => {
     chrome.storage.sync.set({ inferenceFps: fps });
 });
 
+const selInferenceResolution = $('sel-inference-resolution');
+selInferenceResolution.addEventListener('change', () => {
+    inferenceResolution = normalizeInferenceResolution(selInferenceResolution.value);
+    updateTrackerInferenceResolution();
+    chrome.storage.sync.set({ inferenceResolution });
+    if (cameraStream) logInferenceResolution();
+});
+
 const rngNotifyVolume = $('rng-notify-volume');
 rngNotifyVolume.addEventListener('input', () => {
     notifyVolume = Number(rngNotifyVolume.value) / 100;
@@ -1720,6 +1759,8 @@ $('btn-reset-settings').addEventListener('click', () => {
     gestureHoldTime = d.gestureHoldTime;
     actionRepeatInterval = d.actionRepeatInterval;
     inferenceFps = d.inferenceFps;
+    inferenceResolution = d.inferenceResolution;
+    updateTrackerInferenceResolution();
     setWakeState(WAKE_STATE.IDLE);
     notifyVolume = d.notifyVolume;
     uiScale = d.uiScale;
@@ -1748,6 +1789,7 @@ $('btn-reset-settings').addEventListener('click', () => {
     $('pointer-move-speed-value').textContent = fmtPercent(d.pointerMoveSpeed);
     $('rng-inference-fps').value = d.inferenceFps;
     $('inference-fps-value').textContent = fmtFps(d.inferenceFps);
+    $('sel-inference-resolution').value = d.inferenceResolution;
     $('rng-notify-volume').value = Math.round(d.notifyVolume * 100);
     $('notify-volume-value').textContent = fmtVolume(d.notifyVolume);
     $('rng-ui-scale').value = d.uiScale;

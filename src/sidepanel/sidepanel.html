@@ -185,6 +185,17 @@
                 <span class="setting-value" id="inference-fps-value">15fps</span>
             </div>
         </div>
+        <div class="setting-row" title="Maximum width requested from the camera and passed to hand sign inference. Lower values may reduce load" data-i18n-title="settingInferenceResolutionTitle">
+            <span data-i18n="settingInferenceResolutionLabel">Inference resolution</span>
+            <div class="setting-control">
+                <select id="sel-inference-resolution">
+                    <option value="source" data-i18n="inferenceResolutionSource">Original</option>
+                    <option value="640" data-i18n="inferenceResolution640">640px width</option>
+                    <option value="480" data-i18n="inferenceResolution480">480px width</option>
+                    <option value="320" data-i18n="inferenceResolution320">320px width</option>
+                </select>
+            </div>
+        </div>
         <div class="setting-row" title="Volume for wake activation and toggle sounds. 0 = silent" data-i18n-title="settingNotifyVolumeTitle">
             <span data-i18n="settingNotifyVolumeLabel">Notify volume</span>
             <div class="setting-control">
@@ -229,7 +240,7 @@
 
 <!-- フッター -->
 <div class="footer">
-    <span class="version">v1.0.93</span>
+    <span class="version">v1.0.94</span>
     <a href="https://megane.8796.jp" target="_blank" rel="noopener">&copy; 8796.jp</a>
 </div>
 

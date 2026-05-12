@@ -23,6 +23,10 @@ class HandTracker extends EventTarget {
         this._lastResult = null;           // 前回推論結果キャッシュ（再描画用）
         this._lastHandData = [];           // 前回の手データ（描画用）
         this._drawDirty = false;           // 再描画が必要かどうか
+        this.inferenceMaxWidth = 0;        // 0=原寸。指定時は推論入力だけ縮小する
+        this._inferenceCanvas = null;
+        this._inferenceCtx = null;
+        this._lastInferenceSize = { width: 0, height: 0 };
 
         // --- サイン安定化: 時間窓ベース多数決 + 切替ヒステリシス ---
         // サンプルはタイムスタンプ付きで保持し、時間窓内のみ集計
@@ -153,6 +157,7 @@ class HandTracker extends EventTarget {
         this._lastResult = null;
         this._lastHandData = [];
         this._drawDirty = false;
+        this._lastInferenceSize = { width: 0, height: 0 };
         // サイン状態リセット
         this._gestureSamples = [];
         this._candidateGesture = null;
@@ -225,7 +230,8 @@ class HandTracker extends EventTarget {
      * MediaPipe 推論を実行し、結果をキャッシュ + サイン更新
      */
     _runInference(video, now) {
-        const result = this.handLandmarker.detectForVideo(video, now);
+        const source = this._prepareInferenceSource(video);
+        const result = this.handLandmarker.detectForVideo(source, now);
         this._lastResult = result;
 
         if (!result || !result.landmarks || result.landmarks.length === 0) {
@@ -287,6 +293,49 @@ class HandTracker extends EventTarget {
         this.dispatchEvent(new CustomEvent('frame', {
             detail: { gestures: hands, handCount: result.landmarks.length }
         }));
+    }
+
+    setInferenceMaxWidth(maxWidth) {
+        const n = Number(maxWidth);
+        this.inferenceMaxWidth = Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+        this._lastInferenceSize = { width: 0, height: 0 };
+    }
+
+    getInferenceInputSize() {
+        const video = this.videoEl;
+        return this._resolveInferenceInputSize(video?.videoWidth || 0, video?.videoHeight || 0);
+    }
+
+    _resolveInferenceInputSize(sourceWidth, sourceHeight) {
+        if (!sourceWidth || !sourceHeight) return { width: 0, height: 0 };
+        const maxWidth = this.inferenceMaxWidth;
+        if (!maxWidth || sourceWidth <= maxWidth) {
+            return { width: sourceWidth, height: sourceHeight };
+        }
+        const scale = maxWidth / sourceWidth;
+        return {
+            width: Math.max(1, Math.round(sourceWidth * scale)),
+            height: Math.max(1, Math.round(sourceHeight * scale)),
+        };
+    }
+
+    _prepareInferenceSource(video) {
+        const size = this._resolveInferenceInputSize(video.videoWidth, video.videoHeight);
+        this._lastInferenceSize = size;
+
+        if (!this.inferenceMaxWidth || size.width === video.videoWidth) return video;
+
+        if (!this._inferenceCanvas) {
+            const doc = this.canvasEl?.ownerDocument || document;
+            this._inferenceCanvas = doc.createElement('canvas');
+            this._inferenceCtx = this._inferenceCanvas.getContext('2d', { alpha: false });
+        }
+        if (this._inferenceCanvas.width !== size.width || this._inferenceCanvas.height !== size.height) {
+            this._inferenceCanvas.width = size.width;
+            this._inferenceCanvas.height = size.height;
+        }
+        this._inferenceCtx.drawImage(video, 0, 0, size.width, size.height);
+        return this._inferenceCanvas;
     }
 
     /**

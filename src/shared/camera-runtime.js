@@ -7,7 +7,11 @@
  * ============================================================ */
 
 const CameraRuntime = {
-    createVideoConstraints(cameraId, { width = 1280, height = 720 } = {}) {
+    DEFAULT_VIDEO_WIDTH: 1280,
+    DEFAULT_VIDEO_HEIGHT: 720,
+
+    createVideoConstraints(cameraId, options = {}) {
+        const { width = this.DEFAULT_VIDEO_WIDTH, height = this.DEFAULT_VIDEO_HEIGHT } = options;
         const video = {
             width: { ideal: width },
             height: { ideal: height },
@@ -16,6 +20,33 @@ const CameraRuntime = {
             video.deviceId = { exact: cameraId };
         }
         return video;
+    },
+
+    defaultVideoOptions() {
+        return {
+            width: this.DEFAULT_VIDEO_WIDTH,
+            height: this.DEFAULT_VIDEO_HEIGHT,
+        };
+    },
+
+    requestedVideoSize(options = {}) {
+        return {
+            width: options.width ?? this.DEFAULT_VIDEO_WIDTH,
+            height: options.height ?? this.DEFAULT_VIDEO_HEIGHT,
+        };
+    },
+
+    trackResolution(track) {
+        const settings = track?.getSettings?.() || {};
+        return {
+            width: settings.width || null,
+            height: settings.height || null,
+        };
+    },
+
+    formatResolution(size) {
+        if (!size?.width || !size?.height) return '-';
+        return `${Math.round(size.width)}x${Math.round(size.height)}`;
     },
 
     createStreamConstraints(cameraId, options = {}) {

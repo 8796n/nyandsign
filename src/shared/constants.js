@@ -216,6 +216,14 @@ const ACTION_COOLDOWN = 800;
 const INFERENCE_FPS_MIN = 5;
 const INFERENCE_FPS_MAX = 30;
 
+const INFERENCE_RESOLUTION_SOURCE = 'source';
+const INFERENCE_RESOLUTION_OPTIONS = {
+    source: { maxWidth: null, labelKey: 'inferenceResolutionSource' },
+    '640': { maxWidth: 640, labelKey: 'inferenceResolution640' },
+    '480': { maxWidth: 480, labelKey: 'inferenceResolution480' },
+    '320': { maxWidth: 320, labelKey: 'inferenceResolution320' },
+};
+
 /** 設定のデフォルト値 — sidepanel.js / pip.js で共有 */
 const DEFAULT_SETTINGS = {
     mirrorCamera: true,
@@ -229,6 +237,7 @@ const DEFAULT_SETTINGS = {
     actionRepeatInterval: 1000,
     inferenceFps: 15,
     idleInferenceFps: 5,
+    inferenceResolution: INFERENCE_RESOLUTION_SOURCE,
     notifyVolume: 0.3,
     uiScale: 100,
     pipFontScale: 100,
@@ -263,6 +272,29 @@ function resolveWakeInferenceFps(baseFps, wakeState, wakeGestureType, idleFps = 
         return Math.min(activeFps, normalizeInferenceFps(idleFps));
     }
     return activeFps;
+}
+
+function normalizeInferenceResolution(value, fallback = DEFAULT_SETTINGS.inferenceResolution) {
+    const key = String(value ?? fallback);
+    return INFERENCE_RESOLUTION_OPTIONS[key] ? key : fallback;
+}
+
+function inferenceResolutionToMaxWidth(value) {
+    return INFERENCE_RESOLUTION_OPTIONS[normalizeInferenceResolution(value)]?.maxWidth || 0;
+}
+
+function inferenceResolutionToCameraOptions(value) {
+    const maxWidth = inferenceResolutionToMaxWidth(value);
+    if (!maxWidth) return null;
+    return {
+        width: maxWidth,
+        height: Math.round(maxWidth * 9 / 16),
+    };
+}
+
+function inferenceResolutionLabel(value) {
+    const option = INFERENCE_RESOLUTION_OPTIONS[normalizeInferenceResolution(value)];
+    return msg(option?.labelKey || INFERENCE_RESOLUTION_OPTIONS.source.labelKey);
 }
 
 const META_GESTURE_TYPES = ['frame', 'both-peace', 'peace-fist'];
