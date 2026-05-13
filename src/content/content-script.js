@@ -115,8 +115,8 @@
         return document.scrollingElement || document.documentElement || document.body;
     }
 
-    function isDocumentRootElement(el) {
-        return el === document.documentElement || el === document.body;
+    function isDocumentRootElement(el, doc = document) {
+        return el === doc.documentElement || el === doc.body;
     }
 
     function isNyandOverlayElement(el) {
@@ -129,17 +129,17 @@
             y >= rect.top && y <= rect.bottom;
     }
 
-    function meaningfulElementFromPoint(x, y, options = {}) {
+    function meaningfulElementFromPointInDocument(doc, x, y, options = {}) {
         const allowRoot = options.allowRoot === true;
-        const stack = typeof document.elementsFromPoint === 'function'
-            ? document.elementsFromPoint(x, y)
-            : [document.elementFromPoint(x, y)].filter(Boolean);
+        const stack = typeof doc.elementsFromPoint === 'function'
+            ? doc.elementsFromPoint(x, y)
+            : [doc.elementFromPoint(x, y)].filter(Boolean);
 
-        const firstUsable = stack.find(el => el && !isNyandOverlayElement(el) && !isDocumentRootElement(el));
+        const firstUsable = stack.find(el => el && !isNyandOverlayElement(el) && !isDocumentRootElement(el, doc));
         if (firstUsable) return firstUsable;
 
-        const active = document.activeElement;
-        if (active && !isDocumentRootElement(active) && !isNyandOverlayElement(active)) {
+        const active = doc.activeElement;
+        if (active && !isDocumentRootElement(active, doc) && !isNyandOverlayElement(active)) {
             const rect = active.getBoundingClientRect();
             if (rectContainsPoint(rect, x, y)) return active;
         }
@@ -147,6 +147,10 @@
         return allowRoot
             ? stack.find(el => el && !isNyandOverlayElement(el)) || null
             : null;
+    }
+
+    function meaningfulElementFromPoint(x, y, options = {}) {
+        return meaningfulElementFromPointInDocument(document, x, y, options);
     }
 
     function isTopFrame() {
@@ -183,16 +187,19 @@
     }
 
     function isFrameElement(el) {
+        const tag = el?.tagName?.toLowerCase();
+        if (tag === 'iframe' || tag === 'frame') return true;
         return el instanceof HTMLIFrameElement ||
             (typeof HTMLFrameElement === 'function' && el instanceof HTMLFrameElement);
     }
 
-    function visibleFrameElement(el) {
+    function visibleFrameElement(el, doc = document) {
         if (!isFrameElement(el)) return false;
         const rect = el.getBoundingClientRect();
+        const view = doc.defaultView || window;
         return rect.width > 0 && rect.height > 0 &&
-            rect.bottom >= 0 && rect.top <= window.innerHeight &&
-            rect.right >= 0 && rect.left <= window.innerWidth;
+            rect.bottom >= 0 && rect.top <= view.innerHeight &&
+            rect.right >= 0 && rect.left <= view.innerWidth;
     }
 
     function framePathForElement(el) {
@@ -423,6 +430,86 @@
             width: Number(rect.width),
             height: Number(rect.height),
         };
+    }
+
+    function accessibleFrameDocument(frameEl) {
+        try {
+            const doc = frameEl?.contentWindow?.document;
+            return doc?.documentElement ? doc : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function frameElementsInDocument(doc) {
+        try {
+            return [...doc.querySelectorAll(FRAME_SELECTOR)];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function framePathForElementInDocument(el, basePath, doc) {
+        const normalizedBase = normalizeFramePath(basePath);
+        if (!normalizedBase || !isFrameElement(el)) return null;
+        const index = frameElementsInDocument(doc).indexOf(el);
+        return index >= 0 ? [...normalizedBase, index] : null;
+    }
+
+    function localPointInFrame(frameEl, x, y) {
+        const rect = frameEl.getBoundingClientRect();
+        return {
+            rect,
+            x: clamp(x - rect.left, 0, Math.max(0, rect.width - 1)),
+            y: clamp(y - rect.top, 0, Math.max(0, rect.height - 1)),
+        };
+    }
+
+    function describePointerTargetInDocument(doc, x, y, basePath) {
+        const target = meaningfulElementFromPointInDocument(doc, x, y);
+        if (!target) {
+            return { ok: true, targetRect: null, targetFramePath: basePath || [] };
+        }
+
+        if (visibleFrameElement(target, doc)) {
+            const childPath = framePathForElementInDocument(target, basePath, doc);
+            const directResult = describeDirectFrameTarget(target, x, y, childPath);
+            if (directResult?.targetRect) return directResult;
+
+            return {
+                ok: true,
+                targetRect: plainRect(target.getBoundingClientRect()),
+                targetFramePath: childPath || basePath || [],
+                handledBy: 'directFrame',
+            };
+        }
+
+        const rect = target.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) {
+            return { ok: true, targetRect: null, targetFramePath: basePath || [] };
+        }
+        return {
+            ok: true,
+            targetRect: plainRect(rect),
+            targetFramePath: basePath || [],
+            handledBy: 'directFrame',
+        };
+    }
+
+    function describeDirectFrameTarget(frameEl, x, y, framePathForTarget) {
+        const doc = accessibleFrameDocument(frameEl);
+        if (!doc) return null;
+
+        const point = localPointInFrame(frameEl, x, y);
+        const result = describePointerTargetInDocument(doc, point.x, point.y, framePathForTarget);
+        if (result?.targetRect) {
+            return {
+                ...result,
+                targetRect: translateRect(result.targetRect, point.rect.left, point.rect.top),
+                handledBy: result.handledBy || 'directFrame',
+            };
+        }
+        return result ? { ...result, handledBy: result.handledBy || 'directFrame' } : null;
     }
 
     function isScrollable(el, axis, allowVisible = false) {
@@ -677,6 +764,10 @@
         if (visibleFrameElement(target)) {
             const childPath = framePathForElement(target);
             const rect = target.getBoundingClientRect();
+            const directResult = describeDirectFrameTarget(target, x, y, childPath);
+            if (directResult?.targetRect) {
+                return directResult;
+            }
             if (childPath) {
                 const result = await routeFrameAction(childPath, 'pointerTargetAt', {
                     x: clamp(x - rect.left, 0, Math.max(0, rect.width - 1)),
@@ -730,6 +821,11 @@
         virtualPointer.targetQueryPathKey = pathKey;
         virtualPointer.targetQueryAt = now;
         const seq = ++virtualPointer.targetQuerySeq;
+        const directResult = describeDirectFrameTarget(frameEl, x, y, childPath);
+        if (directResult?.targetRect) {
+            applyPointerTargetRect(directResult.targetRect, active, `frame-direct:${pathKey}`);
+            return;
+        }
 
         const result = await routeFrameAction(childPath, 'pointerTargetAt', {
             x: clamp(x - rect.left, 0, Math.max(0, rect.width - 1)),
@@ -762,7 +858,9 @@
         if (visibleFrameElement(target)) {
             const childPath = framePathForElement(target);
             const pathKey = JSON.stringify(childPath || []);
-            const hasCurrentChildTarget = virtualPointer.targetSource === `frame:${pathKey}`;
+            const hasCurrentChildTarget =
+                virtualPointer.targetSource === `frame:${pathKey}` ||
+                virtualPointer.targetSource === `frame-direct:${pathKey}`;
             if (!hasCurrentChildTarget) {
                 applyPointerTargetRect(fallbackRect, active, `frame-fallback:${pathKey}`);
             }
@@ -870,19 +968,75 @@
         updateVirtualPointer({ active: true, moving: true });
     }
 
-    function createMouseEventAt(type, x, y) {
-        return new MouseEvent(type, {
+    function createMouseEventAtForView(view, type, x, y) {
+        const EventCtor = view?.MouseEvent || MouseEvent;
+        return new EventCtor(type, {
             bubbles: true,
             cancelable: true,
             composed: true,
-            view: window,
+            view: view || window,
             clientX: x,
             clientY: y,
-            screenX: window.screenX + x,
-            screenY: window.screenY + y,
+            screenX: (view?.screenX ?? window.screenX) + x,
+            screenY: (view?.screenY ?? window.screenY) + y,
             button: 0,
             buttons: type === 'mouseup' || type === 'click' ? 0 : 1,
         });
+    }
+
+    function createMouseEventAt(type, x, y) {
+        return createMouseEventAtForView(window, type, x, y);
+    }
+
+    async function clickTargetInDocument(doc, x, y, basePath) {
+        const target = meaningfulElementFromPointInDocument(doc, x, y, { allowRoot: true });
+        if (!target) return { ok: true, overlay: false, handledBy: 'directFrame' };
+
+        if (visibleFrameElement(target, doc)) {
+            const childPath = framePathForElementInDocument(target, basePath, doc);
+            if (childPath) {
+                const directResult = await clickDirectFrameTarget(target, x, y, childPath);
+                if (directResult?.ok) return directResult;
+
+                try {
+                    if (typeof target.focus === 'function') {
+                        target.focus({ preventScroll: true });
+                    }
+                } catch (_) {}
+
+                rememberFocusedFramePath(childPath);
+
+                const point = localPointInFrame(target, x, y);
+                const result = await routeFrameAction(childPath, 'pointerClickAt', {
+                    x: point.x,
+                    y: point.y,
+                });
+                if (result?.ok === true) return result;
+            }
+        }
+
+        rememberFocusedFramePath(basePath || framePath || []);
+
+        try {
+            if (typeof target.focus === 'function') {
+                target.focus({ preventScroll: true });
+            }
+        } catch (_) {}
+
+        const view = doc.defaultView || window;
+        target.dispatchEvent(createMouseEventAtForView(view, 'mousemove', x, y));
+        target.dispatchEvent(createMouseEventAtForView(view, 'mousedown', x, y));
+        target.dispatchEvent(createMouseEventAtForView(view, 'mouseup', x, y));
+        target.dispatchEvent(createMouseEventAtForView(view, 'click', x, y));
+        return { ok: true, overlay: false, handledBy: 'directFrame' };
+    }
+
+    async function clickDirectFrameTarget(frameEl, x, y, framePathForTarget) {
+        const doc = accessibleFrameDocument(frameEl);
+        if (!doc) return null;
+
+        const point = localPointInFrame(frameEl, x, y);
+        return await clickTargetInDocument(doc, point.x, point.y, framePathForTarget);
     }
 
     async function routePointerClickToFrame(frameEl, x, y) {
@@ -896,6 +1050,9 @@
         } catch (_) {}
 
         rememberFocusedFramePath(childPath);
+
+        const directResult = await clickDirectFrameTarget(frameEl, x, y, childPath);
+        if (directResult?.ok === true) return true;
 
         const rect = frameEl.getBoundingClientRect();
         const result = await routeFrameAction(childPath, 'pointerClickAt', {
