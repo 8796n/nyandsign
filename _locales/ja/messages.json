@@ -30,6 +30,15 @@
   "btnCopyLog": {
     "message": "📋 コピー"
   },
+  "btnCopyDebugScreenshot": {
+    "message": "📋 スクショコピー"
+  },
+  "btnCopyDebugScreenshotBusy": {
+    "message": "コピー中..."
+  },
+  "titleCopyDebugScreenshot": {
+    "message": "ハンドトラッキングからデバッグ表示までを画像としてコピーします"
+  },
   "btnClearLog": {
     "message": "クリア"
   },
@@ -170,6 +179,12 @@
   },
   "settingInferenceResolutionTitle": {
     "message": "カメラに要求し、ハンドサイン推論へ渡す映像の最大幅。低いほど負荷が減る可能性があります"
+  },
+  "settingOkDebugLabel": {
+    "message": "判定デバッグ"
+  },
+  "settingOkDebugTitle": {
+    "message": "ハンドサイン判定の内訳を画面とログに表示します"
   },
   "inferenceResolutionSource": {
     "message": "原寸"
@@ -607,6 +622,15 @@
   },
   "logCopyFailed": {
     "message": "⚠️ コピー失敗: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logDebugScreenshotCopySuccess": {
+    "message": "📋 デバッグスクリーンショットをクリップボードにコピーしました"
+  },
+  "logDebugScreenshotCopyFailed": {
+    "message": "⚠️ デバッグスクリーンショットのコピー失敗: $1",
     "placeholders": {
       "1": { "content": "$1" }
     }

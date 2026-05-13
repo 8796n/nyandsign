@@ -245,6 +245,7 @@ const DEFAULT_SETTINGS = {
     holdScrollSpeed: 100,
     pointerMoveSpeed: 100,
     experimentalPointerModeEnabled: false,
+    okDebugEnabled: false,
 };
 
 const MOVE_SPEED_MIN = 50;

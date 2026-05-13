@@ -46,6 +46,8 @@ const GESTURABLE_TYPES = [
 ];
 
 const CAMERA_POLL_INTERVAL = 3000;
+const SIGN_DEBUG_LOG_INTERVAL_MS = 500;
+const DEBUG_SCREENSHOT_SCALE = 2;
 
 /* ============================================================
  * 状態
@@ -93,6 +95,9 @@ let pointerMoveSpeed = DEFAULT_SETTINGS.pointerMoveSpeed;
 let inferenceFps = DEFAULT_SETTINGS.inferenceFps;
 let idleInferenceFpsEnabled = DEFAULT_SETTINGS.idleInferenceFpsEnabled;
 let inferenceResolution = DEFAULT_SETTINGS.inferenceResolution;
+let okDebugEnabled = DEFAULT_SETTINGS.okDebugEnabled;
+let lastOkDebugLogAt = 0;
+let lastOkDebugSignature = '';
 
 // --- メタサイン（NyandSign 自体の操作）---
 let toggleGestureType = DEFAULT_SETTINGS.toggleGestureType;
@@ -139,6 +144,7 @@ const el = {
 
     cameraControls:  $('camera-controls'),
     cameraSection:   $('camera-section'),
+    cameraContainer: $('camera-container'),
     btnStartCam:     $('btn-start-camera'),
     btnStopCam:      $('btn-stop-camera'),
     chkMirror:       $('chk-mirror'),
@@ -150,6 +156,9 @@ const el = {
     gestureDisplay:  $('gesture-display'),
     gestureEmoji:    document.querySelector('#gesture-display .gesture-emoji'),
     gestureName:     document.querySelector('#gesture-display .gesture-name'),
+    okDebugPanel:    $('ok-debug-panel'),
+    okDebugActions:  $('ok-debug-actions'),
+    btnCopyDebugScreenshot: $('btn-copy-debug-screenshot'),
 
     mappingList:     $('mapping-list'),
     metaMappingList: $('meta-mapping-list'),
@@ -157,6 +166,7 @@ const el = {
     chkEnabled:      $('chk-enabled'),
     chkPointerMode:  $('chk-experimental-pointer-mode'),
     chkIdleInferenceFps: $('chk-idle-inference-fps'),
+    chkOkDebug:      $('chk-ok-debug'),
     btnReset:        $('btn-reset-mapping'),
 
     log:             $('log'),
@@ -171,6 +181,341 @@ function log(text) {
     el.log.textContent += `[${ts}] ${text}\n`;
     el.log.scrollTop = el.log.scrollHeight;
     console.log(`[GW] ${text}`);
+}
+
+/* ============================================================
+ * サイン判定デバッグ
+ * ============================================================ */
+function formatOkDebugNumber(value) {
+    return Number.isFinite(value) ? value.toFixed(2) : '-';
+}
+
+function formatOkDebugBool(value) {
+    return value ? '1' : '0';
+}
+
+function selectOkDebugHand(hands = [], activeIdx = null) {
+    const active = hands.find(h => h.idx === activeIdx && h.okDebug);
+    if (active) return active.okDebug;
+    const okLike = hands.find(h =>
+        h.okDebug && (h.gesture === 'ok' || h.okDebug.okPinch || h.okDebug.thumbIndexOkDist < 0.80));
+    if (okLike) return okLike.okDebug;
+    return hands.find(h => h.okDebug)?.okDebug || null;
+}
+
+function formatOkDebugDisplay(debug, stableGesture) {
+    if (!debug) return 'SIGN_DEBUG\nhand=none';
+    return [
+        `SIGN_DEBUG hand=${debug.hand || '-'} raw=${debug.rawGesture || '-'} stable=${stableGesture || '-'}`,
+        `dist=${formatOkDebugNumber(debug.thumbIndexOkDist)} tip=${formatOkDebugNumber(debug.thumbIndexTipDist)} pinch=${formatOkDebugBool(debug.okPinch)} relaxed=${formatOkDebugBool(debug.relaxedBentIndexOkPinch)} latch=${formatOkDebugBool(debug.okLatched)} strong=${formatOkDebugBool(debug.strongOkPinch)} strongIdx=${formatOkDebugBool(debug.strongIndexOkPinch)}`,
+        `indexExt=${formatOkDebugBool(debug.indexExtended)} indexOk=${formatOkDebugBool(debug.indexExtendedOkPinch)} indexCurl=${formatOkDebugBool(debug.indexCurled)} indexBent=${formatOkDebugBool(debug.indexBentForOk)} indexStr=${formatOkDebugNumber(debug.indexStraightness)} otherExt=${debug.otherExtendedCount ?? '-'}`,
+        `mid=${formatOkDebugBool(debug.middleExtended)} ring=${formatOkDebugBool(debug.ringExtended)} pinky=${formatOkDebugBool(debug.pinkyExtended)} thumbFold=${formatOkDebugBool(debug.thumbFolded)} thumbAway=${formatOkDebugBool(debug.thumbExtendedAway)} thumbPalm=${formatOkDebugNumber(debug.thumbPalmDist)} fourThumb=${formatOkDebugBool(debug.fourThumbTucked)} palm=${debug.palmFacing ? 'front' : 'back'}`,
+        `fail=${debug.failureReason || '-'}`,
+    ].join('\n');
+}
+
+function formatOkDebugLog(debug, stableGesture) {
+    return `[SIGN_DEBUG] raw=${debug.rawGesture || '-'} stable=${stableGesture || '-'} ` +
+        `dist=${formatOkDebugNumber(debug.thumbIndexOkDist)} tip=${formatOkDebugNumber(debug.thumbIndexTipDist)} ` +
+        `pinch=${formatOkDebugBool(debug.okPinch)} relaxed=${formatOkDebugBool(debug.relaxedBentIndexOkPinch)} latch=${formatOkDebugBool(debug.okLatched)} strong=${formatOkDebugBool(debug.strongOkPinch)} strongIdx=${formatOkDebugBool(debug.strongIndexOkPinch)} ` +
+        `indexExt=${formatOkDebugBool(debug.indexExtended)} indexOk=${formatOkDebugBool(debug.indexExtendedOkPinch)} indexBent=${formatOkDebugBool(debug.indexBentForOk)} indexStr=${formatOkDebugNumber(debug.indexStraightness)} otherExt=${debug.otherExtendedCount ?? '-'} ` +
+        `thumbFold=${formatOkDebugBool(debug.thumbFolded)} thumbAway=${formatOkDebugBool(debug.thumbExtendedAway)} thumbPalm=${formatOkDebugNumber(debug.thumbPalmDist)} fourThumb=${formatOkDebugBool(debug.fourThumbTucked)} palm=${debug.palmFacing ? 'front' : 'back'} fail=${debug.failureReason || '-'}`;
+}
+
+function updateOkDebugPanelVisibility() {
+    if (!el.okDebugPanel) return;
+    if (okDebugEnabled) {
+        show(el.okDebugPanel);
+        if (el.okDebugActions) show(el.okDebugActions);
+        if (!el.okDebugPanel.textContent) el.okDebugPanel.textContent = 'SIGN_DEBUG\nhand=none';
+    } else {
+        hide(el.okDebugPanel);
+        if (el.okDebugActions) hide(el.okDebugActions);
+        el.okDebugPanel.textContent = '';
+    }
+}
+
+function setOkDebugEnabled(enabled, options = {}) {
+    okDebugEnabled = enabled === true;
+    if (el.chkOkDebug) el.chkOkDebug.checked = okDebugEnabled;
+    if (!okDebugEnabled) {
+        lastOkDebugLogAt = 0;
+        lastOkDebugSignature = '';
+    }
+    updateOkDebugPanelVisibility();
+    if (options.save !== false) {
+        chrome.storage.sync.set({ okDebugEnabled }).catch(() => {});
+    }
+}
+
+function updateOkDebug(detail, now = Date.now()) {
+    if (!okDebugEnabled || !el.okDebugPanel) return;
+
+    const debug = selectOkDebugHand(detail.gestures || [], detail.activeIdx);
+    const stableGesture = detail.stableGesture || '-';
+    el.okDebugPanel.textContent = formatOkDebugDisplay(debug, stableGesture);
+
+    if (!debug) return;
+    const isOkLike = debug.rawGesture === 'ok' || debug.okPinch || debug.thumbIndexOkDist < 0.80;
+    if (!isOkLike) return;
+
+    const distBucket = Number.isFinite(debug.thumbIndexOkDist)
+        ? Math.round(debug.thumbIndexOkDist * 20) / 20
+        : '-';
+    const signature = [
+        debug.failureReason,
+        debug.rawGesture,
+        stableGesture,
+        distBucket,
+        debug.indexExtended,
+        debug.otherExtendedCount,
+        debug.palmFacing,
+    ].join('|');
+
+    if (signature !== lastOkDebugSignature || now - lastOkDebugLogAt >= SIGN_DEBUG_LOG_INTERVAL_MS) {
+        lastOkDebugSignature = signature;
+        lastOkDebugLogAt = now;
+        log(formatOkDebugLog(debug, stableGesture));
+    }
+}
+
+/* ============================================================
+ * デバッグスクリーンショット
+ * ============================================================ */
+function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function roundedPath(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(x, y, width, height, radius);
+        return;
+    }
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+    ctx.lineTo(x + r, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+}
+
+function fillRoundedRect(ctx, x, y, width, height, radius, fillStyle, strokeStyle = null) {
+    roundedPath(ctx, x, y, width, height, radius);
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+    if (strokeStyle) {
+        ctx.strokeStyle = strokeStyle;
+        ctx.stroke();
+    }
+}
+
+function wrapTextLine(ctx, line, maxWidth) {
+    if (!line) return [''];
+    if (ctx.measureText(line).width <= maxWidth) return [line];
+
+    const chunks = line.split(/(\s+)/).filter(part => part.length > 0);
+    const lines = [];
+    let current = '';
+
+    const pushLongChunk = (chunk) => {
+        let piece = '';
+        for (const ch of chunk) {
+            const next = piece + ch;
+            if (piece && ctx.measureText(next).width > maxWidth) {
+                lines.push(piece);
+                piece = ch;
+            } else {
+                piece = next;
+            }
+        }
+        return piece;
+    };
+
+    for (const chunk of chunks) {
+        const next = current + chunk;
+        if (!current || ctx.measureText(next).width <= maxWidth) {
+            current = next;
+            continue;
+        }
+        lines.push(current.trimEnd());
+        current = ctx.measureText(chunk).width > maxWidth ? pushLongChunk(chunk) : chunk.trimStart();
+    }
+    if (current) lines.push(current.trimEnd());
+    return lines;
+}
+
+function wrapText(ctx, text, maxWidth) {
+    return String(text || '')
+        .split('\n')
+        .flatMap(line => wrapTextLine(ctx, line, maxWidth));
+}
+
+function drawTextLines(ctx, lines, x, y, lineHeight, fillStyle) {
+    ctx.fillStyle = fillStyle;
+    ctx.textBaseline = 'top';
+    for (const line of lines) {
+        ctx.fillText(line, x, y);
+        y += lineHeight;
+    }
+    return y;
+}
+
+function drawImageContain(ctx, source, x, y, width, height, mirrored = false) {
+    const sourceWidth = source.videoWidth || source.width;
+    const sourceHeight = source.videoHeight || source.height;
+    if (!sourceWidth || !sourceHeight) return;
+
+    const scale = Math.min(width / sourceWidth, height / sourceHeight);
+    const drawWidth = sourceWidth * scale;
+    const drawHeight = sourceHeight * scale;
+    const drawX = x + (width - drawWidth) / 2;
+    const drawY = y + (height - drawHeight) / 2;
+
+    ctx.save();
+    if (mirrored) {
+        ctx.translate(drawX + drawWidth, drawY);
+        ctx.scale(-1, 1);
+        ctx.drawImage(source, 0, 0, drawWidth, drawHeight);
+    } else {
+        ctx.drawImage(source, drawX, drawY, drawWidth, drawHeight);
+    }
+    ctx.restore();
+}
+
+function canvasToPngBlob(canvas) {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('PNG blob could not be created'));
+        }, 'image/png');
+    });
+}
+
+async function copyDebugScreenshotToClipboard() {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+        throw new Error('image clipboard is not supported');
+    }
+
+    const bodyStyle = getComputedStyle(document.body);
+    const width = Math.max(
+        320,
+        Math.ceil(el.cameraSection?.getBoundingClientRect().width || 0),
+        Math.ceil(el.gestureSection?.getBoundingClientRect().width || 0),
+        Math.ceil(document.body.clientWidth || 0)
+    );
+    const scale = Math.max(1, Math.min(DEBUG_SCREENSHOT_SCALE, window.devicePixelRatio || 1));
+    const sectionPadX = 12;
+    const sectionPadY = 10;
+    const titleHeight = 14;
+    const gap = 6;
+    const borderColor = cssVar('--color-border') || '#d0d0d8';
+    const bgColor = cssVar('--color-bg') || '#f5f5f8';
+    const textColor = cssVar('--color-text') || '#1a1a2e';
+    const mutedColor = cssVar('--color-text-dim') || '#777';
+    const logBg = cssVar('--color-log-bg') || '#f0f0f0';
+    const logText = cssVar('--color-log-text') || '#555';
+
+    const cameraWidth = width - sectionPadX * 2;
+    const cameraRect = el.cameraContainer?.getBoundingClientRect();
+    const cameraHeight = cameraRect?.width
+        ? cameraWidth * (cameraRect.height / cameraRect.width)
+        : cameraWidth * 9 / 16;
+
+    const gestureWidth = width - sectionPadX * 2;
+    const gestureHeight = 72;
+    const wakeText = el.wakeHint && !el.wakeHint.classList.contains('is-hidden')
+        ? el.wakeHint.textContent.trim()
+        : '';
+    const debugText = el.okDebugPanel?.textContent || 'SIGN_DEBUG\nhand=none';
+
+    const measureCanvas = document.createElement('canvas');
+    const measureCtx = measureCanvas.getContext('2d');
+    measureCtx.font = `10px ${bodyStyle.fontFamily}`;
+    const wakeLines = wakeText ? wrapText(measureCtx, wakeText, gestureWidth - 20) : [];
+    const wakeHeight = wakeLines.length ? wakeLines.length * 16 + 20 : 0;
+    measureCtx.font = `10px 'Cascadia Code', 'Fira Code', monospace`;
+    const debugLines = wrapText(measureCtx, debugText, gestureWidth - 12);
+    const debugHeight = debugLines.length * 14.5 + 12;
+
+    const cameraSectionHeight = sectionPadY + titleHeight + gap + cameraHeight + sectionPadY;
+    const gestureSectionHeight =
+        sectionPadY + titleHeight + gap + gestureHeight +
+        (wakeHeight ? gap + wakeHeight : 0) +
+        gap + debugHeight + sectionPadY;
+    const height = Math.ceil(cameraSectionHeight + gestureSectionHeight);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(width * scale);
+    canvas.height = Math.ceil(height * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, width, height);
+
+    let y = sectionPadY;
+    ctx.font = `11px ${bodyStyle.fontFamily}`;
+    ctx.fillStyle = mutedColor;
+    ctx.textBaseline = 'top';
+    ctx.fillText(document.querySelector('#camera-section .section-title')?.textContent || msg('sectionHandTracking'), sectionPadX, y);
+    y += titleHeight + gap;
+
+    fillRoundedRect(ctx, sectionPadX, y, cameraWidth, cameraHeight, 4, cssVar('--color-camera-bg') || '#000');
+    ctx.save();
+    roundedPath(ctx, sectionPadX, y, cameraWidth, cameraHeight, 4);
+    ctx.clip();
+    const mirrored = el.handCanvas?.style.transform.includes('scaleX');
+    try {
+        if (el.cameraVideo?.style.opacity !== '0') {
+            drawImageContain(ctx, el.cameraVideo, sectionPadX, y, cameraWidth, cameraHeight, mirrored);
+        }
+        if (el.handCanvas) {
+            drawImageContain(ctx, el.handCanvas, sectionPadX, y, cameraWidth, cameraHeight, mirrored);
+        }
+    } catch (_) {}
+    ctx.restore();
+    y += cameraHeight + sectionPadY;
+    ctx.fillStyle = borderColor;
+    ctx.fillRect(0, y, width, 1);
+
+    y += sectionPadY;
+    ctx.font = `11px ${bodyStyle.fontFamily}`;
+    ctx.fillStyle = mutedColor;
+    ctx.fillText(document.querySelector('#gesture-section .section-title')?.textContent || msg('sectionCurrentSign'), sectionPadX, y);
+    y += titleHeight + gap;
+
+    const gestureStyle = getComputedStyle(el.gestureDisplay);
+    fillRoundedRect(ctx, sectionPadX, y, gestureWidth, gestureHeight, 8, gestureStyle.backgroundColor || cssVar('--color-neutral-bg') || '#333');
+    ctx.textAlign = 'center';
+    ctx.font = `32px ${bodyStyle.fontFamily}`;
+    ctx.fillStyle = textColor;
+    ctx.fillText(el.gestureEmoji?.textContent || '', sectionPadX + gestureWidth / 2, y + 10);
+    ctx.font = `11px ${bodyStyle.fontFamily}`;
+    ctx.fillStyle = cssVar('--color-text-muted') || '#555';
+    ctx.fillText(el.gestureName?.textContent || '', sectionPadX + gestureWidth / 2, y + 50);
+    ctx.textAlign = 'start';
+    y += gestureHeight;
+
+    if (wakeHeight) {
+        y += gap;
+        fillRoundedRect(ctx, sectionPadX, y, gestureWidth, wakeHeight, 6, cssVar('--color-surface-2') || '#f0f0f4');
+        ctx.font = `10px ${bodyStyle.fontFamily}`;
+        drawTextLines(ctx, wakeLines, sectionPadX + 10, y + 10, 16, cssVar('--color-text-muted') || '#555');
+        y += wakeHeight;
+    }
+
+    y += gap;
+    fillRoundedRect(ctx, sectionPadX, y, gestureWidth, debugHeight, 4, logBg, borderColor);
+    ctx.font = `10px 'Cascadia Code', 'Fira Code', monospace`;
+    drawTextLines(ctx, debugLines, sectionPadX + 6, y + 6, 14.5, logText);
+
+    const blob = await canvasToPngBlob(canvas);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
 }
 
 /* ============================================================
@@ -1078,6 +1423,9 @@ function isWakeGesture(gesture) {
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
     if (GestureRuntimeUtils.isUncertainGesture(gesture)) {
+        if (gesture === null && okDebugEnabled && el.okDebugPanel) {
+            el.okDebugPanel.textContent = 'SIGN_DEBUG\nhand=none';
+        }
         if (gesture === 'unknown') {
             setGestureText(GESTURE_ICONS.unknown || '❓', gestureLabel('unknown'));
         } else {
@@ -1201,6 +1549,7 @@ tracker.addEventListener('frame', (e) => {
     const { gestures: hands } = e.detail;
     const now = Date.now();
     lastFrameHands = hands;
+    updateOkDebug(e.detail, now);
     const result = metaGestureController?.update(hands, now);
     if (result?.allowDirectional) {
         updateDirectionalScroll(hands, now);
@@ -1504,6 +1853,8 @@ async function loadMapping() {
         const selInferenceResolution = $('sel-inference-resolution');
         if (selInferenceResolution) selInferenceResolution.value = inferenceResolution;
 
+        setOkDebugEnabled(result.okDebugEnabled === true, { save: false });
+
         notifyVolume = result.notifyVolume !== undefined
             ? Math.max(0, Math.min(1, Number(result.notifyVolume)))
             : d.notifyVolume;
@@ -1620,6 +1971,10 @@ el.chkSkeleton.addEventListener('change', () => {
 
 el.chkPointerMode?.addEventListener('change', () => {
     setExperimentalPointerModeEnabled(el.chkPointerMode.checked);
+});
+
+el.chkOkDebug?.addEventListener('change', () => {
+    setOkDebugEnabled(el.chkOkDebug.checked);
 });
 
 el.chkMirror.addEventListener('change', () => {
@@ -1879,11 +2234,13 @@ $('btn-reset-settings').addEventListener('click', () => {
     uiScale = d.uiScale;
     holdScrollSpeed = d.holdScrollSpeed;
     pointerMoveSpeed = d.pointerMoveSpeed;
+    setOkDebugEnabled(d.okDebugEnabled, { save: false });
 
     // UIを復元
     $('chk-mirror').checked = d.mirrorCamera; applyMirror(d.mirrorCamera);
     $('chk-skeleton-only').checked = d.skeletonOnly; applySkeletonOnly(d.skeletonOnly);
     if (el.chkPointerMode) el.chkPointerMode.checked = d.experimentalPointerModeEnabled;
+    if (el.chkOkDebug) el.chkOkDebug.checked = d.okDebugEnabled;
     $('sel-wake-gesture').value = d.wakeGestureType;
     $('rng-wake-timeout').value = d.wakeActiveDuration / 1000;
     $('wake-timeout-value').textContent = fmtSeconds(d.wakeActiveDuration);
@@ -1930,6 +2287,21 @@ $('btn-copy-log').addEventListener('click', async () => {
         log(msg('logCopySuccess'));
     } catch (e) {
         log(msg('logCopyFailed', [e.message]));
+    }
+});
+
+el.btnCopyDebugScreenshot?.addEventListener('click', async () => {
+    const prevText = el.btnCopyDebugScreenshot.textContent;
+    el.btnCopyDebugScreenshot.disabled = true;
+    el.btnCopyDebugScreenshot.textContent = msg('btnCopyDebugScreenshotBusy');
+    try {
+        await copyDebugScreenshotToClipboard();
+        log(msg('logDebugScreenshotCopySuccess'));
+    } catch (e) {
+        log(msg('logDebugScreenshotCopyFailed', [e.message]));
+    } finally {
+        el.btnCopyDebugScreenshot.disabled = false;
+        el.btnCopyDebugScreenshot.textContent = prevText;
     }
 });
 

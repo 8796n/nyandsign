@@ -40,6 +40,18 @@
     "message": "📋 Copy",
     "description": "Button to copy log to clipboard"
   },
+  "btnCopyDebugScreenshot": {
+    "message": "📋 Copy screenshot",
+    "description": "Button to copy the debug screenshot to clipboard"
+  },
+  "btnCopyDebugScreenshotBusy": {
+    "message": "Copying...",
+    "description": "Button text while copying the debug screenshot"
+  },
+  "titleCopyDebugScreenshot": {
+    "message": "Copy the hand tracking and debug display as an image",
+    "description": "Tooltip for debug screenshot copy button"
+  },
   "btnClearLog": {
     "message": "Clear",
     "description": "Button to clear log"
@@ -226,6 +238,14 @@
   "settingInferenceResolutionTitle": {
     "message": "Maximum width requested from the camera and passed to hand sign inference. Lower values may reduce load",
     "description": "Tooltip for inference resolution setting"
+  },
+  "settingOkDebugLabel": {
+    "message": "Sign debug",
+    "description": "Setting label for hand sign recognition diagnostics"
+  },
+  "settingOkDebugTitle": {
+    "message": "Show hand sign recognition diagnostics in the panel and log",
+    "description": "Tooltip for hand sign recognition diagnostics"
   },
   "inferenceResolutionSource": {
     "message": "Original",
@@ -789,6 +809,17 @@
   "logCopyFailed": {
     "message": "⚠️ Copy failed: $1",
     "description": "Log when clipboard copy fails",
+    "placeholders": {
+      "1": { "content": "$1", "example": "NotAllowedError" }
+    }
+  },
+  "logDebugScreenshotCopySuccess": {
+    "message": "📋 Debug screenshot copied to clipboard",
+    "description": "Log when debug screenshot copy succeeds"
+  },
+  "logDebugScreenshotCopyFailed": {
+    "message": "⚠️ Debug screenshot copy failed: $1",
+    "description": "Log when debug screenshot copy fails",
     "placeholders": {
       "1": { "content": "$1", "example": "NotAllowedError" }
     }

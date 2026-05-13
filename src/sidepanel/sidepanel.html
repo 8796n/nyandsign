@@ -55,6 +55,10 @@
         <span class="gesture-name"></span>
     </div>
     <div class="info-box" id="wake-hint"></div>
+    <div class="ok-debug-panel is-hidden" id="ok-debug-panel"></div>
+    <div class="ok-debug-actions is-hidden" id="ok-debug-actions">
+        <button class="btn btn-secondary btn-sm" id="btn-copy-debug-screenshot" data-i18n="btnCopyDebugScreenshot" data-i18n-title="titleCopyDebugScreenshot">📋 Copy screenshot</button>
+    </div>
     <div class="target-tab-row" id="target-tab-row">
         <span class="target-tab-label" data-i18n="labelTargetTab">🎯 Target:</span>
         <span class="target-tab-name" id="target-tab-name" data-i18n="targetTabActive">Active tab</span>
@@ -205,6 +209,15 @@
                 </select>
             </div>
         </div>
+        <div class="setting-row" title="Show hand sign recognition diagnostics in the panel and log" data-i18n-title="settingOkDebugTitle">
+            <span data-i18n="settingOkDebugLabel">Sign debug</span>
+            <div class="setting-control">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="chk-ok-debug">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
         <div class="setting-row" title="Volume for wake activation and toggle sounds. 0 = silent" data-i18n-title="settingNotifyVolumeTitle">
             <span data-i18n="settingNotifyVolumeLabel">Notify volume</span>
             <div class="setting-control">
@@ -249,7 +262,7 @@
 
 <!-- フッター -->
 <div class="footer">
-    <span class="version">v1.0.108</span>
+    <span class="version">v1.0.109</span>
     <a href="https://megane.8796.jp" target="_blank" rel="noopener">&copy; 8796.jp</a>
 </div>
 

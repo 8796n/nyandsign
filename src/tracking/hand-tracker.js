@@ -27,6 +27,7 @@ class HandTracker extends EventTarget {
         this._inferenceCanvas = null;
         this._inferenceCtx = null;
         this._lastInferenceSize = { width: 0, height: 0 };
+        this._lastOkDebug = null;          // 直近の判定デバッグ情報
 
         // --- サイン安定化: 時間窓ベース多数決 + 切替ヒステリシス ---
         // サンプルはタイムスタンプ付きで保持し、時間窓内のみ集計
@@ -36,6 +37,8 @@ class HandTracker extends EventTarget {
         this._candidateGesture = null;
         this._candidateStartTime = 0;      // 候補の初出タイムスタンプ
         this._switchDwellMs = 100;         // 切替確定に必要な持続時間 (ms)
+        this._okLatchUntil = 0;            // OKサインが一瞬欠落しても維持する期限
+        this._okLatchMs = 500;             // OK維持ラッチの猶予時間
 
         // --- モーション検出用 ---
         this._trackedWrist = null;
@@ -252,7 +255,10 @@ class HandTracker extends EventTarget {
             const hand = rawHand;
 
             const gesture = this._detectGesture(lm, hand, wlm);
-            hands.push({ hand, gesture, landmarks: lm, idx: i });
+            const okDebug = this._lastOkDebug
+                ? { ...this._lastOkDebug, rawGesture: gesture, hand }
+                : null;
+            hands.push({ hand, gesture, landmarks: lm, idx: i, okDebug });
         }
 
         this._lastHandData = hands;
@@ -280,6 +286,12 @@ class HandTracker extends EventTarget {
             }
         }
 
+        const gestureBeforeOkLatch = activeGesture;
+        activeGesture = this._applyOkLatch(activeGesture, hands, activeIdx, now);
+        if (activeGesture === 'ok' && gestureBeforeOkLatch !== activeGesture && activeIdx >= 0 && hands[activeIdx]) {
+            hands[activeIdx].gesture = activeGesture;
+        }
+
         // 主手の手首座標を記録（手の追跡用）
         const wristIdx = activeIdx >= 0 ? activeIdx : 0;
         if (wristIdx < result.landmarks.length) {
@@ -291,7 +303,13 @@ class HandTracker extends EventTarget {
 
         // 詳細イベント
         this.dispatchEvent(new CustomEvent('frame', {
-            detail: { gestures: hands, handCount: result.landmarks.length }
+            detail: {
+                gestures: hands,
+                handCount: result.landmarks.length,
+                activeIdx,
+                activeGesture,
+                stableGesture: this._stableGesture,
+            }
         }));
     }
 
@@ -371,6 +389,7 @@ class HandTracker extends EventTarget {
             this._gestureSamples = [];
             this._candidateGesture = null;
             this._candidateStartTime = 0;
+            this._okLatchUntil = 0;
             if (this._stableGesture !== null) {
                 this._stableGesture = null;
                 this.dispatchEvent(new CustomEvent('gesture', {
@@ -429,6 +448,52 @@ class HandTracker extends EventTarget {
                 detail: { gesture: winner }
             }));
         }
+    }
+
+    /**
+     * OKサインは角度によって open/four/unknown に揺れやすいため、直近でOKだった場合だけ短時間維持する。
+     * 初回検出は通常のOK条件に任せ、ラッチは「保持中の欠落補正」に限定する。
+     */
+    _applyOkLatch(activeGesture, hands, activeIdx, now) {
+        const active = hands[activeIdx];
+        const debug = active?.okDebug;
+
+        if (activeGesture === 'ok') {
+            this._okLatchUntil = now + this._okLatchMs;
+            if (debug) debug.okLatched = false;
+            return activeGesture;
+        }
+
+        const wasOkRecently = this._stableGesture === 'ok' || now <= this._okLatchUntil;
+        if (!wasOkRecently || !debug) return activeGesture;
+
+        const isOpenGesture = activeGesture === 'open' || activeGesture === 'open-palm';
+        const extendableOkShape = isOpenGesture
+            ? debug.otherExtendedCount >= 2 &&
+                debug.thumbIndexOkDist < 0.72 &&
+                debug.thumbIndexTipDist < 0.90
+            : debug.otherExtendedCount >= 2 &&
+                debug.thumbIndexOkDist < 0.82 &&
+                debug.thumbIndexTipDist < 1.05;
+        const shortOcclusionOkShape =
+            debug.okPinch &&
+            debug.strongOkPinch &&
+            debug.thumbIndexTipDist < 0.70;
+
+        if (extendableOkShape) {
+            // open/open-palm は意図的なウェイクサインでもあるため、ラッチ期限を延長しない
+            if (!isOpenGesture) this._okLatchUntil = now + this._okLatchMs;
+            debug.okLatched = true;
+            return 'ok';
+        }
+
+        if (shortOcclusionOkShape && now <= this._okLatchUntil) {
+            debug.okLatched = true;
+            return 'ok';
+        }
+
+        debug.okLatched = false;
+        return activeGesture;
     }
 
     /**
@@ -583,11 +648,15 @@ class HandTracker extends EventTarget {
      * 距離ベース + ローカル軸投影で角度非依存
      * 手の甲向き時は閾値を緩和（ランドマーク精度低下に対応）
      */
-    _getFingerState(g, palmCenter, palmSize, u, _mcp, pip, tip, palmFacing) {
+    _getFingerState(g, palmCenter, palmSize, u, mcp, pip, tip, palmFacing) {
         const tipDist = this._dist(g[tip], palmCenter) / palmSize;
         const pipDist = this._dist(g[pip], palmCenter) / palmSize;
         const tipAlong = this._dot(this._sub(g[tip], palmCenter), u) / palmSize;
         const pipAlong = this._dot(this._sub(g[pip], palmCenter), u) / palmSize;
+        const directLength = this._dist(g[mcp], g[tip]);
+        const pathLength = this._dist(g[mcp], g[pip]) + this._dist(g[pip], g[tip]);
+        const straightness = pathLength > 1e-6 ? directLength / pathLength : 1;
+        const bentForOk = straightness < (palmFacing ? 0.94 : 0.92);
 
         // 手の甲向き: 自己遮蔽でランドマークがブレるため閾値を緩和
         const curledTipTh  = palmFacing ? 0.95 : 1.05;
@@ -598,7 +667,7 @@ class HandTracker extends EventTarget {
         const curled   = tipDist < curledTipTh && tipAlong < pipAlong + curledAlongM;
         const extended = tipDist > extTipTh    && tipAlong > pipAlong + extAlongM;
 
-        return { tipDist, curled, extended };
+        return { tipDist, curled, extended, straightness, bentForOk };
     }
 
     /**
@@ -680,6 +749,7 @@ class HandTracker extends EventTarget {
 
     _detectGesture(lm, handedness, worldLm = null) {
         const palm = this._getPalmGeometry(lm, worldLm, handedness);
+        this._lastOkDebug = null;
         if (!palm) return 'unknown';
 
         const { g, palmCenter, palmSize, palmSize2D, u, palmFacing } = palm;
@@ -695,15 +765,71 @@ class HandTracker extends EventTarget {
         const extendedCount = fingers.filter(f => f.extended).length;
         const avgTipDist = fingers.reduce((s, f) => s + f.tipDist, 0) / 4;
         const otherExtendedCount = [middle, ring, pinky].filter(f => f.extended).length;
-        const okPinch = thumb.thumbIndexOkDist < 0.65;
+        const normalOkPinch = thumb.thumbIndexOkDist < 0.65;
         const strongOkPinch = thumb.thumbIndexOkDist < 0.45;
+        const relaxedBentIndexOkPinch =
+            !index.extended &&
+            otherExtendedCount >= 2 &&
+            thumb.thumbIndexOkDist < 0.74 &&
+            thumb.thumbIndexTipDist < 0.95;
+        const okPinch = normalOkPinch || relaxedBentIndexOkPinch;
+        const indexExtendedOkPinch =
+            index.extended &&
+            index.bentForOk &&
+            otherExtendedCount >= 2 &&
+            thumb.thumbIndexOkDist < 0.66 &&
+            thumb.thumbIndexTipDist < 0.82;
+        const strongIndexOkPinch =
+            strongOkPinch &&
+            (!index.extended || (index.bentForOk && thumb.thumbIndexTipDist < 0.82));
+        const okIndexAllowed = !index.extended || strongIndexOkPinch || indexExtendedOkPinch;
+        const fourThumbPalmTh = palmFacing ? 0.86 : 0.90;
+        const fourThumbAwayFromIndexTh = palmFacing ? 0.70 : 0.65;
+        const fourThumbTucked =
+            thumb.folded &&
+            !thumb.extendedAway &&
+            thumb.thumbPalmDist < fourThumbPalmTh &&
+            thumb.thumbIndexOkDist > fourThumbAwayFromIndexTh;
+        const okFailureReason = !okPinch
+            ? 'pinch-too-far'
+            : otherExtendedCount < 2
+                ? 'other-fingers-not-extended'
+                : !okIndexAllowed
+                    ? 'index-extended'
+                    : 'matched';
+
+        this._lastOkDebug = {
+            palmFacing,
+            thumbIndexOkDist: thumb.thumbIndexOkDist,
+            thumbIndexTipDist: thumb.thumbIndexTipDist,
+            okPinch,
+            normalOkPinch,
+            relaxedBentIndexOkPinch,
+            strongOkPinch,
+            strongIndexOkPinch,
+            indexExtendedOkPinch,
+            indexExtended: index.extended,
+            indexCurled: index.curled,
+            indexStraightness: index.straightness,
+            indexBentForOk: index.bentForOk,
+            thumbFolded: thumb.folded,
+            thumbExtendedAway: thumb.extendedAway,
+            thumbPalmDist: thumb.thumbPalmDist,
+            fourThumbTucked,
+            middleExtended: middle.extended,
+            ringExtended: ring.extended,
+            pinkyExtended: pinky.extended,
+            otherExtendedCount,
+            failureReason: okFailureReason,
+        };
 
         // 1) ok: 親指と人差し指で輪を作る + 他3指のうち少なくとも2本が伸びている
         //    index.curled ではなく !index.extended を使用: OK の輪では人差し指が
         //    親指側にカーブするが、掌中心には近づかないため curled 判定にならない
         //    斜め向きでは親指先と人差し指先が離れて推定されやすいため、指先側の線分距離も使う
-        //    強い輪が見えている場合は、人差し指の extended ブレを許容する
-        if (okPinch && (!index.extended || strongOkPinch) && otherExtendedCount >= 2) {
+        //    強い輪が見えている場合は、人差し指の extended ブレを許容するが、指先が離れすぎた形は除外する
+        //    さらに index.extended でも、人差し指自体が曲がっている場合だけ OK とする
+        if (okPinch && okIndexAllowed && otherExtendedCount >= 2) {
             return 'ok';
         }
 
@@ -763,10 +889,10 @@ class HandTracker extends EventTarget {
             return 'peace';
         }
 
-        // 9) four: 4本指が伸び、親指は掌に折りたたまれている
-        //    open との分離は thumb.folded、three との分離は !pinky.curled
+        // 9) four: 4本指が伸び、親指は掌にしっかり折りたたまれている
+        //    指が揃ったパー寄りの手を避けるため、親指が人差し指側に寄りすぎていないことも見る
         if (index.extended && middle.extended && ring.extended && !pinky.curled &&
-            thumb.folded) {
+            fourThumbTucked) {
             return 'four';
         }
 
