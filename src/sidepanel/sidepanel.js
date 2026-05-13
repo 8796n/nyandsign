@@ -1221,9 +1221,6 @@ async function sendAction(action, data) {
             } else if (result.reason === 'reloadRequired') {
                 setGestureText('🔄', msg('gestureReloadRequired'), { pageActionStatus: true });
                 log(msg('logReloadRequired'));
-            } else if (result.reason === 'frameActionUnavailable') {
-                setGestureText('⚠', msg('gestureFrameActionUnavailable'), { pageActionStatus: true });
-                log(msg('logFrameActionUnavailable', [String(result.injectedFrameCount ?? 0)]));
             } else if (result.reason === 'noTargetTab') {
                 setGestureText('🎯', msg('gestureNoTargetTab'), { pageActionStatus: true });
                 log(msg('logNoTargetTab'));

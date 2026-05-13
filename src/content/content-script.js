@@ -8,7 +8,6 @@
 (() => {
     'use strict';
     if (globalThis.__nyandsignContentScriptLoaded) {
-        globalThis.__nyandsignRefreshFrameRegistration?.();
         return;
     }
     globalThis.__nyandsignContentScriptLoaded = true;
@@ -56,7 +55,7 @@
     const BROWSER_PAGE_ACTIONS = new Set([
         'directionalScroll', 'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'pageTop', 'pageBottom',
         'cursorUp', 'cursorDown', 'cursorLeft', 'cursorRight',
-        'pointerShow', 'pointerHide', 'pointerMoveStart', 'pointerMoveEnd', 'pointerMove', 'pointerClick', 'pointerClickAt', 'pointerTargetAt',
+        'pointerShow', 'pointerHide', 'pointerMoveStart', 'pointerMoveEnd', 'pointerMove', 'pointerClick',
     ]);
 
     const CURSOR_KEY_BY_ACTION = {
@@ -80,28 +79,18 @@
         cursorRight: 'right',
     };
 
-    const FRAME_MESSAGE_SOURCE = 'nyandsign-frame-route';
-    const FRAME_SELECTOR = 'iframe, frame';
     const SCROLL_ACTIONS = new Set([
         'directionalScroll', 'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'pageTop', 'pageBottom',
-    ]);
-    const POINTER_TOP_ACTIONS = new Set([
-        'pointerShow', 'pointerHide', 'pointerMoveStart', 'pointerMoveEnd', 'pointerMove', 'pointerClick',
     ]);
     const NYAND_OVERLAY_IDS = new Set([
         '__nyand_virtual_pointer',
         '__nyand_virtual_pointer_cross',
+        '__nyand_virtual_pointer_blocked',
         '__nyand_pointer_target',
         '__nyand_overlay',
     ]);
 
-    let framePath = null;
-    let lastFocusedDescendantPath = null;
-    let assignChildrenTimer = null;
-    let assignChildrenRetryTimer = null;
-    let assignChildrenLateTimer = null;
-    let framePathRequestTimer = null;
-    let framePathRequestAttempts = 0;
+    let lastFocusedFrameElement = null;
 
     function getFocusedEditable() {
         const el = document.activeElement;
@@ -111,8 +100,8 @@
         return null;
     }
 
-    function getScrollRoot() {
-        return document.scrollingElement || document.documentElement || document.body;
+    function getScrollRoot(doc = document) {
+        return doc.scrollingElement || doc.documentElement || doc.body;
     }
 
     function isDocumentRootElement(el, doc = document) {
@@ -153,39 +142,6 @@
         return meaningfulElementFromPointInDocument(document, x, y, options);
     }
 
-    function isTopFrame() {
-        return window.top === window;
-    }
-
-    function normalizeFramePath(path) {
-        if (!Array.isArray(path)) return null;
-        const result = [];
-        for (const value of path) {
-            const n = Number(value);
-            if (!Number.isInteger(n) || n < 0) return null;
-            result.push(n);
-        }
-        return result;
-    }
-
-    function sameFramePath(a, b) {
-        const left = normalizeFramePath(a);
-        const right = normalizeFramePath(b);
-        if (!left || !right || left.length !== right.length) return false;
-        return left.every((value, index) => value === right[index]);
-    }
-
-    function isDescendantFramePath(path, base = framePath) {
-        const target = normalizeFramePath(path);
-        const parent = normalizeFramePath(base);
-        if (!target || !parent || target.length <= parent.length) return false;
-        return parent.every((value, index) => target[index] === value);
-    }
-
-    function frameElements() {
-        return [...document.querySelectorAll(FRAME_SELECTOR)];
-    }
-
     function isFrameElement(el) {
         const tag = el?.tagName?.toLowerCase();
         if (tag === 'iframe' || tag === 'frame') return true;
@@ -202,215 +158,34 @@
             rect.right >= 0 && rect.left <= view.innerWidth;
     }
 
-    function framePathForElement(el) {
-        if (!framePath || !isFrameElement(el)) return null;
-        const index = frameElements().indexOf(el);
-        return index >= 0 ? [...framePath, index] : null;
+    function rememberFocusedFrameElement(frameEl) {
+        if (frameEl?.ownerDocument === document && visibleFrameElement(frameEl)) {
+            lastFocusedFrameElement = frameEl;
+        }
     }
 
-    function directFrameForPath(path) {
-        if (!framePath || !isDescendantFramePath(path)) return null;
-        const target = normalizeFramePath(path);
-        const nextIndex = target[framePath.length];
-        const el = frameElements()[nextIndex];
+    function activeDirectFrameElement() {
+        const el = document.activeElement;
         return visibleFrameElement(el) ? el : null;
     }
 
-    function postToFrameElement(el, message) {
-        try {
-            el.contentWindow?.postMessage(message, '*');
-            return true;
-        } catch (_) {
-            return false;
-        }
-    }
-
-    function registerFrame() {
-        if (!framePath) return;
-        chrome.runtime.sendMessage({
-            type: 'register-content-frame',
-            framePath,
-        }).catch(() => {});
-    }
-
-    function assignChildFramePaths() {
-        if (!framePath) return;
-        frameElements().forEach((el, index) => {
-            postToFrameElement(el, {
-                source: FRAME_MESSAGE_SOURCE,
-                type: 'assign-frame-path',
-                framePath: [...framePath, index],
-            });
-        });
-    }
-
-    function scheduleAssignChildFramePaths() {
-        if (assignChildrenTimer) clearTimeout(assignChildrenTimer);
-        if (assignChildrenRetryTimer) clearTimeout(assignChildrenRetryTimer);
-        if (assignChildrenLateTimer) clearTimeout(assignChildrenLateTimer);
-        assignChildrenTimer = setTimeout(() => {
-            assignChildrenTimer = null;
-            assignChildFramePaths();
-        }, 0);
-        assignChildrenRetryTimer = setTimeout(assignChildFramePaths, 250);
-        assignChildrenLateTimer = setTimeout(assignChildFramePaths, 1000);
-    }
-
-    function setFramePath(path) {
-        const normalizedPath = normalizeFramePath(path);
-        if (!normalizedPath) return;
-        if (framePathRequestTimer) {
-            clearInterval(framePathRequestTimer);
-            framePathRequestTimer = null;
-        }
-        if (sameFramePath(framePath, normalizedPath)) {
-            registerFrame();
-            scheduleAssignChildFramePaths();
-            return;
-        }
-        framePath = normalizedPath;
-        lastFocusedDescendantPath = null;
-        registerFrame();
-        scheduleAssignChildFramePaths();
-    }
-
-    function refreshFrameRegistration() {
-        if (framePath) {
-            registerFrame();
-            scheduleAssignChildFramePaths();
-        } else {
-            startFramePathRequests();
-        }
-    }
-
-    globalThis.__nyandsignRefreshFrameRegistration = refreshFrameRegistration;
-
-    function findFrameElementByWindow(sourceWindow) {
-        return frameElements().find((el) => {
-            try {
-                return el.contentWindow === sourceWindow;
-            } catch (_) {
-                return false;
-            }
-        }) || null;
-    }
-
-    function rememberFocusedFramePath(path) {
-        const normalizedPath = normalizeFramePath(path);
-        if (!normalizedPath || !framePath) return;
-
-        lastFocusedDescendantPath = isDescendantFramePath(normalizedPath)
-            ? normalizedPath
-            : null;
-
-        if (!isTopFrame()) {
-            try {
-                window.parent.postMessage({
-                    source: FRAME_MESSAGE_SOURCE,
-                    type: 'focused-frame',
-                    framePath: normalizedPath,
-                }, '*');
-            } catch (_) {}
-        }
-    }
-
-    function reportThisFrameFocused() {
-        if (framePath) rememberFocusedFramePath(framePath);
-    }
-
-    function handleFrameMessage(event) {
-        const data = event.data;
-        if (!data || data.source !== FRAME_MESSAGE_SOURCE) return;
-
-        if (data.type === 'assign-frame-path') {
-            if (event.source === window.parent) setFramePath(data.framePath);
-            return;
+    function focusedScrollableFrameElement() {
+        const active = activeDirectFrameElement();
+        if (active) {
+            rememberFocusedFrameElement(active);
+            return active;
         }
 
-        if (data.type === 'request-frame-path') {
-            const el = findFrameElementByWindow(event.source);
-            const childPath = framePathForElement(el);
-            if (el && childPath) {
-                postToFrameElement(el, {
-                    source: FRAME_MESSAGE_SOURCE,
-                    type: 'assign-frame-path',
-                    framePath: childPath,
-                });
-            }
-            return;
+        if (lastFocusedFrameElement?.isConnected && visibleFrameElement(lastFocusedFrameElement)) {
+            return lastFocusedFrameElement;
         }
-
-        if (data.type === 'focused-frame') {
-            const el = findFrameElementByWindow(event.source);
-            const childPath = framePathForElement(el);
-            const focusedPath = normalizeFramePath(data.framePath);
-            if (childPath && focusedPath && (
-                sameFramePath(focusedPath, childPath) ||
-                isDescendantFramePath(focusedPath, childPath)
-            )) {
-                rememberFocusedFramePath(focusedPath);
-            }
-        }
-    }
-
-    function requestFramePath() {
-        if (isTopFrame()) return;
-        try {
-            window.parent.postMessage({
-                source: FRAME_MESSAGE_SOURCE,
-                type: 'request-frame-path',
-            }, '*');
-        } catch (_) {}
-    }
-
-    function startFramePathRequests() {
-        requestFramePath();
-        if (framePathRequestTimer) clearInterval(framePathRequestTimer);
-        framePathRequestAttempts = 0;
-        framePathRequestTimer = setInterval(() => {
-            if (framePath || framePathRequestAttempts >= 20) {
-                clearInterval(framePathRequestTimer);
-                framePathRequestTimer = null;
-                return;
-            }
-            framePathRequestAttempts += 1;
-            requestFramePath();
-        }, 500);
-    }
-
-    function activeDirectFramePath() {
-        const el = document.activeElement;
-        return visibleFrameElement(el) ? framePathForElement(el) : null;
-    }
-
-    function resolveFocusedTargetFramePath() {
-        const activePath = activeDirectFramePath();
-        if (activePath) return activePath;
-
-        if (lastFocusedDescendantPath && directFrameForPath(lastFocusedDescendantPath)) {
-            return lastFocusedDescendantPath;
-        }
+        lastFocusedFrameElement = null;
         return null;
     }
 
-    async function routeFrameAction(targetFramePath, action, data = {}) {
-        const normalizedPath = normalizeFramePath(targetFramePath);
-        if (!normalizedPath) return { ok: false, reason: 'frameActionUnavailable' };
-
-        try {
-            return await chrome.runtime.sendMessage({
-                type: 'route-frame-action',
-                framePath: normalizedPath,
-                action,
-                data,
-            });
-        } catch (err) {
-            return {
-                ok: false,
-                reason: 'frameActionUnavailable',
-                message: err?.message || String(err),
-            };
-        }
+    function reportFocusedFrameElement() {
+        const active = activeDirectFrameElement();
+        if (active) rememberFocusedFrameElement(active);
     }
 
     function plainRect(rect) {
@@ -441,21 +216,6 @@
         }
     }
 
-    function frameElementsInDocument(doc) {
-        try {
-            return [...doc.querySelectorAll(FRAME_SELECTOR)];
-        } catch (_) {
-            return [];
-        }
-    }
-
-    function framePathForElementInDocument(el, basePath, doc) {
-        const normalizedBase = normalizeFramePath(basePath);
-        if (!normalizedBase || !isFrameElement(el)) return null;
-        const index = frameElementsInDocument(doc).indexOf(el);
-        return index >= 0 ? [...normalizedBase, index] : null;
-    }
-
     function localPointInFrame(frameEl, x, y) {
         const rect = frameEl.getBoundingClientRect();
         return {
@@ -465,43 +225,47 @@
         };
     }
 
-    function describePointerTargetInDocument(doc, x, y, basePath) {
+    function describePointerTargetInDocument(doc, x, y) {
         const target = meaningfulElementFromPointInDocument(doc, x, y);
         if (!target) {
-            return { ok: true, targetRect: null, targetFramePath: basePath || [] };
+            return { ok: true, targetRect: null };
         }
 
         if (visibleFrameElement(target, doc)) {
-            const childPath = framePathForElementInDocument(target, basePath, doc);
-            const directResult = describeDirectFrameTarget(target, x, y, childPath);
+            const directResult = describeDirectFrameTarget(target, x, y);
             if (directResult?.targetRect) return directResult;
 
             return {
                 ok: true,
                 targetRect: plainRect(target.getBoundingClientRect()),
-                targetFramePath: childPath || basePath || [],
                 handledBy: 'directFrame',
             };
         }
 
         const rect = target.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) {
-            return { ok: true, targetRect: null, targetFramePath: basePath || [] };
+            return { ok: true, targetRect: null };
         }
         return {
             ok: true,
             targetRect: plainRect(rect),
-            targetFramePath: basePath || [],
             handledBy: 'directFrame',
         };
     }
 
-    function describeDirectFrameTarget(frameEl, x, y, framePathForTarget) {
-        const doc = accessibleFrameDocument(frameEl);
-        if (!doc) return null;
-
+    function describeDirectFrameTarget(frameEl, x, y) {
         const point = localPointInFrame(frameEl, x, y);
-        const result = describePointerTargetInDocument(doc, point.x, point.y, framePathForTarget);
+        const doc = accessibleFrameDocument(frameEl);
+        if (!doc) {
+            return {
+                ok: true,
+                targetRect: plainRect(point.rect),
+                inaccessibleFrame: true,
+                handledBy: 'inaccessibleFrame',
+            };
+        }
+
+        const result = describePointerTargetInDocument(doc, point.x, point.y);
         if (result?.targetRect) {
             return {
                 ...result,
@@ -518,30 +282,33 @@
         const clientSize = axis === 'x' ? el.clientWidth : el.clientHeight;
         if (scrollSize <= clientSize + 8) return false;
 
-        const style = getComputedStyle(el);
+        const style = (el.ownerDocument?.defaultView || window).getComputedStyle(el);
         const overflow = axis === 'x' ? style.overflowX : style.overflowY;
         return ['auto', 'scroll', 'overlay'].includes(overflow) || (allowVisible && overflow === 'visible');
     }
 
-    function findScrollableElement(axis) {
-        const root = getScrollRoot();
+    function findScrollableElement(axis, doc = document) {
+        const root = getScrollRoot(doc);
         if (isScrollable(root, axis, true)) return root;
 
-        const centerX = window.innerWidth / 2;
-        const centerY = window.innerHeight / 2;
-        const underPointer = document.elementsFromPoint(centerX, centerY);
+        const view = doc.defaultView || window;
+        const centerX = view.innerWidth / 2;
+        const centerY = view.innerHeight / 2;
+        const underPointer = typeof doc.elementsFromPoint === 'function'
+            ? doc.elementsFromPoint(centerX, centerY)
+            : [];
         for (const el of underPointer) {
             if (isScrollable(el, axis)) return el;
         }
 
         let best = null;
         let bestArea = 0;
-        for (const el of document.querySelectorAll('*')) {
+        for (const el of doc.querySelectorAll('*')) {
             if (!isScrollable(el, axis)) continue;
             const rect = el.getBoundingClientRect();
             if (rect.width <= 0 || rect.height <= 0) continue;
-            if (rect.bottom < 0 || rect.top > window.innerHeight) continue;
-            if (rect.right < 0 || rect.left > window.innerWidth) continue;
+            if (rect.bottom < 0 || rect.top > view.innerHeight) continue;
+            if (rect.right < 0 || rect.left > view.innerWidth) continue;
             const area = rect.width * rect.height;
             if (area > bestArea) {
                 best = el;
@@ -551,35 +318,36 @@
         return best || root;
     }
 
-    function scrollPageBy(left, top, smooth = true) {
+    function scrollPageBy(left, top, smooth = true, doc = document) {
         const behavior = smooth ? 'smooth' : 'auto';
-        if (top) findScrollableElement('y').scrollBy({ top, behavior });
-        if (left) findScrollableElement('x').scrollBy({ left, behavior });
+        if (top) findScrollableElement('y', doc).scrollBy({ top, behavior });
+        if (left) findScrollableElement('x', doc).scrollBy({ left, behavior });
     }
 
-    function executeLocalScrollAction(action, data = {}) {
+    function executeLocalScrollAction(action, data = {}, doc = document) {
+        const view = doc.defaultView || window;
         switch (action) {
             case 'directionalScroll':
-                scrollPageBy(Number(data.left) || 0, Number(data.top) || 0, false);
+                scrollPageBy(Number(data.left) || 0, Number(data.top) || 0, false, doc);
                 return true;
             case 'scrollDown':
-                scrollPageBy(0, Math.round(window.innerHeight * 0.55));
+                scrollPageBy(0, Math.round(view.innerHeight * 0.55), true, doc);
                 return true;
             case 'scrollUp':
-                scrollPageBy(0, -Math.round(window.innerHeight * 0.55));
+                scrollPageBy(0, -Math.round(view.innerHeight * 0.55), true, doc);
                 return true;
             case 'scrollRight':
-                scrollPageBy(Math.round(window.innerWidth * 0.55), 0);
+                scrollPageBy(Math.round(view.innerWidth * 0.55), 0, true, doc);
                 return true;
             case 'scrollLeft':
-                scrollPageBy(-Math.round(window.innerWidth * 0.55), 0);
+                scrollPageBy(-Math.round(view.innerWidth * 0.55), 0, true, doc);
                 return true;
             case 'pageTop':
-                findScrollableElement('y').scrollTo({ top: 0, behavior: 'smooth' });
+                findScrollableElement('y', doc).scrollTo({ top: 0, behavior: 'smooth' });
                 return true;
             case 'pageBottom':
                 {
-                    const scroller = findScrollableElement('y');
+                    const scroller = findScrollableElement('y', doc);
                     scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
                 }
                 return true;
@@ -588,11 +356,12 @@
         }
     }
 
-    async function executeTargetedScrollAction(action, data = {}) {
-        const targetFramePath = resolveFocusedTargetFramePath();
-        if (targetFramePath && !sameFramePath(targetFramePath, framePath)) {
-            const result = await routeFrameAction(targetFramePath, action, data);
-            if (result?.ok) return { ok: true, overlay: false };
+    function executeTargetedScrollAction(action, data = {}) {
+        const frameEl = focusedScrollableFrameElement();
+        const frameDoc = frameEl ? accessibleFrameDocument(frameEl) : null;
+        if (frameDoc) {
+            executeLocalScrollAction(action, data, frameDoc);
+            return { ok: true, overlay: false };
         }
 
         executeLocalScrollAction(action, data);
@@ -623,14 +392,12 @@
         y: null,
         cursorEl: null,
         crossEl: null,
+        blockedEl: null,
         targetEl: null,
         dimTimer: null,
         staleTimer: null,
         moving: false,
-        targetQuerySeq: 0,
-        targetQueryAt: 0,
-        targetQueryPathKey: '',
-        targetQueryTimer: null,
+        blocked: false,
         targetSource: '',
     };
 
@@ -688,9 +455,27 @@
                 transition: 'opacity 0.12s ease',
             });
             el.appendChild(cross);
+            const blocked = document.createElement('div');
+            blocked.id = '__nyand_virtual_pointer_blocked';
+            Object.assign(blocked.style, {
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                width: '15px',
+                height: '15px',
+                border: '2px solid rgba(255, 255, 255, 0.98)',
+                borderRadius: '50%',
+                transform: 'translate(-50%, -50%)',
+                background: 'linear-gradient(135deg, transparent 43%, rgba(255, 255, 255, 0.98) 46%, rgba(255, 255, 255, 0.98) 54%, transparent 57%)',
+                filter: 'drop-shadow(0 0 2px rgba(0, 0, 0, 0.75))',
+                opacity: '0',
+                transition: 'opacity 0.12s ease',
+            });
+            el.appendChild(blocked);
             root.appendChild(el);
             virtualPointer.cursorEl = el;
             virtualPointer.crossEl = cross;
+            virtualPointer.blockedEl = blocked;
         }
 
         if (!virtualPointer.targetEl) {
@@ -726,10 +511,11 @@
         if (virtualPointer.targetEl) {
             virtualPointer.targetEl.style.opacity = '0';
         }
+        virtualPointer.blocked = false;
         virtualPointer.targetSource = '';
     }
 
-    function applyPointerTargetRect(rect, active = false, source = '') {
+    function applyPointerTargetRect(rect, active = false, source = '', options = {}) {
         if (!virtualPointer.targetEl || !rect) return;
         const width = Number(rect.width) || 0;
         const height = Number(rect.height) || 0;
@@ -738,106 +524,35 @@
             return;
         }
 
+        const blocked = options.blocked === true;
+        virtualPointer.blocked = blocked;
         Object.assign(virtualPointer.targetEl.style, {
             left: `${Math.max(0, Number(rect.left) - 3)}px`,
             top: `${Math.max(0, Number(rect.top) - 3)}px`,
             width: `${Math.min(window.innerWidth, width + 6)}px`,
             height: `${Math.min(window.innerHeight, height + 6)}px`,
-            opacity: active ? '0.85' : '0.35',
+            borderColor: blocked ? 'rgba(244, 63, 94, 0.95)' : 'rgba(255, 193, 7, 0.85)',
+            boxShadow: blocked
+                ? '0 0 0 2px rgba(0, 0, 0, 0.26), 0 0 14px rgba(244, 63, 94, 0.45)'
+                : '0 0 0 2px rgba(0, 0, 0, 0.22)',
+            opacity: active ? (blocked ? '0.9' : '0.85') : (blocked ? '0.55' : '0.35'),
         });
         virtualPointer.targetSource = source;
     }
 
-    function clearPointerTargetQueryTimer() {
-        if (virtualPointer.targetQueryTimer) {
-            clearTimeout(virtualPointer.targetQueryTimer);
-            virtualPointer.targetQueryTimer = null;
-        }
-    }
-
-    async function describePointerTargetAt(x, y) {
-        const target = meaningfulElementFromPoint(x, y);
-        if (!target) {
-            return { ok: true, targetRect: null };
-        }
-
-        if (visibleFrameElement(target)) {
-            const childPath = framePathForElement(target);
-            const rect = target.getBoundingClientRect();
-            const directResult = describeDirectFrameTarget(target, x, y, childPath);
-            if (directResult?.targetRect) {
-                return directResult;
-            }
-            if (childPath) {
-                const result = await routeFrameAction(childPath, 'pointerTargetAt', {
-                    x: clamp(x - rect.left, 0, Math.max(0, rect.width - 1)),
-                    y: clamp(y - rect.top, 0, Math.max(0, rect.height - 1)),
-                });
-                if (result?.targetRect) {
-                    return {
-                        ok: true,
-                        targetRect: translateRect(result.targetRect, rect.left, rect.top),
-                        targetFramePath: result.targetFramePath || childPath,
-                    };
-                }
-            }
-            return {
-                ok: true,
-                targetRect: plainRect(rect),
-                targetFramePath: childPath,
-            };
-        }
-
-        const rect = target.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return { ok: true, targetRect: null };
-        return {
-            ok: true,
-            targetRect: plainRect(rect),
-            targetFramePath: framePath || [],
-        };
-    }
-
-    async function updatePointerTargetFromFrame(frameEl, x, y, active, fallbackRect, options = {}) {
-        const childPath = framePathForElement(frameEl);
-        if (!childPath) return;
-
-        const rect = frameEl.getBoundingClientRect();
-        const pathKey = JSON.stringify(childPath);
-        const now = performance.now();
-        if (
-            !options.force &&
-            virtualPointer.targetQueryPathKey === pathKey &&
-            now - virtualPointer.targetQueryAt < 80
-        ) {
-            virtualPointer.targetQuerySeq += 1;
-            clearPointerTargetQueryTimer();
-            virtualPointer.targetQueryTimer = setTimeout(() => {
-                virtualPointer.targetQueryTimer = null;
-                updatePointerTargetFromFrame(frameEl, x, y, active, fallbackRect, { force: true }).catch(() => {});
-            }, Math.max(0, 80 - (now - virtualPointer.targetQueryAt)));
-            return;
-        }
-        clearPointerTargetQueryTimer();
-        virtualPointer.targetQueryPathKey = pathKey;
-        virtualPointer.targetQueryAt = now;
-        const seq = ++virtualPointer.targetQuerySeq;
-        const directResult = describeDirectFrameTarget(frameEl, x, y, childPath);
+    function updatePointerTargetFromFrame(frameEl, x, y, active, fallbackRect) {
+        const directResult = describeDirectFrameTarget(frameEl, x, y);
         if (directResult?.targetRect) {
-            applyPointerTargetRect(directResult.targetRect, active, `frame-direct:${pathKey}`);
+            applyPointerTargetRect(
+                directResult.targetRect,
+                active,
+                directResult.inaccessibleFrame ? 'frame-blocked' : 'frame-direct',
+                { blocked: directResult.inaccessibleFrame === true },
+            );
             return;
         }
 
-        const result = await routeFrameAction(childPath, 'pointerTargetAt', {
-            x: clamp(x - rect.left, 0, Math.max(0, rect.width - 1)),
-            y: clamp(y - rect.top, 0, Math.max(0, rect.height - 1)),
-        });
-
-        if (seq !== virtualPointer.targetQuerySeq) return;
-        if (result?.targetRect) {
-            applyPointerTargetRect(translateRect(result.targetRect, rect.left, rect.top), active, `frame:${pathKey}`);
-        } else {
-            applyPointerTargetRect(fallbackRect, active, `frame-fallback:${pathKey}`);
-        }
+        applyPointerTargetRect(fallbackRect, active, 'frame-fallback');
     }
 
     function updatePointerTarget(active = false) {
@@ -856,20 +571,37 @@
 
         const fallbackRect = plainRect(rect);
         if (visibleFrameElement(target)) {
-            const childPath = framePathForElement(target);
-            const pathKey = JSON.stringify(childPath || []);
-            const hasCurrentChildTarget =
-                virtualPointer.targetSource === `frame:${pathKey}` ||
-                virtualPointer.targetSource === `frame-direct:${pathKey}`;
-            if (!hasCurrentChildTarget) {
-                applyPointerTargetRect(fallbackRect, active, `frame-fallback:${pathKey}`);
-            }
-            updatePointerTargetFromFrame(target, virtualPointer.x, virtualPointer.y, active, fallbackRect).catch(() => {});
+            updatePointerTargetFromFrame(target, virtualPointer.x, virtualPointer.y, active, fallbackRect);
         } else {
-            clearPointerTargetQueryTimer();
-            virtualPointer.targetQuerySeq += 1;
-            virtualPointer.targetQueryPathKey = '';
             applyPointerTargetRect(fallbackRect, active, 'local');
+        }
+    }
+
+    function applyVirtualPointerStyle(active, moving) {
+        const el = virtualPointer.cursorEl;
+        if (!el) return;
+
+        const blocked = virtualPointer.blocked;
+        el.style.opacity = active ? '0.96' : '0.38';
+        el.style.transform = active
+            ? 'translate(-50%, -50%) scale(1.12)'
+            : 'translate(-50%, -50%) scale(1)';
+        el.style.borderColor = blocked
+            ? 'rgba(244, 63, 94, 1)'
+            : (moving ? 'rgba(255, 224, 102, 1)' : 'rgba(255, 193, 7, 0.95)');
+        el.style.background = blocked
+            ? 'rgba(244, 63, 94, 0.32)'
+            : (moving ? 'rgba(255, 193, 7, 0.38)' : 'rgba(255, 193, 7, 0.24)');
+        el.style.boxShadow = blocked
+            ? '0 0 0 5px rgba(0, 0, 0, 0.34), 0 0 24px rgba(244, 63, 94, 0.68)'
+            : (moving
+                ? '0 0 0 5px rgba(0, 0, 0, 0.34), 0 0 24px rgba(255, 193, 7, 0.72)'
+                : '0 0 0 4px rgba(0, 0, 0, 0.28), 0 0 18px rgba(255, 193, 7, 0.55)');
+        if (virtualPointer.crossEl) {
+            virtualPointer.crossEl.style.opacity = moving && !blocked ? '0.96' : '0';
+        }
+        if (virtualPointer.blockedEl) {
+            virtualPointer.blockedEl.style.opacity = blocked ? (active ? '0.96' : '0.72') : '0';
         }
     }
 
@@ -884,28 +616,16 @@
         initPointerPosition();
         el.style.left = `${virtualPointer.x}px`;
         el.style.top = `${virtualPointer.y}px`;
-        el.style.opacity = active ? '0.96' : '0.38';
-        el.style.transform = active
-            ? 'translate(-50%, -50%) scale(1.12)'
-            : 'translate(-50%, -50%) scale(1)';
-        el.style.borderColor = moving ? 'rgba(255, 224, 102, 1)' : 'rgba(255, 193, 7, 0.95)';
-        el.style.background = moving ? 'rgba(255, 193, 7, 0.38)' : 'rgba(255, 193, 7, 0.24)';
-        el.style.boxShadow = moving
-            ? '0 0 0 5px rgba(0, 0, 0, 0.34), 0 0 24px rgba(255, 193, 7, 0.72)'
-            : '0 0 0 4px rgba(0, 0, 0, 0.28), 0 0 18px rgba(255, 193, 7, 0.55)';
-        if (virtualPointer.crossEl) {
-            virtualPointer.crossEl.style.opacity = moving ? '0.96' : '0';
-        }
         updatePointerTarget(active);
+        applyVirtualPointerStyle(active, moving);
 
         if (virtualPointer.dimTimer) clearTimeout(virtualPointer.dimTimer);
         virtualPointer.dimTimer = null;
         if (!moving) {
             virtualPointer.dimTimer = setTimeout(() => {
                 if (!virtualPointer.cursorEl) return;
-                virtualPointer.cursorEl.style.opacity = '0.38';
-                virtualPointer.cursorEl.style.transform = 'translate(-50%, -50%) scale(1)';
                 updatePointerTarget(false);
+                applyVirtualPointerStyle(false, false);
             }, 1800);
         }
 
@@ -924,14 +644,14 @@
             clearTimeout(virtualPointer.staleTimer);
             virtualPointer.staleTimer = null;
         }
-        clearPointerTargetQueryTimer();
         virtualPointer.cursorEl?.remove();
         virtualPointer.targetEl?.remove();
         virtualPointer.cursorEl = null;
         virtualPointer.crossEl = null;
+        virtualPointer.blockedEl = null;
         virtualPointer.targetEl = null;
         virtualPointer.moving = false;
-        virtualPointer.targetQueryPathKey = '';
+        virtualPointer.blocked = false;
         virtualPointer.targetSource = '';
     }
 
@@ -988,34 +708,18 @@
         return createMouseEventAtForView(window, type, x, y);
     }
 
-    async function clickTargetInDocument(doc, x, y, basePath) {
+    async function clickTargetInDocument(doc, x, y) {
         const target = meaningfulElementFromPointInDocument(doc, x, y, { allowRoot: true });
         if (!target) return { ok: true, overlay: false, handledBy: 'directFrame' };
 
         if (visibleFrameElement(target, doc)) {
-            const childPath = framePathForElementInDocument(target, basePath, doc);
-            if (childPath) {
-                const directResult = await clickDirectFrameTarget(target, x, y, childPath);
-                if (directResult?.ok) return directResult;
-
-                try {
-                    if (typeof target.focus === 'function') {
-                        target.focus({ preventScroll: true });
-                    }
-                } catch (_) {}
-
-                rememberFocusedFramePath(childPath);
-
-                const point = localPointInFrame(target, x, y);
-                const result = await routeFrameAction(childPath, 'pointerClickAt', {
-                    x: point.x,
-                    y: point.y,
-                });
-                if (result?.ok === true) return result;
-            }
+            const directResult = await clickDirectFrameTarget(target, x, y);
+            if (directResult) return directResult;
         }
 
-        rememberFocusedFramePath(basePath || framePath || []);
+        if (doc === document) {
+            lastFocusedFrameElement = null;
+        }
 
         try {
             if (typeof target.focus === 'function') {
@@ -1031,35 +735,26 @@
         return { ok: true, overlay: false, handledBy: 'directFrame' };
     }
 
-    async function clickDirectFrameTarget(frameEl, x, y, framePathForTarget) {
-        const doc = accessibleFrameDocument(frameEl);
-        if (!doc) return null;
-
+    async function clickDirectFrameTarget(frameEl, x, y) {
         const point = localPointInFrame(frameEl, x, y);
-        return await clickTargetInDocument(doc, point.x, point.y, framePathForTarget);
-    }
-
-    async function routePointerClickToFrame(frameEl, x, y) {
-        const childPath = framePathForElement(frameEl);
-        if (!childPath) return false;
-
         try {
             if (typeof frameEl.focus === 'function') {
                 frameEl.focus({ preventScroll: true });
             }
         } catch (_) {}
+        rememberFocusedFrameElement(frameEl);
 
-        rememberFocusedFramePath(childPath);
+        const doc = accessibleFrameDocument(frameEl);
+        if (!doc) {
+            return {
+                ok: true,
+                overlay: false,
+                blockedFrame: true,
+                handledBy: 'inaccessibleFrame',
+            };
+        }
 
-        const directResult = await clickDirectFrameTarget(frameEl, x, y, childPath);
-        if (directResult?.ok === true) return true;
-
-        const rect = frameEl.getBoundingClientRect();
-        const result = await routeFrameAction(childPath, 'pointerClickAt', {
-            x: clamp(x - rect.left, 0, Math.max(0, rect.width - 1)),
-            y: clamp(y - rect.top, 0, Math.max(0, rect.height - 1)),
-        });
-        return result?.ok === true;
+        return await clickTargetInDocument(doc, point.x, point.y);
     }
 
     async function clickTargetAt(x, y) {
@@ -1067,11 +762,11 @@
         if (!target) return { ok: true, overlay: false };
 
         if (visibleFrameElement(target)) {
-            const routed = await routePointerClickToFrame(target, x, y);
-            if (routed) return { ok: true, overlay: false };
+            const directResult = await clickDirectFrameTarget(target, x, y);
+            if (directResult) return directResult;
         }
 
-        rememberFocusedFramePath(framePath || []);
+        lastFocusedFrameElement = null;
 
         try {
             if (typeof target.focus === 'function') {
@@ -1207,7 +902,6 @@
             return { ok: true, overlay: true };
         }
         if (SCROLL_ACTIONS.has(action)) return await executeTargetedScrollAction(action, data);
-        if (POINTER_TOP_ACTIONS.has(action) && !isTopFrame()) return { ok: true, overlay: false };
 
         switch (action) {
             case 'pointerShow':
@@ -1227,10 +921,6 @@
                 return { ok: true, overlay: false };
             case 'pointerClick':
                 return await clickVirtualPointerTarget();
-            case 'pointerClickAt':
-                return await clickTargetAt(Number(data.x) || 0, Number(data.y) || 0);
-            case 'pointerTargetAt':
-                return await describePointerTargetAt(Number(data.x) || 0, Number(data.y) || 0);
         }
         return { ok: true, overlay: true };
     }
@@ -1413,25 +1103,9 @@
         }, 600);
     }
 
-    window.addEventListener('message', handleFrameMessage);
-    window.addEventListener('focus', reportThisFrameFocused, true);
-    document.addEventListener('focusin', reportThisFrameFocused, true);
-    document.addEventListener('mousedown', reportThisFrameFocused, true);
-    document.addEventListener('load', (event) => {
-        if (isFrameElement(event.target)) scheduleAssignChildFramePaths();
-    }, true);
-
-    const frameObserverRoot = document.documentElement || document;
-    if (frameObserverRoot) {
-        new MutationObserver(scheduleAssignChildFramePaths)
-            .observe(frameObserverRoot, { childList: true, subtree: true });
-    }
-
-    if (isTopFrame()) {
-        setFramePath([]);
-    } else {
-        startFramePathRequests();
-    }
+    window.addEventListener('focus', reportFocusedFrameElement, true);
+    document.addEventListener('focusin', reportFocusedFrameElement, true);
+    document.addEventListener('mousedown', reportFocusedFrameElement, true);
 
     // Service Worker からのメッセージを受信
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -1441,7 +1115,7 @@
                 .catch((err) => {
                     sendResponse({
                         ok: false,
-                        reason: 'frameActionUnavailable',
+                        reason: 'unknown',
                         message: err?.message || String(err),
                     });
                 });

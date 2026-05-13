@@ -520,12 +520,6 @@
   "logReloadRequired": {
     "message": "🔄 このページは再読み込みが必要な可能性があります"
   },
-  "logFrameActionUnavailable": {
-    "message": "⚠ フレーム内操作に届きません (注入フレーム: $1)",
-    "placeholders": {
-      "1": { "content": "$1" }
-    }
-  },
   "logNoTargetTab": {
     "message": "🎯 操作対象タブがありません"
   },
@@ -540,9 +534,6 @@
   },
   "gestureReloadRequired": {
     "message": "再読み込みしてください"
-  },
-  "gestureFrameActionUnavailable": {
-    "message": "フレーム内操作不可"
   },
   "gestureNoTargetTab": {
     "message": "対象タブなし"

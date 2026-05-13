@@ -20,8 +20,7 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
  * 旧インスタンスに停止を通知する。
  */
 let activeInstance = null; // { instanceId, type, windowId, targetTabId }
-const FRAME_REGISTRY_RETRY_DELAY_MS = 150;
-const frameRegistryByTab = new Map(); // tabId -> { byPath, byFrameId }
+const CONTENT_SCRIPT_RETRY_DELAY_MS = 150;
 
 /** 全拡張ページに instance-takeover をブロードキャスト */
 async function broadcastTakeover(newInstance) {
@@ -47,25 +46,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 sendResponse({
                     ok: false,
                     reason: 'unknown',
-                    message: err?.message || String(err),
-                });
-            });
-        return true;
-    }
-
-    if (message.type === 'register-content-frame') {
-        registerContentFrame(message, sender);
-        sendResponse({ ok: true });
-        return true;
-    }
-
-    if (message.type === 'route-frame-action') {
-        routeFrameAction(message, sender)
-            .then(sendResponse)
-            .catch((err) => {
-                sendResponse({
-                    ok: false,
-                    reason: 'frameActionUnavailable',
                     message: err?.message || String(err),
                 });
             });
@@ -125,16 +105,6 @@ chrome.runtime.onConnect.addListener((port) => {
             pipReturnToSidepanel: { cameraId: pipInfo.cameraId || '' },
         }).catch(() => {});
     });
-});
-
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.status === 'loading') {
-        frameRegistryByTab.delete(tabId);
-    }
-});
-
-chrome.tabs.onRemoved.addListener((tabId) => {
-    frameRegistryByTab.delete(tabId);
 });
 
 /**
@@ -225,50 +195,6 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function normalizeFramePath(path) {
-    if (!Array.isArray(path)) return null;
-    const result = [];
-    for (const value of path) {
-        const n = Number(value);
-        if (!Number.isInteger(n) || n < 0) return null;
-        result.push(n);
-    }
-    return result;
-}
-
-function framePathKey(path) {
-    return JSON.stringify(path || []);
-}
-
-function getFrameRegistry(tabId) {
-    let registry = frameRegistryByTab.get(tabId);
-    if (!registry) {
-        registry = {
-            byPath: new Map(),
-            byFrameId: new Map(),
-        };
-        frameRegistryByTab.set(tabId, registry);
-    }
-    return registry;
-}
-
-function registerContentFrame(message, sender) {
-    const tabId = sender.tab?.id;
-    const frameId = Number.isInteger(sender.frameId) ? sender.frameId : 0;
-    const framePath = normalizeFramePath(message.framePath);
-    if (!Number.isInteger(tabId) || !framePath) return;
-
-    const registry = getFrameRegistry(tabId);
-    const entry = {
-        frameId,
-        framePath,
-        url: sender.url || '',
-        updatedAt: Date.now(),
-    };
-    registry.byPath.set(framePathKey(framePath), entry);
-    registry.byFrameId.set(frameId, entry);
-}
-
 function contentActionMessage(action, data) {
     return {
         type: 'mediaAction',
@@ -277,12 +203,9 @@ function contentActionMessage(action, data) {
     };
 }
 
-async function sendContentAction(tabId, action, data, frameId = null) {
+async function sendContentAction(tabId, action, data) {
     const message = contentActionMessage(action, data);
-    if (Number.isInteger(frameId)) {
-        return await chrome.tabs.sendMessage(tabId, message, { frameId });
-    }
-    return await chrome.tabs.sendMessage(tabId, message);
+    return await chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
 }
 
 async function injectContentScriptTopFrame(tabId) {
@@ -290,67 +213,6 @@ async function injectContentScriptTopFrame(tabId) {
         target: { tabId, frameIds: [0] },
         files: ['src/content/content-script.js'],
     });
-}
-
-async function injectContentScriptAllFrames(tabId) {
-    return await chrome.scripting.executeScript({
-        target: { tabId, allFrames: true },
-        files: ['src/content/content-script.js'],
-    });
-}
-
-function registeredFrameId(tabId, framePath) {
-    const normalizedPath = normalizeFramePath(framePath);
-    if (!normalizedPath) return null;
-    if (normalizedPath.length === 0) return 0;
-    return getFrameRegistry(tabId).byPath.get(framePathKey(normalizedPath))?.frameId ?? null;
-}
-
-async function resolveFrameId(tabId, framePath) {
-    let frameId = registeredFrameId(tabId, framePath);
-    if (frameId !== null) return frameId;
-
-    await injectContentScriptAllFrames(tabId);
-    await delay(FRAME_REGISTRY_RETRY_DELAY_MS);
-    frameId = registeredFrameId(tabId, framePath);
-    return frameId;
-}
-
-async function routeFrameAction(message, sender) {
-    const tabId = sender.tab?.id;
-    if (!Number.isInteger(tabId)) return { ok: false, reason: 'noTargetTab' };
-
-    const framePath = normalizeFramePath(message.framePath);
-    if (!framePath) return { ok: false, reason: 'frameActionUnavailable' };
-
-    const frameId = await resolveFrameId(tabId, framePath);
-    if (frameId === null) {
-        return {
-            ok: false,
-            reason: 'frameActionUnavailable',
-            targetFramePath: framePath,
-        };
-    }
-
-    try {
-        const result = await sendContentAction(tabId, message.action, message.data, frameId);
-        if (result?.ok === false) return result;
-        return {
-            ...(result || {}),
-            ok: true,
-            handledBy: 'contentScriptFrame',
-            frameId,
-            targetFramePath: framePath,
-        };
-    } catch (err) {
-        return {
-            ok: false,
-            reason: 'frameActionUnavailable',
-            frameId,
-            targetFramePath: framePath,
-            message: err?.message || String(err),
-        };
-    }
 }
 
 async function forwardToActiveTab(action, targetTabId, data) {
@@ -372,14 +234,14 @@ async function forwardToActiveTab(action, targetTabId, data) {
     }
 
     try {
-        const result = await sendContentAction(tab.id, action, data, 0);
+        const result = await sendContentAction(tab.id, action, data);
         if (result?.ok === false) return result;
         return { ok: true, handledBy: 'contentScript', frameId: 0 };
     } catch (err) {
         let injectionResults = [];
         try {
             injectionResults = await injectContentScriptTopFrame(tab.id);
-            await delay(FRAME_REGISTRY_RETRY_DELAY_MS);
+            await delay(CONTENT_SCRIPT_RETRY_DELAY_MS);
         } catch (injectErr) {
             // chrome:// 等は注入不可。通常ページで失敗した場合は再読み込み候補として扱う。
             return {
@@ -398,7 +260,7 @@ async function forwardToActiveTab(action, targetTabId, data) {
         }
 
         try {
-            const result = await sendContentAction(tab.id, action, data, 0);
+            const result = await sendContentAction(tab.id, action, data);
             if (result?.ok === false) return result;
             return {
                 ok: true,
@@ -410,7 +272,7 @@ async function forwardToActiveTab(action, targetTabId, data) {
         } catch (retryErr) {
             return {
                 ok: false,
-                reason: injectionResults.length > 1 ? 'frameActionUnavailable' : 'reloadRequired',
+                reason: 'reloadRequired',
                 injectedFrameCount: injectionResults.length,
                 message: retryErr?.message || err?.message || String(retryErr || err),
             };
