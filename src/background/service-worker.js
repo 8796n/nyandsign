@@ -285,9 +285,9 @@ async function sendContentAction(tabId, action, data, frameId = null) {
     return await chrome.tabs.sendMessage(tabId, message);
 }
 
-async function injectContentScriptAllFrames(tabId) {
+async function injectContentScriptTopFrame(tabId) {
     return await chrome.scripting.executeScript({
-        target: { tabId, allFrames: true },
+        target: { tabId, frameIds: [0] },
         files: ['src/content/content-script.js'],
     });
 }
@@ -303,7 +303,7 @@ async function resolveFrameId(tabId, framePath) {
     let frameId = registeredFrameId(tabId, framePath);
     if (frameId !== null) return frameId;
 
-    await injectContentScriptAllFrames(tabId);
+    await injectContentScriptTopFrame(tabId);
     await delay(FRAME_REGISTRY_RETRY_DELAY_MS);
     frameId = registeredFrameId(tabId, framePath);
     return frameId;
@@ -371,7 +371,7 @@ async function forwardToActiveTab(action, targetTabId, data) {
     } catch (err) {
         let injectionResults = [];
         try {
-            injectionResults = await injectContentScriptAllFrames(tab.id);
+            injectionResults = await injectContentScriptTopFrame(tab.id);
             await delay(FRAME_REGISTRY_RETRY_DELAY_MS);
         } catch (injectErr) {
             // chrome:// 等は注入不可。通常ページで失敗した場合は再読み込み候補として扱う。
