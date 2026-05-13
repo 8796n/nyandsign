@@ -88,6 +88,12 @@
     const POINTER_TOP_ACTIONS = new Set([
         'pointerShow', 'pointerHide', 'pointerMoveStart', 'pointerMoveEnd', 'pointerMove', 'pointerClick',
     ]);
+    const NYAND_OVERLAY_IDS = new Set([
+        '__nyand_virtual_pointer',
+        '__nyand_virtual_pointer_cross',
+        '__nyand_pointer_target',
+        '__nyand_overlay',
+    ]);
 
     let framePath = null;
     let lastFocusedDescendantPath = null;
@@ -107,6 +113,40 @@
 
     function getScrollRoot() {
         return document.scrollingElement || document.documentElement || document.body;
+    }
+
+    function isDocumentRootElement(el) {
+        return el === document.documentElement || el === document.body;
+    }
+
+    function isNyandOverlayElement(el) {
+        return !!el?.id && NYAND_OVERLAY_IDS.has(el.id);
+    }
+
+    function rectContainsPoint(rect, x, y) {
+        return rect && rect.width > 0 && rect.height > 0 &&
+            x >= rect.left && x <= rect.right &&
+            y >= rect.top && y <= rect.bottom;
+    }
+
+    function meaningfulElementFromPoint(x, y, options = {}) {
+        const allowRoot = options.allowRoot === true;
+        const stack = typeof document.elementsFromPoint === 'function'
+            ? document.elementsFromPoint(x, y)
+            : [document.elementFromPoint(x, y)].filter(Boolean);
+
+        const firstUsable = stack.find(el => el && !isNyandOverlayElement(el) && !isDocumentRootElement(el));
+        if (firstUsable) return firstUsable;
+
+        const active = document.activeElement;
+        if (active && !isDocumentRootElement(active) && !isNyandOverlayElement(active)) {
+            const rect = active.getBoundingClientRect();
+            if (rectContainsPoint(rect, x, y)) return active;
+        }
+
+        return allowRoot
+            ? stack.find(el => el && !isNyandOverlayElement(el)) || null
+            : null;
     }
 
     function isTopFrame() {
@@ -592,7 +632,7 @@
 
     function pointerTargetAtCurrentPosition() {
         initPointerPosition();
-        return document.elementFromPoint(virtualPointer.x, virtualPointer.y);
+        return meaningfulElementFromPoint(virtualPointer.x, virtualPointer.y);
     }
 
     function hidePointerTarget() {
@@ -629,8 +669,8 @@
     }
 
     async function describePointerTargetAt(x, y) {
-        const target = document.elementFromPoint(x, y);
-        if (!target || target === document.documentElement || target === document.body) {
+        const target = meaningfulElementFromPoint(x, y);
+        if (!target) {
             return { ok: true, targetRect: null };
         }
 
@@ -866,7 +906,7 @@
     }
 
     async function clickTargetAt(x, y) {
-        const target = document.elementFromPoint(x, y);
+        const target = meaningfulElementFromPoint(x, y, { allowRoot: true });
         if (!target) return { ok: true, overlay: false };
 
         if (visibleFrameElement(target)) {
