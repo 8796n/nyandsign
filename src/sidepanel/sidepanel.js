@@ -2232,11 +2232,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 $('btn-reset-settings').addEventListener('click', () => {
     const d = DEFAULT_SETTINGS;
+    const { operationMode: _defaultOperationMode, ...resetSettings } = d;
 
     // 状態変数を復元
     wakeGestureType = d.wakeGestureType;
     wakeActiveDuration = d.wakeActiveDuration;
-    operationMode = d.operationMode;
     toggleGestureType = d.toggleGestureType;
     metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
     tracker.preferredHand = d.preferredHand;
@@ -2284,10 +2284,10 @@ $('btn-reset-settings').addEventListener('click', () => {
     $('rng-pip-font-scale').value = d.pipFontScale;
     $('pip-font-scale-value').textContent = fmtPercent(d.pipFontScale);
     document.body.style.zoom = d.uiScale / 100;
-    pointerVisibilityController?.stop({ hide: true });
+    pointerVisibilityController?.sync();
 
     // ストレージに保存
-    chrome.storage.sync.set({ ...d, metaGestureMapping });
+    chrome.storage.sync.set({ ...resetSettings, metaGestureMapping });
     log(msg('logSettingsReset'));
 });
 
