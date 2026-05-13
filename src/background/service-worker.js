@@ -292,6 +292,13 @@ async function injectContentScriptTopFrame(tabId) {
     });
 }
 
+async function injectContentScriptAllFrames(tabId) {
+    return await chrome.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        files: ['src/content/content-script.js'],
+    });
+}
+
 function registeredFrameId(tabId, framePath) {
     const normalizedPath = normalizeFramePath(framePath);
     if (!normalizedPath) return null;
@@ -303,7 +310,7 @@ async function resolveFrameId(tabId, framePath) {
     let frameId = registeredFrameId(tabId, framePath);
     if (frameId !== null) return frameId;
 
-    await injectContentScriptTopFrame(tabId);
+    await injectContentScriptAllFrames(tabId);
     await delay(FRAME_REGISTRY_RETRY_DELAY_MS);
     frameId = registeredFrameId(tabId, framePath);
     return frameId;
