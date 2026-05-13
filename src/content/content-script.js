@@ -7,7 +7,10 @@
 
 (() => {
     'use strict';
-    if (globalThis.__nyandsignContentScriptLoaded) return;
+    if (globalThis.__nyandsignContentScriptLoaded) {
+        globalThis.__nyandsignRefreshFrameRegistration?.();
+        return;
+    }
     globalThis.__nyandsignContentScriptLoaded = true;
 
     /**
@@ -53,7 +56,7 @@
     const BROWSER_PAGE_ACTIONS = new Set([
         'directionalScroll', 'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'pageTop', 'pageBottom',
         'cursorUp', 'cursorDown', 'cursorLeft', 'cursorRight',
-        'pointerShow', 'pointerHide', 'pointerMoveStart', 'pointerMoveEnd', 'pointerMove', 'pointerClick',
+        'pointerShow', 'pointerHide', 'pointerMoveStart', 'pointerMoveEnd', 'pointerMove', 'pointerClick', 'pointerClickAt',
     ]);
 
     const CURSOR_KEY_BY_ACTION = {
@@ -77,6 +80,23 @@
         cursorRight: 'right',
     };
 
+    const FRAME_MESSAGE_SOURCE = 'nyandsign-frame-route';
+    const FRAME_SELECTOR = 'iframe, frame';
+    const SCROLL_ACTIONS = new Set([
+        'directionalScroll', 'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'pageTop', 'pageBottom',
+    ]);
+    const POINTER_TOP_ACTIONS = new Set([
+        'pointerShow', 'pointerHide', 'pointerMoveStart', 'pointerMoveEnd', 'pointerMove', 'pointerClick',
+    ]);
+
+    let framePath = null;
+    let lastFocusedDescendantPath = null;
+    let assignChildrenTimer = null;
+    let assignChildrenRetryTimer = null;
+    let assignChildrenLateTimer = null;
+    let framePathRequestTimer = null;
+    let framePathRequestAttempts = 0;
+
     function getFocusedEditable() {
         const el = document.activeElement;
         if (!el) return null;
@@ -87,6 +107,263 @@
 
     function getScrollRoot() {
         return document.scrollingElement || document.documentElement || document.body;
+    }
+
+    function isTopFrame() {
+        return window.top === window;
+    }
+
+    function normalizeFramePath(path) {
+        if (!Array.isArray(path)) return null;
+        const result = [];
+        for (const value of path) {
+            const n = Number(value);
+            if (!Number.isInteger(n) || n < 0) return null;
+            result.push(n);
+        }
+        return result;
+    }
+
+    function sameFramePath(a, b) {
+        const left = normalizeFramePath(a);
+        const right = normalizeFramePath(b);
+        if (!left || !right || left.length !== right.length) return false;
+        return left.every((value, index) => value === right[index]);
+    }
+
+    function isDescendantFramePath(path, base = framePath) {
+        const target = normalizeFramePath(path);
+        const parent = normalizeFramePath(base);
+        if (!target || !parent || target.length <= parent.length) return false;
+        return parent.every((value, index) => target[index] === value);
+    }
+
+    function frameElements() {
+        return [...document.querySelectorAll(FRAME_SELECTOR)];
+    }
+
+    function isFrameElement(el) {
+        return el instanceof HTMLIFrameElement ||
+            (typeof HTMLFrameElement === 'function' && el instanceof HTMLFrameElement);
+    }
+
+    function visibleFrameElement(el) {
+        if (!isFrameElement(el)) return false;
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 &&
+            rect.bottom >= 0 && rect.top <= window.innerHeight &&
+            rect.right >= 0 && rect.left <= window.innerWidth;
+    }
+
+    function framePathForElement(el) {
+        if (!framePath || !isFrameElement(el)) return null;
+        const index = frameElements().indexOf(el);
+        return index >= 0 ? [...framePath, index] : null;
+    }
+
+    function directFrameForPath(path) {
+        if (!framePath || !isDescendantFramePath(path)) return null;
+        const target = normalizeFramePath(path);
+        const nextIndex = target[framePath.length];
+        const el = frameElements()[nextIndex];
+        return visibleFrameElement(el) ? el : null;
+    }
+
+    function postToFrameElement(el, message) {
+        try {
+            el.contentWindow?.postMessage(message, '*');
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function registerFrame() {
+        if (!framePath) return;
+        chrome.runtime.sendMessage({
+            type: 'register-content-frame',
+            framePath,
+        }).catch(() => {});
+    }
+
+    function assignChildFramePaths() {
+        if (!framePath) return;
+        frameElements().forEach((el, index) => {
+            postToFrameElement(el, {
+                source: FRAME_MESSAGE_SOURCE,
+                type: 'assign-frame-path',
+                framePath: [...framePath, index],
+            });
+        });
+    }
+
+    function scheduleAssignChildFramePaths() {
+        if (assignChildrenTimer) clearTimeout(assignChildrenTimer);
+        if (assignChildrenRetryTimer) clearTimeout(assignChildrenRetryTimer);
+        if (assignChildrenLateTimer) clearTimeout(assignChildrenLateTimer);
+        assignChildrenTimer = setTimeout(() => {
+            assignChildrenTimer = null;
+            assignChildFramePaths();
+        }, 0);
+        assignChildrenRetryTimer = setTimeout(assignChildFramePaths, 250);
+        assignChildrenLateTimer = setTimeout(assignChildFramePaths, 1000);
+    }
+
+    function setFramePath(path) {
+        const normalizedPath = normalizeFramePath(path);
+        if (!normalizedPath) return;
+        if (framePathRequestTimer) {
+            clearInterval(framePathRequestTimer);
+            framePathRequestTimer = null;
+        }
+        if (sameFramePath(framePath, normalizedPath)) {
+            registerFrame();
+            scheduleAssignChildFramePaths();
+            return;
+        }
+        framePath = normalizedPath;
+        lastFocusedDescendantPath = null;
+        registerFrame();
+        scheduleAssignChildFramePaths();
+    }
+
+    function refreshFrameRegistration() {
+        if (framePath) {
+            registerFrame();
+            scheduleAssignChildFramePaths();
+        } else {
+            startFramePathRequests();
+        }
+    }
+
+    globalThis.__nyandsignRefreshFrameRegistration = refreshFrameRegistration;
+
+    function findFrameElementByWindow(sourceWindow) {
+        return frameElements().find((el) => {
+            try {
+                return el.contentWindow === sourceWindow;
+            } catch (_) {
+                return false;
+            }
+        }) || null;
+    }
+
+    function rememberFocusedFramePath(path) {
+        const normalizedPath = normalizeFramePath(path);
+        if (!normalizedPath || !framePath) return;
+
+        lastFocusedDescendantPath = isDescendantFramePath(normalizedPath)
+            ? normalizedPath
+            : null;
+
+        if (!isTopFrame()) {
+            try {
+                window.parent.postMessage({
+                    source: FRAME_MESSAGE_SOURCE,
+                    type: 'focused-frame',
+                    framePath: normalizedPath,
+                }, '*');
+            } catch (_) {}
+        }
+    }
+
+    function reportThisFrameFocused() {
+        if (framePath) rememberFocusedFramePath(framePath);
+    }
+
+    function handleFrameMessage(event) {
+        const data = event.data;
+        if (!data || data.source !== FRAME_MESSAGE_SOURCE) return;
+
+        if (data.type === 'assign-frame-path') {
+            if (event.source === window.parent) setFramePath(data.framePath);
+            return;
+        }
+
+        if (data.type === 'request-frame-path') {
+            const el = findFrameElementByWindow(event.source);
+            const childPath = framePathForElement(el);
+            if (el && childPath) {
+                postToFrameElement(el, {
+                    source: FRAME_MESSAGE_SOURCE,
+                    type: 'assign-frame-path',
+                    framePath: childPath,
+                });
+            }
+            return;
+        }
+
+        if (data.type === 'focused-frame') {
+            const el = findFrameElementByWindow(event.source);
+            const childPath = framePathForElement(el);
+            const focusedPath = normalizeFramePath(data.framePath);
+            if (childPath && focusedPath && (
+                sameFramePath(focusedPath, childPath) ||
+                isDescendantFramePath(focusedPath, childPath)
+            )) {
+                rememberFocusedFramePath(focusedPath);
+            }
+        }
+    }
+
+    function requestFramePath() {
+        if (isTopFrame()) return;
+        try {
+            window.parent.postMessage({
+                source: FRAME_MESSAGE_SOURCE,
+                type: 'request-frame-path',
+            }, '*');
+        } catch (_) {}
+    }
+
+    function startFramePathRequests() {
+        requestFramePath();
+        if (framePathRequestTimer) clearInterval(framePathRequestTimer);
+        framePathRequestAttempts = 0;
+        framePathRequestTimer = setInterval(() => {
+            if (framePath || framePathRequestAttempts >= 20) {
+                clearInterval(framePathRequestTimer);
+                framePathRequestTimer = null;
+                return;
+            }
+            framePathRequestAttempts += 1;
+            requestFramePath();
+        }, 500);
+    }
+
+    function activeDirectFramePath() {
+        const el = document.activeElement;
+        return visibleFrameElement(el) ? framePathForElement(el) : null;
+    }
+
+    function resolveFocusedTargetFramePath() {
+        const activePath = activeDirectFramePath();
+        if (activePath) return activePath;
+
+        if (lastFocusedDescendantPath && directFrameForPath(lastFocusedDescendantPath)) {
+            return lastFocusedDescendantPath;
+        }
+        return null;
+    }
+
+    async function routeFrameAction(targetFramePath, action, data = {}) {
+        const normalizedPath = normalizeFramePath(targetFramePath);
+        if (!normalizedPath) return { ok: false, reason: 'frameActionUnavailable' };
+
+        try {
+            return await chrome.runtime.sendMessage({
+                type: 'route-frame-action',
+                framePath: normalizedPath,
+                action,
+                data,
+            });
+        } catch (err) {
+            return {
+                ok: false,
+                reason: 'frameActionUnavailable',
+                message: err?.message || String(err),
+            };
+        }
     }
 
     function isScrollable(el, axis, allowVisible = false) {
@@ -132,6 +409,48 @@
         const behavior = smooth ? 'smooth' : 'auto';
         if (top) findScrollableElement('y').scrollBy({ top, behavior });
         if (left) findScrollableElement('x').scrollBy({ left, behavior });
+    }
+
+    function executeLocalScrollAction(action, data = {}) {
+        switch (action) {
+            case 'directionalScroll':
+                scrollPageBy(Number(data.left) || 0, Number(data.top) || 0, false);
+                return true;
+            case 'scrollDown':
+                scrollPageBy(0, Math.round(window.innerHeight * 0.55));
+                return true;
+            case 'scrollUp':
+                scrollPageBy(0, -Math.round(window.innerHeight * 0.55));
+                return true;
+            case 'scrollRight':
+                scrollPageBy(Math.round(window.innerWidth * 0.55), 0);
+                return true;
+            case 'scrollLeft':
+                scrollPageBy(-Math.round(window.innerWidth * 0.55), 0);
+                return true;
+            case 'pageTop':
+                findScrollableElement('y').scrollTo({ top: 0, behavior: 'smooth' });
+                return true;
+            case 'pageBottom':
+                {
+                    const scroller = findScrollableElement('y');
+                    scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
+                }
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    async function executeTargetedScrollAction(action, data = {}) {
+        const targetFramePath = resolveFocusedTargetFramePath();
+        if (targetFramePath && !sameFramePath(targetFramePath, framePath)) {
+            const result = await routeFrameAction(targetFramePath, action, data);
+            if (result?.ok) return { ok: true, overlay: false };
+        }
+
+        executeLocalScrollAction(action, data);
+        return { ok: true, overlay: true };
     }
 
     function clamp(n, min, max) {
@@ -367,25 +686,51 @@
         updateVirtualPointer({ active: true, moving: true });
     }
 
-    function createPointerMouseEvent(type) {
+    function createMouseEventAt(type, x, y) {
         return new MouseEvent(type, {
             bubbles: true,
             cancelable: true,
             composed: true,
             view: window,
-            clientX: virtualPointer.x,
-            clientY: virtualPointer.y,
-            screenX: window.screenX + virtualPointer.x,
-            screenY: window.screenY + virtualPointer.y,
+            clientX: x,
+            clientY: y,
+            screenX: window.screenX + x,
+            screenY: window.screenY + y,
             button: 0,
             buttons: type === 'mouseup' || type === 'click' ? 0 : 1,
         });
     }
 
-    function clickVirtualPointerTarget() {
-        ensureVirtualPointer();
-        const target = pointerTargetAtCurrentPosition();
-        if (!target) return;
+    async function routePointerClickToFrame(frameEl, x, y) {
+        const childPath = framePathForElement(frameEl);
+        if (!childPath) return false;
+
+        try {
+            if (typeof frameEl.focus === 'function') {
+                frameEl.focus({ preventScroll: true });
+            }
+        } catch (_) {}
+
+        rememberFocusedFramePath(childPath);
+
+        const rect = frameEl.getBoundingClientRect();
+        const result = await routeFrameAction(childPath, 'pointerClickAt', {
+            x: clamp(x - rect.left, 0, Math.max(0, rect.width - 1)),
+            y: clamp(y - rect.top, 0, Math.max(0, rect.height - 1)),
+        });
+        return result?.ok === true;
+    }
+
+    async function clickTargetAt(x, y) {
+        const target = document.elementFromPoint(x, y);
+        if (!target) return { ok: true, overlay: false };
+
+        if (visibleFrameElement(target)) {
+            const routed = await routePointerClickToFrame(target, x, y);
+            if (routed) return { ok: true, overlay: false };
+        }
+
+        rememberFocusedFramePath(framePath || []);
 
         try {
             if (typeof target.focus === 'function') {
@@ -393,11 +738,18 @@
             }
         } catch (_) {}
 
-        target.dispatchEvent(createPointerMouseEvent('mousemove'));
-        target.dispatchEvent(createPointerMouseEvent('mousedown'));
-        target.dispatchEvent(createPointerMouseEvent('mouseup'));
-        target.dispatchEvent(createPointerMouseEvent('click'));
+        target.dispatchEvent(createMouseEventAt('mousemove', x, y));
+        target.dispatchEvent(createMouseEventAt('mousedown', x, y));
+        target.dispatchEvent(createMouseEventAt('mouseup', x, y));
+        target.dispatchEvent(createMouseEventAt('click', x, y));
+        return { ok: true, overlay: false };
+    }
+
+    async function clickVirtualPointerTarget() {
+        ensureVirtualPointer();
+        const result = await clickTargetAt(virtualPointer.x, virtualPointer.y);
         updateVirtualPointer(true);
+        return result;
     }
 
     function moveTextControlCursor(el, direction) {
@@ -507,65 +859,47 @@
         return true;
     }
 
-    function executeBrowserPageAction(action, data = {}) {
+    async function executeBrowserPageAction(action, data = {}) {
         if (!BROWSER_PAGE_ACTIONS.has(action)) return false;
-        if (CURSOR_KEY_BY_ACTION[action]) return executeCursorAction(action);
+        if (CURSOR_KEY_BY_ACTION[action]) {
+            executeCursorAction(action);
+            return { ok: true, overlay: true };
+        }
+        if (SCROLL_ACTIONS.has(action)) return await executeTargetedScrollAction(action, data);
+        if (POINTER_TOP_ACTIONS.has(action) && !isTopFrame()) return { ok: true, overlay: false };
 
         switch (action) {
-            case 'directionalScroll':
-                scrollPageBy(Number(data.left) || 0, Number(data.top) || 0, false);
-                break;
             case 'pointerShow':
                 updateVirtualPointer(false);
-                return null;
+                return { ok: true, overlay: false };
             case 'pointerHide':
                 hideVirtualPointer();
-                return null;
+                return { ok: true, overlay: false };
             case 'pointerMoveStart':
                 startVirtualPointerMove();
-                return null;
+                return { ok: true, overlay: false };
             case 'pointerMoveEnd':
                 endVirtualPointerMove();
-                return null;
+                return { ok: true, overlay: false };
             case 'pointerMove':
                 moveVirtualPointer(Number(data.left) || 0, Number(data.top) || 0);
-                return null;
+                return { ok: true, overlay: false };
             case 'pointerClick':
-                clickVirtualPointerTarget();
-                return null;
-            case 'scrollDown':
-                scrollPageBy(0, Math.round(window.innerHeight * 0.55));
-                break;
-            case 'scrollUp':
-                scrollPageBy(0, -Math.round(window.innerHeight * 0.55));
-                break;
-            case 'scrollRight':
-                scrollPageBy(Math.round(window.innerWidth * 0.55), 0);
-                break;
-            case 'scrollLeft':
-                scrollPageBy(-Math.round(window.innerWidth * 0.55), 0);
-                break;
-            case 'pageTop':
-                findScrollableElement('y').scrollTo({ top: 0, behavior: 'smooth' });
-                break;
-            case 'pageBottom':
-                {
-                    const scroller = findScrollableElement('y');
-                    scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
-                }
-                break;
+                return await clickVirtualPointerTarget();
+            case 'pointerClickAt':
+                return await clickTargetAt(Number(data.x) || 0, Number(data.y) || 0);
         }
-        return true;
+        return { ok: true, overlay: true };
     }
 
     /**
      * アクションを実行する。
      */
-    function executeAction(action, data) {
-        const browserResult = executeBrowserPageAction(action, data);
+    async function executeAction(action, data) {
+        const browserResult = await executeBrowserPageAction(action, data);
         if (browserResult !== false) {
-            if (browserResult) showOverlay(action);
-            return;
+            if (browserResult?.overlay) showOverlay(action);
+            return browserResult?.ok === false ? browserResult : { ok: true };
         }
 
         const media = findBestMediaElement();
@@ -641,6 +975,7 @@
 
         // 実行結果をバッジ等で視覚フィードバック（オーバーレイ表示）
         showOverlay(action);
+        return { ok: true };
     }
 
     /**
@@ -735,11 +1070,39 @@
         }, 600);
     }
 
+    window.addEventListener('message', handleFrameMessage);
+    window.addEventListener('focus', reportThisFrameFocused, true);
+    document.addEventListener('focusin', reportThisFrameFocused, true);
+    document.addEventListener('mousedown', reportThisFrameFocused, true);
+    document.addEventListener('load', (event) => {
+        if (isFrameElement(event.target)) scheduleAssignChildFramePaths();
+    }, true);
+
+    const frameObserverRoot = document.documentElement || document;
+    if (frameObserverRoot) {
+        new MutationObserver(scheduleAssignChildFramePaths)
+            .observe(frameObserverRoot, { childList: true, subtree: true });
+    }
+
+    if (isTopFrame()) {
+        setFramePath([]);
+    } else {
+        startFramePathRequests();
+    }
+
     // Service Worker からのメッセージを受信
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message.type === 'mediaAction') {
-            executeAction(message.action, message.data);
-            sendResponse({ ok: true });
+            executeAction(message.action, message.data)
+                .then(result => sendResponse(result || { ok: true }))
+                .catch((err) => {
+                    sendResponse({
+                        ok: false,
+                        reason: 'frameActionUnavailable',
+                        message: err?.message || String(err),
+                    });
+                });
+            return true;
         }
         return true;
     });
