@@ -56,7 +56,7 @@
     const BROWSER_PAGE_ACTIONS = new Set([
         'directionalScroll', 'scrollDown', 'scrollUp', 'scrollRight', 'scrollLeft', 'pageTop', 'pageBottom',
         'cursorUp', 'cursorDown', 'cursorLeft', 'cursorRight',
-        'pointerShow', 'pointerHide', 'pointerMoveStart', 'pointerMoveEnd', 'pointerMove', 'pointerClick', 'pointerClickAt',
+        'pointerShow', 'pointerHide', 'pointerMoveStart', 'pointerMoveEnd', 'pointerMove', 'pointerClick', 'pointerClickAt', 'pointerTargetAt',
     ]);
 
     const CURSOR_KEY_BY_ACTION = {
@@ -366,6 +366,25 @@
         }
     }
 
+    function plainRect(rect) {
+        return {
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height,
+        };
+    }
+
+    function translateRect(rect, offsetLeft, offsetTop) {
+        if (!rect) return null;
+        return {
+            left: Number(rect.left) + offsetLeft,
+            top: Number(rect.top) + offsetTop,
+            width: Number(rect.width),
+            height: Number(rect.height),
+        };
+    }
+
     function isScrollable(el, axis, allowVisible = false) {
         if (!el) return false;
         const scrollSize = axis === 'x' ? el.scrollWidth : el.scrollHeight;
@@ -481,6 +500,9 @@
         dimTimer: null,
         staleTimer: null,
         moving: false,
+        targetQuerySeq: 0,
+        targetQueryAt: 0,
+        targetQueryPathKey: '',
     };
 
     function pointerRoot() {
@@ -571,27 +593,120 @@
         return document.elementFromPoint(virtualPointer.x, virtualPointer.y);
     }
 
+    function hidePointerTarget() {
+        if (virtualPointer.targetEl) {
+            virtualPointer.targetEl.style.opacity = '0';
+        }
+    }
+
+    function applyPointerTargetRect(rect, active = false) {
+        if (!virtualPointer.targetEl || !rect) return;
+        const width = Number(rect.width) || 0;
+        const height = Number(rect.height) || 0;
+        if (width <= 0 || height <= 0) {
+            hidePointerTarget();
+            return;
+        }
+
+        Object.assign(virtualPointer.targetEl.style, {
+            left: `${Math.max(0, Number(rect.left) - 3)}px`,
+            top: `${Math.max(0, Number(rect.top) - 3)}px`,
+            width: `${Math.min(window.innerWidth, width + 6)}px`,
+            height: `${Math.min(window.innerHeight, height + 6)}px`,
+            opacity: active ? '0.85' : '0.35',
+        });
+    }
+
+    async function describePointerTargetAt(x, y) {
+        const target = document.elementFromPoint(x, y);
+        if (!target || target === document.documentElement || target === document.body) {
+            return { ok: true, targetRect: null };
+        }
+
+        if (visibleFrameElement(target)) {
+            const childPath = framePathForElement(target);
+            const rect = target.getBoundingClientRect();
+            if (childPath) {
+                const result = await routeFrameAction(childPath, 'pointerTargetAt', {
+                    x: clamp(x - rect.left, 0, Math.max(0, rect.width - 1)),
+                    y: clamp(y - rect.top, 0, Math.max(0, rect.height - 1)),
+                });
+                if (result?.targetRect) {
+                    return {
+                        ok: true,
+                        targetRect: translateRect(result.targetRect, rect.left, rect.top),
+                        targetFramePath: result.targetFramePath || childPath,
+                    };
+                }
+            }
+            return {
+                ok: true,
+                targetRect: plainRect(rect),
+                targetFramePath: childPath,
+            };
+        }
+
+        const rect = target.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return { ok: true, targetRect: null };
+        return {
+            ok: true,
+            targetRect: plainRect(rect),
+            targetFramePath: framePath || [],
+        };
+    }
+
+    async function updatePointerTargetFromFrame(frameEl, x, y, active, fallbackRect) {
+        const childPath = framePathForElement(frameEl);
+        if (!childPath) return;
+
+        const rect = frameEl.getBoundingClientRect();
+        const pathKey = JSON.stringify(childPath);
+        const now = performance.now();
+        if (
+            virtualPointer.targetQueryPathKey === pathKey &&
+            now - virtualPointer.targetQueryAt < 80
+        ) {
+            return;
+        }
+        virtualPointer.targetQueryPathKey = pathKey;
+        virtualPointer.targetQueryAt = now;
+        const seq = ++virtualPointer.targetQuerySeq;
+
+        const result = await routeFrameAction(childPath, 'pointerTargetAt', {
+            x: clamp(x - rect.left, 0, Math.max(0, rect.width - 1)),
+            y: clamp(y - rect.top, 0, Math.max(0, rect.height - 1)),
+        });
+
+        if (seq !== virtualPointer.targetQuerySeq) return;
+        if (result?.targetRect) {
+            applyPointerTargetRect(translateRect(result.targetRect, rect.left, rect.top), active);
+        } else {
+            applyPointerTargetRect(fallbackRect, active);
+        }
+    }
+
     function updatePointerTarget(active = false) {
         if (!virtualPointer.targetEl) return;
         const target = pointerTargetAtCurrentPosition();
         if (!target || target === document.documentElement || target === document.body) {
-            virtualPointer.targetEl.style.opacity = '0';
+            hidePointerTarget();
             return;
         }
 
         const rect = target.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) {
-            virtualPointer.targetEl.style.opacity = '0';
+            hidePointerTarget();
             return;
         }
 
-        Object.assign(virtualPointer.targetEl.style, {
-            left: `${Math.max(0, rect.left - 3)}px`,
-            top: `${Math.max(0, rect.top - 3)}px`,
-            width: `${Math.min(window.innerWidth, rect.width + 6)}px`,
-            height: `${Math.min(window.innerHeight, rect.height + 6)}px`,
-            opacity: active ? '0.85' : '0.35',
-        });
+        const fallbackRect = plainRect(rect);
+        applyPointerTargetRect(fallbackRect, active);
+        if (visibleFrameElement(target)) {
+            updatePointerTargetFromFrame(target, virtualPointer.x, virtualPointer.y, active, fallbackRect).catch(() => {});
+        } else {
+            virtualPointer.targetQuerySeq += 1;
+            virtualPointer.targetQueryPathKey = '';
+        }
     }
 
     function updateVirtualPointer(options = {}) {
@@ -888,6 +1003,8 @@
                 return await clickVirtualPointerTarget();
             case 'pointerClickAt':
                 return await clickTargetAt(Number(data.x) || 0, Number(data.y) || 0);
+            case 'pointerTargetAt':
+                return await describePointerTargetAt(Number(data.x) || 0, Number(data.y) || 0);
         }
         return { ok: true, overlay: true };
     }

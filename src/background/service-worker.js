@@ -329,6 +329,7 @@ async function routeFrameAction(message, sender) {
         const result = await sendContentAction(tabId, message.action, message.data, frameId);
         if (result?.ok === false) return result;
         return {
+            ...(result || {}),
             ok: true,
             handledBy: 'contentScriptFrame',
             frameId,
