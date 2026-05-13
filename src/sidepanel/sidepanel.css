@@ -273,11 +273,14 @@ body.mode-pointer #gesture-display.state-always {
 
 /* マッピング */
 .mode-tabs {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
     margin-bottom: 8px;
 }
-body.pointer-experimental-enabled .mode-tabs { grid-template-columns: repeat(3, 1fr); }
-.mode-tab {
+.settings-tabs {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+    margin-bottom: 8px;
+}
+.mode-tab, .settings-tab {
     border: 1px solid var(--color-border);
     border-radius: 4px;
     background: var(--color-surface);
@@ -286,9 +289,13 @@ body.pointer-experimental-enabled .mode-tabs { grid-template-columns: repeat(3, 
     padding: 5px 8px;
     cursor: pointer;
 }
-.mode-tab.is-active {
+.mode-tab.is-active, .settings-tab.is-active {
     color: var(--color-text);
     font-weight: 600;
+}
+.settings-tab.is-active {
+    border-color: var(--color-accent);
+    background: var(--color-surface-2);
 }
 .mode-tab[data-mode="media"].is-active {
     border-color: var(--color-mode-media);
@@ -302,6 +309,7 @@ body.pointer-experimental-enabled .mode-tabs { grid-template-columns: repeat(3, 
     border-color: var(--color-mode-pointer);
     background: var(--color-mode-pointer-soft);
 }
+.settings-panel[hidden] { display: none; }
 .mapping-row {
     display: flex; align-items: center; justify-content: space-between;
     padding: 4px 0;

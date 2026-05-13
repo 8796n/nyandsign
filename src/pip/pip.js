@@ -31,7 +31,6 @@ let browserMapping = { ...DEFAULT_BROWSER_MAPPING };
 let pointerMapping = { ...DEFAULT_POINTER_MAPPING };
 let currentMapping = { ...DEFAULT_MEDIA_MAPPING };
 let operationMode = DEFAULT_SETTINGS.operationMode;
-let experimentalPointerModeEnabled = DEFAULT_SETTINGS.experimentalPointerModeEnabled;
 let controlEnabled = true;
 let notifyVolume = DEFAULT_SETTINGS.notifyVolume;   // 通知音量 (0.0〜1.0)
 let pipFontScale = DEFAULT_SETTINGS.pipFontScale / 100; // PiP 文字サイズ倍率
@@ -118,16 +117,12 @@ function getMappingForMode(mode) {
     return mediaMapping;
 }
 
-function isPointerModeAvailable() {
-    return GestureRuntimeUtils.isPointerModeAvailable(experimentalPointerModeEnabled);
-}
-
 function normalizeOperationMode(mode) {
-    return GestureRuntimeUtils.normalizeOperationMode(mode, experimentalPointerModeEnabled);
+    return GestureRuntimeUtils.normalizeOperationMode(mode);
 }
 
 function availableOperationModes() {
-    return GestureRuntimeUtils.availableOperationModes(experimentalPointerModeEnabled);
+    return GestureRuntimeUtils.availableOperationModes();
 }
 
 function refreshCurrentMapping() {
@@ -165,9 +160,8 @@ async function loadSettings() {
             'inferenceFps', 'idleInferenceFpsEnabled', 'preferredHand', 'notifyVolume', 'pipFontScale',
             'inferenceResolution',
             'holdScrollSpeed', 'pointerMoveSpeed',
-            'metaGestureMapping', 'experimentalPointerModeEnabled',
+            'metaGestureMapping',
         ]);
-        experimentalPointerModeEnabled = result.experimentalPointerModeEnabled === true;
         const savedMedia = result.mediaGestureMapping || result.gestureMapping;
         if (savedMedia) mediaMapping = { ...DEFAULT_MEDIA_MAPPING, ...savedMedia };
         if (result.browserGestureMapping) {
@@ -220,17 +214,6 @@ chrome.storage.onChanged.addListener((changes) => {
     if (changes.pointerGestureMapping) {
         pointerMapping = { ...DEFAULT_POINTER_MAPPING, ...changes.pointerGestureMapping.newValue };
         refreshCurrentMapping();
-    }
-    if (changes.experimentalPointerModeEnabled) {
-        experimentalPointerModeEnabled = changes.experimentalPointerModeEnabled.newValue === true;
-        const previousMode = operationMode;
-        operationMode = normalizeOperationMode(operationMode);
-        refreshCurrentMapping();
-        if (previousMode !== operationMode) {
-            chrome.storage.sync.set({ operationMode });
-            stopAllGestureActions();
-        }
-        pointerVisibilityController?.sync(previousMode);
     }
     if (changes.operationMode) {
         const previousMode = operationMode;
@@ -726,7 +709,7 @@ function resetMetaGestureState() {
 
 function getEnabledMetaAction(type) {
     const action = metaGestureMapping[type] || 'none';
-    return GestureRuntimeUtils.enabledMetaAction(action, experimentalPointerModeEnabled);
+    return GestureRuntimeUtils.enabledMetaAction(action);
 }
 
 function executeMetaAction(action) {
@@ -750,7 +733,6 @@ function executeMetaAction(action) {
             setOperationMode(OPERATION_MODES.BROWSER);
             return true;
         case 'setModePointer':
-            if (!isPointerModeAvailable()) return false;
             setOperationMode(OPERATION_MODES.POINTER);
             return true;
         default:

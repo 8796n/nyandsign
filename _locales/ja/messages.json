@@ -92,6 +92,15 @@
   "sectionSettings": {
     "message": "設定"
   },
+  "settingTabOperation": {
+    "message": "操作"
+  },
+  "settingTabDisplay": {
+    "message": "表示"
+  },
+  "settingTabRecognition": {
+    "message": "認識"
+  },
   "sectionLog": {
     "message": "ログ"
   },
@@ -107,12 +116,6 @@
   },
   "settingSkeletonTitle": {
     "message": "カメラ映像を非表示にし、手の骨格のみ表示します"
-  },
-  "settingExperimentalPointerModeLabel": {
-    "message": "実験: ポインタ操作"
-  },
-  "settingExperimentalPointerModeTitle": {
-    "message": "ページ内に仮想カーソルを表示し、ハンドサインで移動とクリックを行う実験的な操作モードを有効にします"
   },
   "settingWakeLabel": {
     "message": "ウェイク"

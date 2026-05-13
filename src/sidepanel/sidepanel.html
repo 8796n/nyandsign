@@ -73,7 +73,7 @@
     <div class="mode-tabs" role="tablist" aria-label="Operation mode">
         <button class="mode-tab is-active" id="tab-media-mapping" type="button" data-mode="media" data-i18n="tabMediaActions">Media</button>
         <button class="mode-tab" id="tab-browser-mapping" type="button" data-mode="browser" data-i18n="tabBrowserActions">Browser</button>
-        <button class="mode-tab is-hidden" id="tab-pointer-mapping" type="button" data-mode="pointer" data-i18n="tabPointerActions">Pointer</button>
+        <button class="mode-tab" id="tab-pointer-mapping" type="button" data-mode="pointer" data-i18n="tabPointerActions">Pointer</button>
     </div>
 </div>
 
@@ -100,143 +100,148 @@
 <details class="collapsible" id="section-settings" open>
     <summary data-i18n="sectionSettings">Settings</summary>
     <div class="collapsible-body">
-        <div class="setting-row" title="Mirror camera view horizontally (for front-facing cameras)" data-i18n-title="settingMirrorTitle">
-            <span data-i18n="settingMirrorLabel">Mirror</span>
-            <div class="setting-control">
-                <label class="toggle-switch">
-                    <input type="checkbox" id="chk-mirror">
-                    <span class="slider"></span>
-                </label>
+        <div class="settings-tabs" role="tablist" aria-label="Settings">
+            <button class="settings-tab is-active" id="tab-settings-operation" type="button" role="tab" aria-selected="true" aria-controls="settings-panel-operation" data-settings-tab="operation" data-i18n="settingTabOperation">Operation</button>
+            <button class="settings-tab" id="tab-settings-display" type="button" role="tab" aria-selected="false" aria-controls="settings-panel-display" data-settings-tab="display" data-i18n="settingTabDisplay">Display</button>
+            <button class="settings-tab" id="tab-settings-recognition" type="button" role="tab" aria-selected="false" aria-controls="settings-panel-recognition" data-settings-tab="recognition" data-i18n="settingTabRecognition">Recognition</button>
+        </div>
+
+        <div class="settings-panel" id="settings-panel-operation" role="tabpanel" aria-labelledby="tab-settings-operation">
+            <div class="setting-row" title="Hand sign to activate operation. After detection, perform a command sign within the timeout" data-i18n-title="settingWakeTitle">
+                <span data-i18n="settingWakeLabel">Wake</span>
+                <div class="setting-control">
+                    <select id="sel-wake-gesture">
+                        <option value="open" data-i18n="optionWakeOpen">🖐️ Open hand</option>
+                        <option value="open-palm" data-i18n="optionWakeOpenPalm">🖐️ Open hand (palm only)</option>
+                        <option value="none" data-i18n="optionWakeNone">⚡ None (always)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="setting-row" id="row-wake-timeout" title="Time to accept command signs after wake" data-i18n-title="settingWakeTimeoutTitle">
+                <span data-i18n="settingWakeTimeoutLabel">Timeout</span>
+                <div class="setting-control">
+                    <input type="range" id="rng-wake-timeout" min="1" max="10" step="0.5" value="5">
+                    <span class="setting-value" id="wake-timeout-value">5.0s</span>
+                </div>
+            </div>
+            <div class="setting-row" title="Prefer this hand's sign when both hands are detected" data-i18n-title="settingPreferredHandTitle">
+                <span data-i18n="settingPreferredHandLabel">Preferred hand</span>
+                <div class="setting-control">
+                    <select id="sel-preferred-hand">
+                        <option value="auto" data-i18n="optionHandAuto">🤲 Either</option>
+                        <option value="Right" data-i18n="optionHandRight">🫱 Right</option>
+                        <option value="Left" data-i18n="optionHandLeft">🫲 Left</option>
+                    </select>
+                </div>
+            </div>
+            <div class="setting-row" title="Duration a sign must be held to confirm. Shorter = faster, longer = fewer mistakes" data-i18n-title="settingHoldTimeTitle">
+                <span data-i18n="settingHoldTimeLabel">Hold time</span>
+                <div class="setting-control">
+                    <input type="range" id="rng-hold-time" min="0" max="500" step="50" value="300">
+                    <span class="setting-value" id="hold-time-value">0.3s</span>
+                </div>
+            </div>
+            <div class="setting-row" title="Repeat interval for continuous actions like volume and seek" data-i18n-title="settingRepeatIntervalTitle">
+                <span data-i18n="settingRepeatIntervalLabel">🔁 Interval</span>
+                <div class="setting-control">
+                    <input type="range" id="rng-repeat-interval" min="200" max="1000" step="100" value="1000">
+                    <span class="setting-value" id="repeat-interval-value">1.0s</span>
+                </div>
+            </div>
+            <div class="setting-row" title="Adjust the maximum scroll amount for Hold to Scroll" data-i18n-title="settingHoldScrollSpeedTitle">
+                <span data-i18n="settingHoldScrollSpeedLabel">Hold scroll speed</span>
+                <div class="setting-control">
+                    <input type="range" id="rng-hold-scroll-speed" min="50" max="200" step="10" value="100">
+                    <span class="setting-value" id="hold-scroll-speed-value">100%</span>
+                </div>
+            </div>
+            <div class="setting-row" title="Adjust the maximum movement amount for Pointer Control" data-i18n-title="settingPointerMoveSpeedTitle">
+                <span data-i18n="settingPointerMoveSpeedLabel">Pointer speed</span>
+                <div class="setting-control">
+                    <input type="range" id="rng-pointer-move-speed" min="50" max="200" step="10" value="100">
+                    <span class="setting-value" id="pointer-move-speed-value">100%</span>
+                </div>
+            </div>
+            <div class="setting-row" title="Volume for wake activation and toggle sounds. 0 = silent" data-i18n-title="settingNotifyVolumeTitle">
+                <span data-i18n="settingNotifyVolumeLabel">Notify volume</span>
+                <div class="setting-control">
+                    <input type="range" id="rng-notify-volume" min="0" max="100" step="10" value="30">
+                    <span class="setting-value" id="notify-volume-value">30%</span>
+                </div>
             </div>
         </div>
-        <div class="setting-row" title="Hide camera feed and show only hand skeleton" data-i18n-title="settingSkeletonTitle">
-            <span data-i18n="settingSkeletonLabel">Skeleton only</span>
-            <div class="setting-control">
-                <label class="toggle-switch">
-                    <input type="checkbox" id="chk-skeleton-only">
-                    <span class="slider"></span>
-                </label>
+
+        <div class="settings-panel" id="settings-panel-display" role="tabpanel" aria-labelledby="tab-settings-display" hidden>
+            <div class="setting-row" title="Mirror camera view horizontally (for front-facing cameras)" data-i18n-title="settingMirrorTitle">
+                <span data-i18n="settingMirrorLabel">Mirror</span>
+                <div class="setting-control">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="chk-mirror">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="setting-row" title="Hide camera feed and show only hand skeleton" data-i18n-title="settingSkeletonTitle">
+                <span data-i18n="settingSkeletonLabel">Skeleton only</span>
+                <div class="setting-control">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="chk-skeleton-only">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="setting-row" title="Adjust overall display size of the side panel" data-i18n-title="settingUiScaleTitle">
+                <span data-i18n="settingUiScaleLabel">Display size</span>
+                <div class="setting-control">
+                    <input type="range" id="rng-ui-scale" min="80" max="150" step="10" value="100">
+                    <span class="setting-value" id="ui-scale-value">100%</span>
+                </div>
+            </div>
+            <div class="setting-row" title="Adjust the text size in PiP / popup window" data-i18n-title="settingPipFontScaleTitle">
+                <span data-i18n="settingPipFontScaleLabel">PiP Text Size</span>
+                <div class="setting-control">
+                    <input type="range" id="rng-pip-font-scale" min="50" max="200" step="10" value="100">
+                    <span class="setting-value" id="pip-font-scale-value">100%</span>
+                </div>
             </div>
         </div>
-        <div class="setting-row" title="Enable experimental pointer operation mode" data-i18n-title="settingExperimentalPointerModeTitle">
-            <span data-i18n="settingExperimentalPointerModeLabel">Pointer mode</span>
-            <div class="setting-control">
-                <label class="toggle-switch">
-                    <input type="checkbox" id="chk-experimental-pointer-mode">
-                    <span class="slider"></span>
-                </label>
+
+        <div class="settings-panel" id="settings-panel-recognition" role="tabpanel" aria-labelledby="tab-settings-recognition" hidden>
+            <div class="setting-row" title="Hand sign inference frequency. Lower = less CPU, but slower response" data-i18n-title="settingInferenceFpsTitle">
+                <span data-i18n="settingInferenceFpsLabel">Inference FPS</span>
+                <div class="setting-control">
+                    <input type="range" id="rng-inference-fps" min="5" max="30" step="5" value="15">
+                    <span class="setting-value" id="inference-fps-value">15fps</span>
+                </div>
             </div>
-        </div>
-        <div class="setting-row" title="Hand sign to activate operation. After detection, perform a command sign within the timeout" data-i18n-title="settingWakeTitle">
-            <span data-i18n="settingWakeLabel">Wake</span>
-            <div class="setting-control">
-                <select id="sel-wake-gesture">
-                    <option value="open" data-i18n="optionWakeOpen">🖐️ Open hand</option>
-                    <option value="open-palm" data-i18n="optionWakeOpenPalm">🖐️ Open hand (palm only)</option>
-                    <option value="none" data-i18n="optionWakeNone">⚡ None (always)</option>
-                </select>
+            <div class="setting-row" title="Lower inference FPS only while waiting for the wake sign" data-i18n-title="settingIdleInferenceFpsTitle">
+                <span data-i18n="settingIdleInferenceFpsLabel">Idle FPS limit</span>
+                <div class="setting-control">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="chk-idle-inference-fps">
+                        <span class="slider"></span>
+                    </label>
+                </div>
             </div>
-        </div>
-        <div class="setting-row" id="row-wake-timeout" title="Time to accept command signs after wake" data-i18n-title="settingWakeTimeoutTitle">
-            <span data-i18n="settingWakeTimeoutLabel">Timeout</span>
-            <div class="setting-control">
-                <input type="range" id="rng-wake-timeout" min="1" max="10" step="0.5" value="5">
-                <span class="setting-value" id="wake-timeout-value">5.0s</span>
+            <div class="setting-row" title="Maximum width requested from the camera and passed to hand sign inference. Lower values may reduce load" data-i18n-title="settingInferenceResolutionTitle">
+                <span data-i18n="settingInferenceResolutionLabel">Inference resolution</span>
+                <div class="setting-control">
+                    <select id="sel-inference-resolution">
+                        <option value="source" data-i18n="inferenceResolutionSource">Original</option>
+                        <option value="640" data-i18n="inferenceResolution640">640px width</option>
+                        <option value="480" data-i18n="inferenceResolution480">480px width</option>
+                        <option value="320" data-i18n="inferenceResolution320">320px width</option>
+                    </select>
+                </div>
             </div>
-        </div>
-        <div class="setting-row" title="Prefer this hand's sign when both hands are detected" data-i18n-title="settingPreferredHandTitle">
-            <span data-i18n="settingPreferredHandLabel">Preferred hand</span>
-            <div class="setting-control">
-                <select id="sel-preferred-hand">
-                    <option value="auto" data-i18n="optionHandAuto">🤲 Either</option>
-                    <option value="Right" data-i18n="optionHandRight">🫱 Right</option>
-                    <option value="Left" data-i18n="optionHandLeft">🫲 Left</option>
-                </select>
-            </div>
-        </div>
-        <div class="setting-row" title="Duration a sign must be held to confirm. Shorter = faster, longer = fewer mistakes" data-i18n-title="settingHoldTimeTitle">
-            <span data-i18n="settingHoldTimeLabel">Hold time</span>
-            <div class="setting-control">
-                <input type="range" id="rng-hold-time" min="0" max="500" step="50" value="300">
-                <span class="setting-value" id="hold-time-value">0.3s</span>
-            </div>
-        </div>
-        <div class="setting-row" title="Adjust the maximum scroll amount for Hold to Scroll" data-i18n-title="settingHoldScrollSpeedTitle">
-            <span data-i18n="settingHoldScrollSpeedLabel">Hold scroll speed</span>
-            <div class="setting-control">
-                <input type="range" id="rng-hold-scroll-speed" min="50" max="200" step="10" value="100">
-                <span class="setting-value" id="hold-scroll-speed-value">100%</span>
-            </div>
-        </div>
-        <div class="setting-row" title="Adjust the maximum movement amount for Pointer Control" data-i18n-title="settingPointerMoveSpeedTitle">
-            <span data-i18n="settingPointerMoveSpeedLabel">Pointer speed</span>
-            <div class="setting-control">
-                <input type="range" id="rng-pointer-move-speed" min="50" max="200" step="10" value="100">
-                <span class="setting-value" id="pointer-move-speed-value">100%</span>
-            </div>
-        </div>
-        <div class="setting-row" title="Repeat interval for continuous actions like volume and seek" data-i18n-title="settingRepeatIntervalTitle">
-            <span data-i18n="settingRepeatIntervalLabel">🔁 Interval</span>
-            <div class="setting-control">
-                <input type="range" id="rng-repeat-interval" min="200" max="1000" step="100" value="1000">
-                <span class="setting-value" id="repeat-interval-value">1.0s</span>
-            </div>
-        </div>
-        <div class="setting-row" title="Hand sign inference frequency. Lower = less CPU, but slower response" data-i18n-title="settingInferenceFpsTitle">
-            <span data-i18n="settingInferenceFpsLabel">Inference FPS</span>
-            <div class="setting-control">
-                <input type="range" id="rng-inference-fps" min="5" max="30" step="5" value="15">
-                <span class="setting-value" id="inference-fps-value">15fps</span>
-            </div>
-        </div>
-        <div class="setting-row" title="Lower inference FPS only while waiting for the wake sign" data-i18n-title="settingIdleInferenceFpsTitle">
-            <span data-i18n="settingIdleInferenceFpsLabel">Idle FPS limit</span>
-            <div class="setting-control">
-                <label class="toggle-switch">
-                    <input type="checkbox" id="chk-idle-inference-fps">
-                    <span class="slider"></span>
-                </label>
-            </div>
-        </div>
-        <div class="setting-row" title="Maximum width requested from the camera and passed to hand sign inference. Lower values may reduce load" data-i18n-title="settingInferenceResolutionTitle">
-            <span data-i18n="settingInferenceResolutionLabel">Inference resolution</span>
-            <div class="setting-control">
-                <select id="sel-inference-resolution">
-                    <option value="source" data-i18n="inferenceResolutionSource">Original</option>
-                    <option value="640" data-i18n="inferenceResolution640">640px width</option>
-                    <option value="480" data-i18n="inferenceResolution480">480px width</option>
-                    <option value="320" data-i18n="inferenceResolution320">320px width</option>
-                </select>
-            </div>
-        </div>
-        <div class="setting-row" title="Show hand sign recognition diagnostics in the panel and log" data-i18n-title="settingOkDebugTitle">
-            <span data-i18n="settingOkDebugLabel">Sign debug</span>
-            <div class="setting-control">
-                <label class="toggle-switch">
-                    <input type="checkbox" id="chk-ok-debug">
-                    <span class="slider"></span>
-                </label>
-            </div>
-        </div>
-        <div class="setting-row" title="Volume for wake activation and toggle sounds. 0 = silent" data-i18n-title="settingNotifyVolumeTitle">
-            <span data-i18n="settingNotifyVolumeLabel">Notify volume</span>
-            <div class="setting-control">
-                <input type="range" id="rng-notify-volume" min="0" max="100" step="10" value="30">
-                <span class="setting-value" id="notify-volume-value">30%</span>
-            </div>
-        </div>
-        <div class="setting-row" title="Adjust overall display size of the side panel" data-i18n-title="settingUiScaleTitle">
-            <span data-i18n="settingUiScaleLabel">Display size</span>
-            <div class="setting-control">
-                <input type="range" id="rng-ui-scale" min="80" max="150" step="10" value="100">
-                <span class="setting-value" id="ui-scale-value">100%</span>
-            </div>
-        </div>
-        <div class="setting-row" title="Adjust the text size in PiP / popup window" data-i18n-title="settingPipFontScaleTitle">
-            <span data-i18n="settingPipFontScaleLabel">PiP Text Size</span>
-            <div class="setting-control">
-                <input type="range" id="rng-pip-font-scale" min="50" max="200" step="10" value="100">
-                <span class="setting-value" id="pip-font-scale-value">100%</span>
+            <div class="setting-row" title="Show hand sign recognition diagnostics in the panel and log" data-i18n-title="settingOkDebugTitle">
+                <span data-i18n="settingOkDebugLabel">Sign debug</span>
+                <div class="setting-control">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="chk-ok-debug">
+                        <span class="slider"></span>
+                    </label>
+                </div>
             </div>
         </div>
         <div class="mapping-actions">
@@ -262,7 +267,7 @@
 
 <!-- フッター -->
 <div class="footer">
-    <span class="version">v1.0.109</span>
+    <span class="version">v1.0.110</span>
     <a href="https://megane.8796.jp" target="_blank" rel="noopener">&copy; 8796.jp</a>
 </div>
 

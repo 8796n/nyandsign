@@ -58,7 +58,6 @@ let browserMapping = { ...DEFAULT_BROWSER_MAPPING };
 let pointerMapping = { ...DEFAULT_POINTER_MAPPING };
 let currentMapping = { ...DEFAULT_MEDIA_MAPPING };
 let operationMode = DEFAULT_SETTINGS.operationMode;
-let experimentalPointerModeEnabled = DEFAULT_SETTINGS.experimentalPointerModeEnabled;
 let controlEnabled = true;
 let cameraStream = null;
 let lastActionTime = 0;
@@ -119,6 +118,7 @@ let pipTargetTabId = null;          // PiP 開始時のアクティブタブ ID
 
 // --- ターゲットタブ固定 ---
 let lockedTargetTabId = null;       // null = アクティブタブ追従, 数値 = 固定タブID
+let settingsActiveTab = 'operation';
 
 // --- 単一インスタンス制御 ---
 const instanceId = `sp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -137,6 +137,7 @@ const show = (elem) => { elem.style.display = ''; elem.classList.remove('is-hidd
 const hide = (elem) => { elem.classList.add('is-hidden'); };
 /** EyeCon 誘導用の特殊カメラ選択値 */
 const EYECON_VALUE = '__eyecon__';
+const SETTINGS_TAB_IDS = ['operation', 'display', 'recognition'];
 
 const el = {
     setupHint:       $('setup-hint'),
@@ -164,7 +165,6 @@ const el = {
     metaMappingList: $('meta-mapping-list'),
     operationModeLabel: $('operation-mode-label'),
     chkEnabled:      $('chk-enabled'),
-    chkPointerMode:  $('chk-experimental-pointer-mode'),
     chkIdleInferenceFps: $('chk-idle-inference-fps'),
     chkOkDebug:      $('chk-ok-debug'),
     btnReset:        $('btn-reset-mapping'),
@@ -1161,16 +1161,12 @@ function playBeep(freq = 880, duration = 0.12) {
 /* ============================================================
  * 操作モード
  * ============================================================ */
-function isPointerModeAvailable() {
-    return GestureRuntimeUtils.isPointerModeAvailable(experimentalPointerModeEnabled);
-}
-
 function normalizeOperationMode(mode) {
-    return GestureRuntimeUtils.normalizeOperationMode(mode, experimentalPointerModeEnabled);
+    return GestureRuntimeUtils.normalizeOperationMode(mode);
 }
 
 function availableOperationModes() {
-    return GestureRuntimeUtils.availableOperationModes(experimentalPointerModeEnabled);
+    return GestureRuntimeUtils.availableOperationModes();
 }
 
 function getMappingForMode(mode) {
@@ -1195,19 +1191,15 @@ function updateOperationModeUI() {
     document.body.classList.toggle('mode-media', operationMode === OPERATION_MODES.MEDIA);
     document.body.classList.toggle('mode-browser', operationMode === OPERATION_MODES.BROWSER);
     document.body.classList.toggle('mode-pointer', operationMode === OPERATION_MODES.POINTER);
-    document.body.classList.toggle('pointer-experimental-enabled', isPointerModeAvailable());
     if (el.operationModeLabel) {
         el.operationModeLabel.textContent = GestureRuntimeUtils.modeLabel(operationMode);
         el.operationModeLabel.title = controlEnabled ? msg('titleOperationToggle') : msg('titleOperationToggleOff');
     }
     if (el.chkEnabled) el.chkEnabled.checked = controlEnabled;
-    if (el.chkPointerMode) el.chkPointerMode.checked = isPointerModeAvailable();
     document.querySelectorAll('.mode-tab').forEach((tab) => {
-        const visible = tab.dataset.mode !== OPERATION_MODES.POINTER || isPointerModeAvailable();
-        tab.classList.toggle('is-hidden', !visible);
         tab.classList.toggle('is-active', tab.dataset.mode === operationMode);
         tab.setAttribute('aria-selected', tab.dataset.mode === operationMode ? 'true' : 'false');
-        tab.tabIndex = visible ? 0 : -1;
+        tab.tabIndex = 0;
     });
 }
 
@@ -1235,19 +1227,6 @@ function toggleOperationMode() {
     const modes = availableOperationModes();
     const index = Math.max(0, modes.indexOf(operationMode));
     setOperationMode(modes[(index + 1) % modes.length]);
-}
-
-function setExperimentalPointerModeEnabled(enabled) {
-    experimentalPointerModeEnabled = enabled === true;
-    if (!experimentalPointerModeEnabled && operationMode === OPERATION_MODES.POINTER) {
-        setOperationMode(OPERATION_MODES.BROWSER, { force: true });
-    } else {
-        updateOperationModeUI();
-        buildMappingUI();
-        buildMetaMappingUI();
-        pointerVisibilityController?.sync();
-    }
-    chrome.storage.sync.set({ experimentalPointerModeEnabled });
 }
 
 /* ============================================================
@@ -1526,7 +1505,6 @@ function executeMetaAction(action) {
             setOperationMode(OPERATION_MODES.BROWSER);
             break;
         case 'setModePointer':
-            if (!isPointerModeAvailable()) return false;
             setOperationMode(OPERATION_MODES.POINTER);
             break;
         default:
@@ -1541,7 +1519,7 @@ function resetMetaGestureState() {
 
 function getEnabledMetaAction(type) {
     const action = metaGestureMapping[type] || 'none';
-    return GestureRuntimeUtils.enabledMetaAction(action, experimentalPointerModeEnabled);
+    return GestureRuntimeUtils.enabledMetaAction(action);
 }
 
 /** frame イベント: メタサインの検出と保持系操作 */
@@ -1688,8 +1666,7 @@ function buildMappingUI() {
 function buildMetaMappingUI() {
     if (!el.metaMappingList) return;
     el.metaMappingList.innerHTML = '';
-    const actions = Object.keys(META_ACTION_I18N_KEYS)
-        .filter(action => action !== 'setModePointer' || isPointerModeAvailable());
+    const actions = Object.keys(META_ACTION_I18N_KEYS);
     for (const type of META_GESTURE_TYPES) {
         const row = document.createElement('div');
         row.className = 'mapping-row';
@@ -1723,10 +1700,7 @@ async function loadMapping() {
         const result = await chrome.storage.sync.get([
             'gestureMapping', 'mediaGestureMapping', 'browserGestureMapping', 'pointerGestureMapping',
             'operationMode', 'controlEnabled', 'metaGestureMapping', 'toggleGestureType',
-            'experimentalPointerModeEnabled',
         ]);
-
-        experimentalPointerModeEnabled = result.experimentalPointerModeEnabled === true;
 
         const savedMedia = result.mediaGestureMapping || result.gestureMapping;
         if (savedMedia) {
@@ -1901,6 +1875,12 @@ async function loadMapping() {
             if (val !== undefined) $(id).open = val;
         }
     } catch (_) {}
+    try {
+        const result = await chrome.storage.sync.get('settingsActiveTab');
+        setSettingsTab(result.settingsActiveTab, { save: false });
+    } catch (_) {
+        setSettingsTab(settingsActiveTab, { save: false });
+    }
 }
 
 async function saveMapping() {
@@ -1935,6 +1915,31 @@ function applyMirror(enabled) {
     tracker.displayMirrored = enabled;
 }
 
+function normalizeSettingsTab(tabId) {
+    return SETTINGS_TAB_IDS.includes(tabId) ? tabId : 'operation';
+}
+
+function setSettingsTab(tabId, options = {}) {
+    settingsActiveTab = normalizeSettingsTab(tabId);
+    document.querySelectorAll('.settings-tab').forEach((tab) => {
+        const active = tab.dataset.settingsTab === settingsActiveTab;
+        tab.classList.toggle('is-active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        tab.tabIndex = active ? 0 : -1;
+    });
+    document.querySelectorAll('.settings-panel').forEach((panel) => {
+        panel.hidden = panel.id !== `settings-panel-${settingsActiveTab}`;
+    });
+    if (options.save !== false) {
+        chrome.storage.sync.set({ settingsActiveTab }).catch(() => {});
+    }
+}
+
+function focusSettingsTab(tabId) {
+    setSettingsTab(tabId);
+    document.querySelector(`.settings-tab[data-settings-tab="${settingsActiveTab}"]`)?.focus();
+}
+
 /* ============================================================
  * イベントバインド
  * ============================================================ */
@@ -1967,10 +1972,6 @@ $('btn-exit-pip').addEventListener('click', () => {
 el.chkSkeleton.addEventListener('change', () => {
     applySkeletonOnly(el.chkSkeleton.checked);
     chrome.storage.sync.set({ skeletonOnly: el.chkSkeleton.checked });
-});
-
-el.chkPointerMode?.addEventListener('change', () => {
-    setExperimentalPointerModeEnabled(el.chkPointerMode.checked);
 });
 
 el.chkOkDebug?.addEventListener('change', () => {
@@ -2008,6 +2009,23 @@ function setControlEnabled(enabled) {
 document.querySelectorAll('.mode-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
         setOperationMode(tab.dataset.mode, { beep: false });
+    });
+});
+
+document.querySelectorAll('.settings-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+        setSettingsTab(tab.dataset.settingsTab);
+    });
+    tab.addEventListener('keydown', (event) => {
+        const currentIndex = SETTINGS_TAB_IDS.indexOf(settingsActiveTab);
+        let nextIndex = currentIndex;
+        if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % SETTINGS_TAB_IDS.length;
+        if (event.key === 'ArrowLeft') nextIndex = (currentIndex + SETTINGS_TAB_IDS.length - 1) % SETTINGS_TAB_IDS.length;
+        if (event.key === 'Home') nextIndex = 0;
+        if (event.key === 'End') nextIndex = SETTINGS_TAB_IDS.length - 1;
+        if (nextIndex === currentIndex) return;
+        event.preventDefault();
+        focusSettingsTab(SETTINGS_TAB_IDS[nextIndex]);
     });
 });
 
@@ -2219,7 +2237,6 @@ $('btn-reset-settings').addEventListener('click', () => {
     wakeGestureType = d.wakeGestureType;
     wakeActiveDuration = d.wakeActiveDuration;
     operationMode = d.operationMode;
-    experimentalPointerModeEnabled = d.experimentalPointerModeEnabled;
     toggleGestureType = d.toggleGestureType;
     metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
     tracker.preferredHand = d.preferredHand;
@@ -2239,7 +2256,6 @@ $('btn-reset-settings').addEventListener('click', () => {
     // UIを復元
     $('chk-mirror').checked = d.mirrorCamera; applyMirror(d.mirrorCamera);
     $('chk-skeleton-only').checked = d.skeletonOnly; applySkeletonOnly(d.skeletonOnly);
-    if (el.chkPointerMode) el.chkPointerMode.checked = d.experimentalPointerModeEnabled;
     if (el.chkOkDebug) el.chkOkDebug.checked = d.okDebugEnabled;
     $('sel-wake-gesture').value = d.wakeGestureType;
     $('rng-wake-timeout').value = d.wakeActiveDuration / 1000;

@@ -244,7 +244,6 @@ const DEFAULT_SETTINGS = {
     pipFontScale: 100,
     holdScrollSpeed: 100,
     pointerMoveSpeed: 100,
-    experimentalPointerModeEnabled: false,
     okDebugEnabled: false,
 };
 

@@ -122,6 +122,18 @@
     "message": "Settings",
     "description": "Collapsible section title for settings"
   },
+  "settingTabOperation": {
+    "message": "Operation",
+    "description": "Settings tab for operation behavior"
+  },
+  "settingTabDisplay": {
+    "message": "Display",
+    "description": "Settings tab for display behavior"
+  },
+  "settingTabRecognition": {
+    "message": "Recognition",
+    "description": "Settings tab for hand sign recognition behavior"
+  },
   "sectionLog": {
     "message": "Log",
     "description": "Collapsible section title for log"
@@ -142,14 +154,6 @@
   "settingSkeletonTitle": {
     "message": "Hide camera image and show only hand skeleton",
     "description": "Tooltip for skeleton-only setting"
-  },
-  "settingExperimentalPointerModeLabel": {
-    "message": "Experimental: Pointer",
-    "description": "Setting label for experimental pointer mode"
-  },
-  "settingExperimentalPointerModeTitle": {
-    "message": "Enable the experimental mode that shows a virtual pointer in the page and moves or clicks it with hand signs",
-    "description": "Tooltip for experimental pointer mode"
   },
   "settingWakeLabel": {
     "message": "Wake",

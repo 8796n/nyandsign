@@ -18,24 +18,14 @@ function metaGestureLabel(type) {
 }
 
 const GestureRuntimeUtils = {
-    isPointerModeAvailable(enabled) {
-        return enabled === true;
-    },
-
-    normalizeOperationMode(mode, pointerEnabled) {
-        if (mode === OPERATION_MODES.POINTER) {
-            return this.isPointerModeAvailable(pointerEnabled)
-                ? OPERATION_MODES.POINTER
-                : OPERATION_MODES.BROWSER;
-        }
+    normalizeOperationMode(mode) {
+        if (mode === OPERATION_MODES.POINTER) return OPERATION_MODES.POINTER;
         if (mode === OPERATION_MODES.BROWSER) return OPERATION_MODES.BROWSER;
         return OPERATION_MODES.MEDIA;
     },
 
-    availableOperationModes(pointerEnabled) {
-        return OPERATION_MODE_ORDER.filter(mode =>
-            mode !== OPERATION_MODES.POINTER || this.isPointerModeAvailable(pointerEnabled)
-        );
+    availableOperationModes() {
+        return OPERATION_MODE_ORDER;
     },
 
     modeBeepFrequency(mode) {
@@ -50,8 +40,7 @@ const GestureRuntimeUtils = {
         return msg('operationModeMedia');
     },
 
-    enabledMetaAction(action, pointerEnabled) {
-        if (action === 'setModePointer' && !this.isPointerModeAvailable(pointerEnabled)) return 'none';
+    enabledMetaAction(action) {
         return action || 'none';
     },
 
