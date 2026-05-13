@@ -503,6 +503,8 @@
         targetQuerySeq: 0,
         targetQueryAt: 0,
         targetQueryPathKey: '',
+        targetQueryTimer: null,
+        targetSource: '',
     };
 
     function pointerRoot() {
@@ -597,9 +599,10 @@
         if (virtualPointer.targetEl) {
             virtualPointer.targetEl.style.opacity = '0';
         }
+        virtualPointer.targetSource = '';
     }
 
-    function applyPointerTargetRect(rect, active = false) {
+    function applyPointerTargetRect(rect, active = false, source = '') {
         if (!virtualPointer.targetEl || !rect) return;
         const width = Number(rect.width) || 0;
         const height = Number(rect.height) || 0;
@@ -615,6 +618,14 @@
             height: `${Math.min(window.innerHeight, height + 6)}px`,
             opacity: active ? '0.85' : '0.35',
         });
+        virtualPointer.targetSource = source;
+    }
+
+    function clearPointerTargetQueryTimer() {
+        if (virtualPointer.targetQueryTimer) {
+            clearTimeout(virtualPointer.targetQueryTimer);
+            virtualPointer.targetQueryTimer = null;
+        }
     }
 
     async function describePointerTargetAt(x, y) {
@@ -655,7 +666,7 @@
         };
     }
 
-    async function updatePointerTargetFromFrame(frameEl, x, y, active, fallbackRect) {
+    async function updatePointerTargetFromFrame(frameEl, x, y, active, fallbackRect, options = {}) {
         const childPath = framePathForElement(frameEl);
         if (!childPath) return;
 
@@ -663,11 +674,19 @@
         const pathKey = JSON.stringify(childPath);
         const now = performance.now();
         if (
+            !options.force &&
             virtualPointer.targetQueryPathKey === pathKey &&
             now - virtualPointer.targetQueryAt < 80
         ) {
+            virtualPointer.targetQuerySeq += 1;
+            clearPointerTargetQueryTimer();
+            virtualPointer.targetQueryTimer = setTimeout(() => {
+                virtualPointer.targetQueryTimer = null;
+                updatePointerTargetFromFrame(frameEl, x, y, active, fallbackRect, { force: true }).catch(() => {});
+            }, Math.max(0, 80 - (now - virtualPointer.targetQueryAt)));
             return;
         }
+        clearPointerTargetQueryTimer();
         virtualPointer.targetQueryPathKey = pathKey;
         virtualPointer.targetQueryAt = now;
         const seq = ++virtualPointer.targetQuerySeq;
@@ -679,9 +698,9 @@
 
         if (seq !== virtualPointer.targetQuerySeq) return;
         if (result?.targetRect) {
-            applyPointerTargetRect(translateRect(result.targetRect, rect.left, rect.top), active);
+            applyPointerTargetRect(translateRect(result.targetRect, rect.left, rect.top), active, `frame:${pathKey}`);
         } else {
-            applyPointerTargetRect(fallbackRect, active);
+            applyPointerTargetRect(fallbackRect, active, `frame-fallback:${pathKey}`);
         }
     }
 
@@ -700,12 +719,19 @@
         }
 
         const fallbackRect = plainRect(rect);
-        applyPointerTargetRect(fallbackRect, active);
         if (visibleFrameElement(target)) {
+            const childPath = framePathForElement(target);
+            const pathKey = JSON.stringify(childPath || []);
+            const hasCurrentChildTarget = virtualPointer.targetSource === `frame:${pathKey}`;
+            if (!hasCurrentChildTarget) {
+                applyPointerTargetRect(fallbackRect, active, `frame-fallback:${pathKey}`);
+            }
             updatePointerTargetFromFrame(target, virtualPointer.x, virtualPointer.y, active, fallbackRect).catch(() => {});
         } else {
+            clearPointerTargetQueryTimer();
             virtualPointer.targetQuerySeq += 1;
             virtualPointer.targetQueryPathKey = '';
+            applyPointerTargetRect(fallbackRect, active, 'local');
         }
     }
 
@@ -760,12 +786,15 @@
             clearTimeout(virtualPointer.staleTimer);
             virtualPointer.staleTimer = null;
         }
+        clearPointerTargetQueryTimer();
         virtualPointer.cursorEl?.remove();
         virtualPointer.targetEl?.remove();
         virtualPointer.cursorEl = null;
         virtualPointer.crossEl = null;
         virtualPointer.targetEl = null;
         virtualPointer.moving = false;
+        virtualPointer.targetQueryPathKey = '';
+        virtualPointer.targetSource = '';
     }
 
     function startVirtualPointerMove() {
