@@ -1016,7 +1016,7 @@
         const browserResult = await executeBrowserPageAction(action, data);
         if (browserResult !== false) {
             if (browserResult?.overlay) showOverlay(action);
-            return browserResult?.ok === false ? browserResult : { ok: true };
+            return browserResult || { ok: true };
         }
 
         const media = findBestMediaElement();
