@@ -1931,7 +1931,11 @@ function setSettingsTab(tabId, options = {}) {
         tab.tabIndex = active ? 0 : -1;
     });
     document.querySelectorAll('.settings-panel').forEach((panel) => {
-        panel.hidden = panel.id !== `settings-panel-${settingsActiveTab}`;
+        const active = panel.id === `settings-panel-${settingsActiveTab}`;
+        panel.hidden = false;
+        panel.classList.toggle('is-active', active);
+        panel.setAttribute('aria-hidden', active ? 'false' : 'true');
+        panel.inert = !active;
     });
     if (options.save !== false) {
         chrome.storage.sync.set({ settingsActiveTab }).catch(() => {});

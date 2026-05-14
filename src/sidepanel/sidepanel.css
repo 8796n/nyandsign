@@ -333,7 +333,18 @@ body.mode-pointer #gesture-display.state-always {
     border-color: var(--color-mode-pointer);
     background: var(--color-mode-pointer-soft);
 }
-.settings-panel[hidden] { display: none; }
+.settings-panels {
+    display: grid;
+}
+.settings-panel {
+    grid-area: 1 / 1;
+    visibility: hidden;
+    pointer-events: none;
+}
+.settings-panel.is-active {
+    visibility: visible;
+    pointer-events: auto;
+}
 .mapping-row {
     display: flex; align-items: center; justify-content: space-between;
     padding: 4px 0;

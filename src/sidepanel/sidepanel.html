@@ -112,7 +112,8 @@
             <button class="settings-tab" id="tab-settings-recognition" type="button" role="tab" aria-selected="false" aria-controls="settings-panel-recognition" data-settings-tab="recognition" data-i18n="settingTabRecognition">Recognition</button>
         </div>
 
-        <div class="settings-panel" id="settings-panel-operation" role="tabpanel" aria-labelledby="tab-settings-operation">
+        <div class="settings-panels">
+        <div class="settings-panel is-active" id="settings-panel-operation" role="tabpanel" aria-labelledby="tab-settings-operation" aria-hidden="false">
             <div class="setting-row" title="Hand sign to activate operation. After detection, perform a command sign within the timeout" data-i18n-title="settingWakeTitle">
                 <span data-i18n="settingWakeLabel">Wake</span>
                 <div class="setting-control">
@@ -177,7 +178,7 @@
             </div>
         </div>
 
-        <div class="settings-panel" id="settings-panel-display" role="tabpanel" aria-labelledby="tab-settings-display" hidden>
+        <div class="settings-panel" id="settings-panel-display" role="tabpanel" aria-labelledby="tab-settings-display" aria-hidden="true" inert>
             <div class="setting-row" title="Mirror camera view horizontally (for front-facing cameras)" data-i18n-title="settingMirrorTitle">
                 <span data-i18n="settingMirrorLabel">Mirror</span>
                 <div class="setting-control">
@@ -218,7 +219,7 @@
             </div>
         </div>
 
-        <div class="settings-panel" id="settings-panel-recognition" role="tabpanel" aria-labelledby="tab-settings-recognition" hidden>
+        <div class="settings-panel" id="settings-panel-recognition" role="tabpanel" aria-labelledby="tab-settings-recognition" aria-hidden="true" inert>
             <div class="setting-row" title="Hand sign inference frequency. Lower = less CPU, but slower response" data-i18n-title="settingInferenceFpsTitle">
                 <span data-i18n="settingInferenceFpsLabel">Inference FPS</span>
                 <div class="setting-control">
@@ -256,6 +257,7 @@
                 </div>
             </div>
         </div>
+        </div>
     </div>
 </details>
 
@@ -275,7 +277,7 @@
 
 <!-- フッター -->
 <div class="footer">
-    <span class="version">v1.0.113</span>
+    <span class="version">v1.0.114</span>
     <a href="https://megane.8796.jp" target="_blank" rel="noopener">&copy; 8796.jp</a>
 </div>
 
