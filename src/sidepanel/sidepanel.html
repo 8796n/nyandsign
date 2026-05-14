@@ -79,18 +79,21 @@
 
 <!-- ハンドサインマッピング（折りたたみ） -->
 <details class="collapsible" id="section-gestures" open>
-    <summary data-i18n="sectionHandSigns">Hand Signs</summary>
+    <summary>
+        <span class="collapsible-title" data-i18n="sectionHandSigns">Hand Signs</span>
+        <button class="summary-action" id="btn-reset-mapping" type="button" data-i18n="btnInitialize">Initialize</button>
+    </summary>
     <div class="collapsible-body">
         <div id="mapping-list"></div>
-        <div class="mapping-actions">
-            <button class="btn btn-secondary btn-sm" id="btn-reset-mapping" data-i18n="btnResetMapping">Reset</button>
-        </div>
     </div>
 </details>
 
 <!-- 両手サインマッピング（折りたたみ） -->
 <details class="collapsible" id="section-meta-gestures" open>
-    <summary data-i18n="sectionTwoHandSigns">Two-Hand Signs</summary>
+    <summary>
+        <span class="collapsible-title" data-i18n="sectionTwoHandSigns">Two-Hand Signs</span>
+        <button class="summary-action" id="btn-reset-meta-mapping" type="button" data-i18n="btnInitialize">Initialize</button>
+    </summary>
     <div class="collapsible-body">
         <div id="meta-mapping-list"></div>
     </div>
@@ -98,7 +101,10 @@
 
 <!-- 設定（折りたたみ） -->
 <details class="collapsible" id="section-settings" open>
-    <summary data-i18n="sectionSettings">Settings</summary>
+    <summary>
+        <span class="collapsible-title" data-i18n="sectionSettings">Settings</span>
+        <button class="summary-action" id="btn-reset-settings" type="button" data-i18n="btnInitialize">Initialize</button>
+    </summary>
     <div class="collapsible-body">
         <div class="settings-tabs" role="tablist" aria-label="Settings">
             <button class="settings-tab is-active" id="tab-settings-operation" type="button" role="tab" aria-selected="true" aria-controls="settings-panel-operation" data-settings-tab="operation" data-i18n="settingTabOperation">Operation</button>
@@ -204,6 +210,12 @@
                     <span class="setting-value" id="pip-font-scale-value">100%</span>
                 </div>
             </div>
+            <div class="setting-row setting-row-action">
+                <span data-i18n="settingTutorialLabel">Tutorial</span>
+                <div class="setting-control">
+                    <button class="btn btn-secondary btn-sm" id="btn-show-tutorial" data-i18n="btnShowTutorial">📖 Show Tutorial</button>
+                </div>
+            </div>
         </div>
 
         <div class="settings-panel" id="settings-panel-recognition" role="tabpanel" aria-labelledby="tab-settings-recognition" hidden>
@@ -244,17 +256,13 @@
                 </div>
             </div>
         </div>
-        <div class="mapping-actions">
-            <button class="btn btn-secondary btn-sm" id="btn-show-tutorial" data-i18n="btnShowTutorial">📖 Show Tutorial</button>
-            <button class="btn btn-secondary btn-sm" id="btn-reset-settings" data-i18n="btnResetSettings">Reset</button>
-        </div>
     </div>
 </details>
 
 <!-- ログ（折りたたみ、デフォルト閉） -->
 <details class="collapsible" id="section-log">
     <summary>
-        <span data-i18n="sectionLog">Log</span>
+        <span class="collapsible-title" data-i18n="sectionLog">Log</span>
     </summary>
     <div class="collapsible-body">
         <div id="log"></div>
@@ -267,7 +275,7 @@
 
 <!-- フッター -->
 <div class="footer">
-    <span class="version">v1.0.111</span>
+    <span class="version">v1.0.112</span>
     <a href="https://megane.8796.jp" target="_blank" rel="noopener">&copy; 8796.jp</a>
 </div>
 
@@ -283,6 +291,19 @@
             <span class="spacer"></span>
             <button class="btn btn-secondary btn-sm" id="tutorial-back" data-i18n="tutorialBtnBack">← Back</button>
             <button class="btn btn-primary btn-sm" id="tutorial-next" data-i18n="tutorialBtnNext">Next →</button>
+        </div>
+    </div>
+</div>
+
+<!-- 初期化確認シート -->
+<div id="reset-confirm-overlay" class="reset-confirm-overlay is-hidden" aria-hidden="true">
+    <div class="reset-confirm-backdrop"></div>
+    <div class="reset-confirm-sheet" role="dialog" aria-modal="true" aria-labelledby="reset-confirm-title" aria-describedby="reset-confirm-body">
+        <h3 class="reset-confirm-title" id="reset-confirm-title"></h3>
+        <p class="reset-confirm-body" id="reset-confirm-body"></p>
+        <div class="reset-confirm-actions">
+            <button class="btn btn-secondary btn-sm" id="reset-confirm-cancel" data-i18n="btnCancel">Cancel</button>
+            <button class="btn btn-danger btn-sm" id="reset-confirm-apply" data-i18n="btnInitialize">Initialize</button>
         </div>
     </div>
 </div>

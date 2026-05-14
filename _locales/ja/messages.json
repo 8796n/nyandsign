@@ -21,11 +21,11 @@
   "btnOpenEyecon": {
     "message": "🕶️ EyeCon を開く"
   },
-  "btnResetMapping": {
-    "message": "リセット"
+  "btnInitialize": {
+    "message": "初期化"
   },
-  "btnResetSettings": {
-    "message": "リセット"
+  "btnCancel": {
+    "message": "キャンセル"
   },
   "btnCopyLog": {
     "message": "📋 コピー"
@@ -101,8 +101,30 @@
   "settingTabRecognition": {
     "message": "認識"
   },
+  "settingTutorialLabel": {
+    "message": "使い方"
+  },
   "sectionLog": {
     "message": "ログ"
+  },
+
+  "resetConfirmMappingTitle": {
+    "message": "ハンドサインを初期化しますか？"
+  },
+  "resetConfirmMappingBody": {
+    "message": "現在の操作モードのハンドサイン割り当てだけを初期設定に戻します。\n他の操作モードと両手サインは変更しません。"
+  },
+  "resetConfirmMetaMappingTitle": {
+    "message": "両手サインを初期化しますか？"
+  },
+  "resetConfirmMetaMappingBody": {
+    "message": "両手サインの割り当てだけを初期設定に戻します。\nハンドサイン割り当てと設定は変更しません。"
+  },
+  "resetConfirmSettingsTitle": {
+    "message": "設定を初期化しますか？"
+  },
+  "resetConfirmSettingsBody": {
+    "message": "操作、表示、認識の設定を初期値に戻します。\n操作モード、ハンドサイン割り当て、両手サインは変更しません。"
   },
 
   "settingMirrorLabel": {
@@ -616,6 +638,9 @@
   },
   "logMappingReset": {
     "message": "マッピングをリセット"
+  },
+  "logMetaMappingReset": {
+    "message": "両手サインをリセット"
   },
   "logSettingsReset": {
     "message": "設定をリセット"

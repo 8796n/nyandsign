@@ -160,11 +160,32 @@ details.collapsible > summary {
     font-size: 11px; text-transform: uppercase; color: var(--color-text-dim);
     letter-spacing: 0.5px;
     cursor: pointer; list-style: none; user-select: none;
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: center; gap: 8px;
 }
 details.collapsible > summary::-webkit-details-marker { display: none; }
+details.collapsible > summary .collapsible-title {
+    flex: 1;
+    min-width: 0;
+}
+details.collapsible > summary .summary-action {
+    margin-left: auto;
+    padding: 2px 6px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--color-text-dim);
+    font-size: 11px;
+    letter-spacing: 0;
+    text-transform: none;
+    cursor: pointer;
+}
+details.collapsible > summary .summary-action:hover {
+    background: var(--color-surface-2);
+    color: var(--color-accent);
+}
 details.collapsible > summary::after {
     content: '▶'; font-size: 9px; color: var(--color-text-faint);
+    flex-shrink: 0;
     transition: transform 0.15s;
 }
 details.collapsible[open] > summary::after { transform: rotate(90deg); }
@@ -178,6 +199,9 @@ details.collapsible > .collapsible-body { padding: 0 12px 10px; }
 .setting-row .setting-control {
     width: 160px; display: flex; align-items: center; justify-content: flex-end; gap: 4px;
     flex-shrink: 0;
+}
+.setting-row.setting-row-action .setting-control {
+    width: auto;
 }
 .setting-row select, .mapping-row select {
     width: 100%; padding: 3px 6px;
@@ -318,7 +342,6 @@ body.mode-pointer #gesture-display.state-always {
 .mapping-row select {
     flex: 0 0 160px;
 }
-.mapping-actions { margin-top: 6px; text-align: right; }
 .toggle-row {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 6px;
@@ -402,4 +425,41 @@ body.mode-pointer .mode-toggle input:checked + .slider { background: var(--color
     box-shadow: 0 0 0 2px var(--color-accent), 0 0 12px rgba(233, 69, 96, 0.4);
     border-radius: 4px;
     transition: box-shadow 0.25s ease;
+}
+
+/* 初期化確認シート */
+.reset-confirm-overlay {
+    position: fixed; inset: 0; z-index: 1001;
+    display: flex; align-items: flex-end;
+    background: rgba(0, 0, 0, 0.32);
+}
+.reset-confirm-overlay.is-hidden { display: none; }
+.reset-confirm-backdrop {
+    position: absolute; inset: 0;
+}
+.reset-confirm-sheet {
+    position: relative;
+    width: 100%;
+    padding: 14px 12px 12px;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.24);
+}
+.reset-confirm-title {
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--color-text);
+    margin-bottom: 6px;
+}
+.reset-confirm-body {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--color-text-muted);
+    white-space: pre-line;
+}
+.reset-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
 }

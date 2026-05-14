@@ -167,7 +167,6 @@ const el = {
     chkEnabled:      $('chk-enabled'),
     chkIdleInferenceFps: $('chk-idle-inference-fps'),
     chkOkDebug:      $('chk-ok-debug'),
-    btnReset:        $('btn-reset-mapping'),
 
     log:             $('log'),
     btnClearLog:     $('btn-clear-log'),
@@ -2191,7 +2190,7 @@ selPreferredHand.addEventListener('change', () => {
         : msg('logPreferredHandChanged', [msg(selPreferredHand.value === 'Right' ? 'optionHandRight' : 'optionHandLeft')]));
 });
 
-el.btnReset.addEventListener('click', () => {
+function resetCurrentMapping() {
     if (operationMode === OPERATION_MODES.BROWSER) {
         browserMapping = { ...DEFAULT_BROWSER_MAPPING };
     } else if (operationMode === OPERATION_MODES.POINTER) {
@@ -2203,6 +2202,142 @@ el.btnReset.addEventListener('click', () => {
     saveMapping();
     buildMappingUI();
     log(msg('logMappingReset'));
+}
+
+function resetMetaMapping() {
+    metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
+    chrome.storage.sync.set({ metaGestureMapping });
+    buildMetaMappingUI();
+    log(msg('logMetaMappingReset'));
+}
+
+function resetSettings() {
+    const d = DEFAULT_SETTINGS;
+    const {
+        operationMode: _defaultOperationMode,
+        toggleGestureType: _defaultToggleGestureType,
+        ...resetSettings
+    } = d;
+
+    // 状態変数を復元
+    wakeGestureType = d.wakeGestureType;
+    wakeActiveDuration = d.wakeActiveDuration;
+    tracker.preferredHand = d.preferredHand;
+    gestureHoldTime = d.gestureHoldTime;
+    actionRepeatInterval = d.actionRepeatInterval;
+    inferenceFps = d.inferenceFps;
+    idleInferenceFpsEnabled = d.idleInferenceFpsEnabled;
+    inferenceResolution = d.inferenceResolution;
+    updateTrackerInferenceResolution();
+    setWakeState(WAKE_STATE.IDLE);
+    notifyVolume = d.notifyVolume;
+    uiScale = d.uiScale;
+    holdScrollSpeed = d.holdScrollSpeed;
+    pointerMoveSpeed = d.pointerMoveSpeed;
+    setOkDebugEnabled(d.okDebugEnabled, { save: false });
+
+    // UIを復元
+    $('chk-mirror').checked = d.mirrorCamera; applyMirror(d.mirrorCamera);
+    $('chk-skeleton-only').checked = d.skeletonOnly; applySkeletonOnly(d.skeletonOnly);
+    if (el.chkOkDebug) el.chkOkDebug.checked = d.okDebugEnabled;
+    $('sel-wake-gesture').value = d.wakeGestureType;
+    $('rng-wake-timeout').value = d.wakeActiveDuration / 1000;
+    $('wake-timeout-value').textContent = fmtSeconds(d.wakeActiveDuration);
+    updateWakeUI();
+    updateOperationModeUI();
+    buildMappingUI();
+    $('sel-preferred-hand').value = d.preferredHand;
+    $('rng-hold-time').value = d.gestureHoldTime;
+    $('hold-time-value').textContent = fmtSeconds(d.gestureHoldTime);
+    $('rng-repeat-interval').value = d.actionRepeatInterval;
+    $('repeat-interval-value').textContent = fmtSeconds(d.actionRepeatInterval);
+    $('rng-hold-scroll-speed').value = d.holdScrollSpeed;
+    $('hold-scroll-speed-value').textContent = fmtPercent(d.holdScrollSpeed);
+    $('rng-pointer-move-speed').value = d.pointerMoveSpeed;
+    $('pointer-move-speed-value').textContent = fmtPercent(d.pointerMoveSpeed);
+    $('rng-inference-fps').value = d.inferenceFps;
+    $('inference-fps-value').textContent = fmtFps(d.inferenceFps);
+    if (el.chkIdleInferenceFps) el.chkIdleInferenceFps.checked = d.idleInferenceFpsEnabled;
+    $('sel-inference-resolution').value = d.inferenceResolution;
+    $('rng-notify-volume').value = Math.round(d.notifyVolume * 100);
+    $('notify-volume-value').textContent = fmtVolume(d.notifyVolume);
+    $('rng-ui-scale').value = d.uiScale;
+    $('ui-scale-value').textContent = fmtPercent(d.uiScale);
+    $('rng-pip-font-scale').value = d.pipFontScale;
+    $('pip-font-scale-value').textContent = fmtPercent(d.pipFontScale);
+    document.body.style.zoom = d.uiScale / 100;
+    pointerVisibilityController?.sync();
+
+    // ストレージに保存
+    chrome.storage.sync.set(resetSettings);
+    log(msg('logSettingsReset'));
+}
+
+const RESET_CONFIRM_CONFIG = {
+    mapping: {
+        titleKey: 'resetConfirmMappingTitle',
+        bodyKey: 'resetConfirmMappingBody',
+        action: resetCurrentMapping,
+    },
+    metaMapping: {
+        titleKey: 'resetConfirmMetaMappingTitle',
+        bodyKey: 'resetConfirmMetaMappingBody',
+        action: resetMetaMapping,
+    },
+    settings: {
+        titleKey: 'resetConfirmSettingsTitle',
+        bodyKey: 'resetConfirmSettingsBody',
+        action: resetSettings,
+    },
+};
+let pendingResetAction = null;
+let resetConfirmReturnFocus = null;
+
+function openResetConfirm(type, returnFocusEl) {
+    const config = RESET_CONFIRM_CONFIG[type];
+    if (!config) return;
+    pendingResetAction = config.action;
+    resetConfirmReturnFocus = returnFocusEl || null;
+    $('reset-confirm-title').textContent = msg(config.titleKey);
+    $('reset-confirm-body').textContent = msg(config.bodyKey);
+    const overlay = $('reset-confirm-overlay');
+    overlay.classList.remove('is-hidden');
+    overlay.setAttribute('aria-hidden', 'false');
+    $('reset-confirm-apply').focus();
+}
+
+function closeResetConfirm() {
+    pendingResetAction = null;
+    const overlay = $('reset-confirm-overlay');
+    overlay.classList.add('is-hidden');
+    overlay.setAttribute('aria-hidden', 'true');
+    resetConfirmReturnFocus?.focus();
+    resetConfirmReturnFocus = null;
+}
+
+function bindResetConfirmButton(id, type) {
+    $(id)?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openResetConfirm(type, event.currentTarget);
+    });
+}
+
+bindResetConfirmButton('btn-reset-mapping', 'mapping');
+bindResetConfirmButton('btn-reset-meta-mapping', 'metaMapping');
+bindResetConfirmButton('btn-reset-settings', 'settings');
+
+$('reset-confirm-cancel').addEventListener('click', closeResetConfirm);
+document.querySelector('#reset-confirm-overlay .reset-confirm-backdrop').addEventListener('click', closeResetConfirm);
+$('reset-confirm-apply').addEventListener('click', () => {
+    const action = pendingResetAction;
+    closeResetConfirm();
+    action?.();
+});
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !$('reset-confirm-overlay').classList.contains('is-hidden')) {
+        closeResetConfirm();
+    }
 });
 
 /* ターゲットタブ固定 */
@@ -2228,67 +2363,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (pageActionStatusVisible && changeInfo.status === 'complete' && (!lockedTargetTabId || lockedTargetTabId === tabId)) {
         clearPageActionStatus();
     }
-});
-
-$('btn-reset-settings').addEventListener('click', () => {
-    const d = DEFAULT_SETTINGS;
-    const { operationMode: _defaultOperationMode, ...resetSettings } = d;
-
-    // 状態変数を復元
-    wakeGestureType = d.wakeGestureType;
-    wakeActiveDuration = d.wakeActiveDuration;
-    toggleGestureType = d.toggleGestureType;
-    metaGestureMapping = { ...DEFAULT_META_GESTURE_MAPPING };
-    tracker.preferredHand = d.preferredHand;
-    gestureHoldTime = d.gestureHoldTime;
-    actionRepeatInterval = d.actionRepeatInterval;
-    inferenceFps = d.inferenceFps;
-    idleInferenceFpsEnabled = d.idleInferenceFpsEnabled;
-    inferenceResolution = d.inferenceResolution;
-    updateTrackerInferenceResolution();
-    setWakeState(WAKE_STATE.IDLE);
-    notifyVolume = d.notifyVolume;
-    uiScale = d.uiScale;
-    holdScrollSpeed = d.holdScrollSpeed;
-    pointerMoveSpeed = d.pointerMoveSpeed;
-    setOkDebugEnabled(d.okDebugEnabled, { save: false });
-
-    // UIを復元
-    $('chk-mirror').checked = d.mirrorCamera; applyMirror(d.mirrorCamera);
-    $('chk-skeleton-only').checked = d.skeletonOnly; applySkeletonOnly(d.skeletonOnly);
-    if (el.chkOkDebug) el.chkOkDebug.checked = d.okDebugEnabled;
-    $('sel-wake-gesture').value = d.wakeGestureType;
-    $('rng-wake-timeout').value = d.wakeActiveDuration / 1000;
-    $('wake-timeout-value').textContent = fmtSeconds(d.wakeActiveDuration);
-    updateWakeUI();
-    updateOperationModeUI();
-    buildMappingUI();
-    buildMetaMappingUI();
-    $('sel-preferred-hand').value = d.preferredHand;
-    $('rng-hold-time').value = d.gestureHoldTime;
-    $('hold-time-value').textContent = fmtSeconds(d.gestureHoldTime);
-    $('rng-repeat-interval').value = d.actionRepeatInterval;
-    $('repeat-interval-value').textContent = fmtSeconds(d.actionRepeatInterval);
-    $('rng-hold-scroll-speed').value = d.holdScrollSpeed;
-    $('hold-scroll-speed-value').textContent = fmtPercent(d.holdScrollSpeed);
-    $('rng-pointer-move-speed').value = d.pointerMoveSpeed;
-    $('pointer-move-speed-value').textContent = fmtPercent(d.pointerMoveSpeed);
-    $('rng-inference-fps').value = d.inferenceFps;
-    $('inference-fps-value').textContent = fmtFps(d.inferenceFps);
-    if (el.chkIdleInferenceFps) el.chkIdleInferenceFps.checked = d.idleInferenceFpsEnabled;
-    $('sel-inference-resolution').value = d.inferenceResolution;
-    $('rng-notify-volume').value = Math.round(d.notifyVolume * 100);
-    $('notify-volume-value').textContent = fmtVolume(d.notifyVolume);
-    $('rng-ui-scale').value = d.uiScale;
-    $('ui-scale-value').textContent = fmtPercent(d.uiScale);
-    $('rng-pip-font-scale').value = d.pipFontScale;
-    $('pip-font-scale-value').textContent = fmtPercent(d.pipFontScale);
-    document.body.style.zoom = d.uiScale / 100;
-    pointerVisibilityController?.sync();
-
-    // ストレージに保存
-    chrome.storage.sync.set({ ...resetSettings, metaGestureMapping });
-    log(msg('logSettingsReset'));
 });
 
 el.btnClearLog.addEventListener('click', () => {

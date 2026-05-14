@@ -28,13 +28,13 @@
     "message": "🕶️ Open EyeCon",
     "description": "Button to navigate to EyeCon setup page"
   },
-  "btnResetMapping": {
-    "message": "Reset",
-    "description": "Button to reset hand sign mapping"
+  "btnInitialize": {
+    "message": "Initialize",
+    "description": "Compact button to initialize one section"
   },
-  "btnResetSettings": {
-    "message": "Reset",
-    "description": "Button to reset settings"
+  "btnCancel": {
+    "message": "Cancel",
+    "description": "Button to cancel confirmation dialogs"
   },
   "btnCopyLog": {
     "message": "📋 Copy",
@@ -134,9 +134,38 @@
     "message": "Recognition",
     "description": "Settings tab for hand sign recognition behavior"
   },
+  "settingTutorialLabel": {
+    "message": "Tutorial",
+    "description": "Setting row label for replaying the tutorial"
+  },
   "sectionLog": {
     "message": "Log",
     "description": "Collapsible section title for log"
+  },
+
+  "resetConfirmMappingTitle": {
+    "message": "Initialize hand signs?",
+    "description": "Title for confirming hand sign mapping reset"
+  },
+  "resetConfirmMappingBody": {
+    "message": "Only the hand sign mapping for the current operation mode will return to defaults.\nOther operation modes and two-hand signs will not change.",
+    "description": "Body for confirming hand sign mapping reset"
+  },
+  "resetConfirmMetaMappingTitle": {
+    "message": "Initialize two-hand signs?",
+    "description": "Title for confirming two-hand sign mapping reset"
+  },
+  "resetConfirmMetaMappingBody": {
+    "message": "Only two-hand sign assignments will return to defaults.\nHand sign mappings and settings will not change.",
+    "description": "Body for confirming two-hand sign mapping reset"
+  },
+  "resetConfirmSettingsTitle": {
+    "message": "Initialize settings?",
+    "description": "Title for confirming settings reset"
+  },
+  "resetConfirmSettingsBody": {
+    "message": "Operation, display, and recognition settings will return to defaults.\nOperation mode, hand sign mappings, and two-hand signs will not change.",
+    "description": "Body for confirming settings reset"
   },
 
   "settingMirrorLabel": {
@@ -801,6 +830,10 @@
   "logMappingReset": {
     "message": "Mapping reset",
     "description": "Log when sign mapping is reset"
+  },
+  "logMetaMappingReset": {
+    "message": "Two-hand signs reset",
+    "description": "Log when two-hand sign mapping is reset"
   },
   "logSettingsReset": {
     "message": "Settings reset",
