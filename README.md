@@ -18,7 +18,7 @@ NyandSign は Google MediaPipe のオンデバイス AI を使い、リアルタ
 
 ### 🖐️ ハンドサイン認識
 
-11種類の片手ハンドサインを認識します。
+12種類の片手ハンドサインを認識します。
 
 | サイン | 説明 |
 |---|---|
@@ -31,6 +31,7 @@ NyandSign は Google MediaPipe のオンデバイス AI を使い、リアルタ
 | 🤘 ロック | rock |
 | 👉 右指差し | point-right |
 | 👈 左指差し | point-left |
+| ☝️ 上指差し | point-up |
 | 👍 サムズアップ | thumbsup |
 | 👎 サムズダウン | thumbsdown |
 

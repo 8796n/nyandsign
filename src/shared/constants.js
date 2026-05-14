@@ -21,7 +21,9 @@ function applyI18n() {
 }
 
 const GESTURE_ICONS = {
-    fist: '✊', ok: '👌', aloha: '🤙', 'point-left': '👈', 'point-right': '👉', peace: '✌️',
+    fist: '✊', ok: '👌', aloha: '🤙',
+    'point-left': '👈', 'point-right': '👉', 'point-up': '☝️',
+    peace: '✌️',
     thumbsup: '👍', thumbsdown: '👎', open: '🖐️', 'open-palm': '🖐️',
     three: '3️⃣', rock: '🤘', four: '4️⃣', unknown: '❓',
 };
@@ -143,6 +145,7 @@ const DEFAULT_MAPPING = {
     rock: 'resetSpeed',
     'point-right': 'seekForward',
     'point-left': 'seekBackward',
+    'point-up': 'none',
     thumbsup: 'speedUp',
     thumbsdown: 'speedDown',
 };
@@ -159,6 +162,7 @@ const DEFAULT_BROWSER_MAPPING = {
     rock: 'none',
     'point-right': 'nextTab',
     'point-left': 'previousTab',
+    'point-up': 'none',
     thumbsup: 'zoomIn',
     thumbsdown: 'zoomOut',
 };
@@ -173,6 +177,7 @@ const DEFAULT_POINTER_MAPPING = {
     rock: 'none',
     'point-right': 'none',
     'point-left': 'none',
+    'point-up': 'none',
     thumbsup: 'none',
     thumbsdown: 'none',
 };

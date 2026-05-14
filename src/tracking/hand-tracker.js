@@ -275,11 +275,16 @@ class HandTracker extends EventTarget {
         let activeGesture = hands[activeIdx]?.gesture ?? null;
 
         // 優先手がコマンドサインでない場合、
-        // もう片方の手の point-left/right を受け付ける
-        const COMMAND_GESTURES = ['ok', 'fist', 'thumbsup', 'thumbsdown', 'peace', 'aloha', 'point-left', 'point-right', 'open', 'open-palm'];
+        // もう片方の手の指差し系サインを受け付ける
+        const POINT_GESTURES = ['point-left', 'point-right', 'point-up'];
+        const COMMAND_GESTURES = [
+            'ok', 'fist', 'thumbsup', 'thumbsdown', 'peace', 'aloha',
+            ...POINT_GESTURES,
+            'open', 'open-palm',
+        ];
         if (!COMMAND_GESTURES.includes(activeGesture)) {
             for (const g of hands) {
-                if (g.idx !== activeIdx && (g.gesture === 'point-left' || g.gesture === 'point-right')) {
+                if (g.idx !== activeIdx && POINT_GESTURES.includes(g.gesture)) {
                     activeGesture = g.gesture;
                     break;
                 }
@@ -709,8 +714,8 @@ class HandTracker extends EventTarget {
     }
 
     /**
-     * 人差し指の向きから左右ポイントを判定する。
-     * 画面座標を palmSize2D で正規化し、横向きが十分強い場合のみ左右を返す。
+     * 人差し指の向きから指差し方向を判定する。
+     * 画面座標を palmSize2D で正規化し、上向きまたは横向きが十分強い場合のみ返す。
      */
     _getPointDirection(lm, palmSize2D) {
         if (!Number.isFinite(palmSize2D) || palmSize2D <= 0) return null;
@@ -729,6 +734,8 @@ class HandTracker extends EventTarget {
         const absDx = Math.abs(dx);
         const absDy = Math.abs(dy);
 
+        if (dy <= -0.42 && absDy >= absDx * 1.05) return 'point-up';
+
         if (absDx < 0.42) return null;
         if (absDx < absDy) return null;
 
@@ -743,7 +750,7 @@ class HandTracker extends EventTarget {
     /* ============================================================
      * ハンドサイン判定（距離ベース）
      *
-     * 判定順: ok → aloha → rock → thumbsup/down → fist → point-left/right → three → peace → four → open/open-palm
+     * 判定順: ok → aloha → rock → thumbsup/down → fist → point-left/right/up → three → peace → four → open/open-palm
      * 距離は palmSize で正規化 → カメラ距離・手の大きさに非依存
      * ============================================================ */
 
@@ -868,7 +875,7 @@ class HandTracker extends EventTarget {
             return 'fist';
         }
 
-        // 6) point-left/right: 人差し指が横を向いている
+        // 6) point-left/right/up: 人差し指だけが十分に特定方向を向いている
         if (index.extended && middle.curled && ring.curled && pinky.curled &&
             thumb.thumbIndexTipDist > 0.35) {
             const direction = this._getPointDirection(lm, palmSize2D);

@@ -390,6 +390,10 @@
     "message": "Left",
     "description": "Hand sign name: point left"
   },
+  "gesturePointUp": {
+    "message": "Point Up",
+    "description": "Hand sign name: point up"
+  },
   "gestureThumbsup": {
     "message": "Thumbs Up",
     "description": "Hand sign name: thumbs up"

@@ -368,9 +368,65 @@ class PointerMoveController {
     get active() { return this.state?.phase === 'active'; }
     get suspended() { return this.state?.phase === 'suspended'; }
 
+    landmarkPoint(point) {
+        if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+        return { x: point.x, y: point.y };
+    }
+
+    closestPointOnSegment(point, a, b) {
+        const p = this.landmarkPoint(point);
+        const start = this.landmarkPoint(a);
+        const end = this.landmarkPoint(b);
+        if (!p || !start || !end) return null;
+
+        const abx = end.x - start.x;
+        const aby = end.y - start.y;
+        const denom = abx * abx + aby * aby;
+        if (denom < 1e-8) return start;
+
+        const t = Math.max(0, Math.min(1, ((p.x - start.x) * abx + (p.y - start.y) * aby) / denom));
+        return {
+            x: start.x + abx * t,
+            y: start.y + aby * t,
+        };
+    }
+
+    okPinchPosition(hand) {
+        const lm = hand?.landmarks;
+        const thumbTip = this.landmarkPoint(lm?.[4]);
+        if (!thumbTip) return null;
+
+        const candidates = [
+            this.closestPointOnSegment(thumbTip, lm?.[6], lm?.[7]),
+            this.closestPointOnSegment(thumbTip, lm?.[7], lm?.[8]),
+        ].filter(Boolean);
+        if (!candidates.length) return null;
+
+        const indexPoint = candidates.reduce((best, point) =>
+            GestureRuntimeUtils.dist2d(thumbTip, point) < GestureRuntimeUtils.dist2d(thumbTip, best)
+                ? point
+                : best
+        );
+
+        return {
+            x: (thumbTip.x + indexPoint.x) / 2,
+            y: (thumbTip.y + indexPoint.y) / 2,
+        };
+    }
+
+    pointerPosition(hand, gesture) {
+        if (gesture === 'point-up') {
+            return this.landmarkPoint(hand?.landmarks?.[8]) || GestureRuntimeUtils.handPosition(hand);
+        }
+        if (gesture === 'ok') {
+            return this.okPinchPosition(hand) || GestureRuntimeUtils.handPosition(hand);
+        }
+        return GestureRuntimeUtils.handPosition(hand);
+    }
+
     start(gesture, hands = [], now = Date.now()) {
         const hand = GestureRuntimeUtils.findHandForGesture(gesture, hands, this.tracker.preferredHand);
-        const origin = GestureRuntimeUtils.handPosition(hand);
+        const origin = this.pointerPosition(hand, gesture);
         if (!origin) return false;
         this.state = {
             phase: 'active',
@@ -414,7 +470,7 @@ class PointerMoveController {
     resume(gesture, hands = [], now = Date.now()) {
         if (!this.canResume(gesture, now)) return false;
         const hand = GestureRuntimeUtils.findHandForGesture(gesture, hands, this.tracker.preferredHand);
-        const pos = GestureRuntimeUtils.handPosition(hand);
+        const pos = this.pointerPosition(hand, gesture);
         if (!pos) return false;
         this.state.phase = 'active';
         this.state.hand = hand?.hand || this.state.hand;
@@ -445,7 +501,7 @@ class PointerMoveController {
         let bestDistance = Infinity;
 
         for (const hand of candidates) {
-            const pos = GestureRuntimeUtils.handPosition(hand);
+            const pos = this.pointerPosition(hand, this.state.gesture);
             if (!pos) continue;
             const distance = GestureRuntimeUtils.dist2d(pos, this.state.lastPosition);
             if (distance < bestDistance) {
@@ -469,7 +525,7 @@ class PointerMoveController {
             hands,
             this.tracker.preferredHand
         );
-        let pos = GestureRuntimeUtils.handPosition(hand);
+        let pos = this.pointerPosition(hand, this.state.gesture);
 
         if (pos) {
             this.state.hand = hand?.hand || this.state.hand;

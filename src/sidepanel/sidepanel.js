@@ -31,7 +31,7 @@ function fmtVolume(v) { return v <= 0 ? msg('formatVolumeOff') : fmtPercent(Math
 /* ハンドサイン表示名 — i18n メッセージから取得 */
 const GESTURE_I18N_KEYS = {
     fist: 'gestureFist', peace: 'gesturePeace', ok: 'gestureOk', aloha: 'gestureAloha',
-    'point-right': 'gesturePointRight', 'point-left': 'gesturePointLeft',
+    'point-right': 'gesturePointRight', 'point-left': 'gesturePointLeft', 'point-up': 'gesturePointUp',
     thumbsup: 'gestureThumbsup', thumbsdown: 'gestureThumbsdown',
     three: 'gestureThree', rock: 'gestureRock', four: 'gestureFour',
     open: 'gestureOpen', 'open-palm': 'gestureOpenPalm', unknown: 'gestureUnknown',
@@ -42,7 +42,7 @@ function gestureLabel(key) {
 
 const GESTURABLE_TYPES = [
     'fist', 'peace', 'three', 'four', 'ok', 'aloha', 'rock',
-    'point-right', 'point-left', 'thumbsup', 'thumbsdown',
+    'point-right', 'point-left', 'point-up', 'thumbsup', 'thumbsdown',
 ];
 
 const CAMERA_POLL_INTERVAL = 3000;

@@ -17,8 +17,8 @@ Use hand signs to control media on sites like YouTube, Spotify, and Netflix, or 
 
 KEY FEATURES
 
-🖐️ 11 Recognizable Hand Signs
-Fist, Peace, Three, Four, OK, Aloha (shaka), Rock, Point Right, Point Left, Thumbs Up, and Thumbs Down — each sign can be mapped separately for each operation mode.
+🖐️ 12 Recognizable Hand Signs
+Fist, Peace, Three, Four, OK, Aloha (shaka), Rock, Point Right, Point Left, Point Up, Thumbs Up, and Thumbs Down — each sign can be mapped separately for each operation mode.
 
 🎬 Media Control Mode
 ▶⏸ Play / Pause

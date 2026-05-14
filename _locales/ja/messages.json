@@ -294,6 +294,9 @@
   "gesturePointLeft": {
     "message": "左"
   },
+  "gesturePointUp": {
+    "message": "上指差し"
+  },
   "gestureThumbsup": {
     "message": "サムズアップ"
   },
