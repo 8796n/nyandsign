@@ -352,12 +352,13 @@ class PointerMoveController {
         this.extendWakeTimeout = options.extendWakeTimeout;
         this.stopAllGestureActions = options.stopAllGestureActions;
         this.isControlEnabled = options.isControlEnabled;
+        this.onStateChange = options.onStateChange ?? (() => {});
         this.intervalMs = options.intervalMs ?? 32;
-        this.deadzone = options.deadzone ?? 0.025;
-        this.maxOffset = options.maxOffset ?? 0.22;
-        this.maxPixels = options.maxPixels ?? 26;
+        this.deadzone = options.deadzone ?? 0.022;
+        this.maxOffset = options.maxOffset ?? 0.2;
+        this.maxPixels = options.maxPixels ?? 34;
         this.getSpeedMultiplier = options.getSpeedMultiplier ?? (() => 1);
-        this.curvePower = options.curvePower ?? 1.6;
+        this.curvePower = options.curvePower ?? 1.25;
         this.graceMs = options.graceMs ?? 250;
         this.resumeWindowMs = options.resumeWindowMs ?? HOLD_GESTURE_RESUME_WINDOW_MS;
         this.maxTrackingJump = options.maxTrackingJump ?? 0.18;
@@ -383,6 +384,7 @@ class PointerMoveController {
             skipNextUpdate: false,
         };
         this.sendAction('pointerMoveStart');
+        this.onStateChange(this.state);
         return true;
     }
 
@@ -391,6 +393,7 @@ class PointerMoveController {
         const wasActive = this.active;
         this.state = null;
         if (wasActive) this.sendAction('pointerMoveEnd');
+        this.onStateChange(null);
     }
 
     suspend(now = Date.now()) {
@@ -398,6 +401,7 @@ class PointerMoveController {
         this.state.phase = 'suspended';
         this.state.suspendedAt = now;
         this.sendAction('pointerMoveEnd');
+        this.onStateChange(this.state);
         return true;
     }
 
@@ -420,6 +424,7 @@ class PointerMoveController {
         this.state.suspendedAt = 0;
         this.state.skipNextUpdate = true;
         this.sendAction('pointerMoveStart');
+        this.onStateChange(this.state);
         return true;
     }
 

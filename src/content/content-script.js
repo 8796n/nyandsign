@@ -375,6 +375,7 @@
     const POINTER_EDGE_SCROLL_MIN_OVERFLOW = 2;
     const POINTER_EDGE_SCROLL_SCALE = 1.2;
     const POINTER_EDGE_SCROLL_MAX_STEP = 42;
+    const POINTER_TARGET_UPDATE_INTERVAL_MS = 80;
 
     function pointerEdgeScrollAmount(overflow) {
         if (Math.abs(overflow) < POINTER_EDGE_SCROLL_MIN_OVERFLOW) return 0;
@@ -396,6 +397,8 @@
         targetEl: null,
         dimTimer: null,
         staleTimer: null,
+        targetUpdateTimer: null,
+        lastTargetUpdateAt: 0,
         moving: false,
         blocked: false,
         targetSource: '',
@@ -555,6 +558,37 @@
         applyPointerTargetRect(fallbackRect, active, 'frame-fallback');
     }
 
+    function clearPointerTargetUpdateTimer() {
+        if (!virtualPointer.targetUpdateTimer) return;
+        clearTimeout(virtualPointer.targetUpdateTimer);
+        virtualPointer.targetUpdateTimer = null;
+    }
+
+    function schedulePointerTargetUpdate(active = false, options = {}) {
+        if (!virtualPointer.targetEl) return;
+
+        const force = options.force === true;
+        const now = performance.now();
+        const elapsed = now - virtualPointer.lastTargetUpdateAt;
+        const run = (nextActive) => {
+            clearPointerTargetUpdateTimer();
+            virtualPointer.lastTargetUpdateAt = performance.now();
+            updatePointerTarget(nextActive);
+        };
+
+        if (force || virtualPointer.lastTargetUpdateAt === 0 || elapsed >= POINTER_TARGET_UPDATE_INTERVAL_MS) {
+            run(active);
+            return;
+        }
+
+        if (virtualPointer.targetUpdateTimer) return;
+        virtualPointer.targetUpdateTimer = setTimeout(() => {
+            virtualPointer.targetUpdateTimer = null;
+            virtualPointer.lastTargetUpdateAt = performance.now();
+            updatePointerTarget(virtualPointer.moving || active);
+        }, POINTER_TARGET_UPDATE_INTERVAL_MS - elapsed);
+    }
+
     function updatePointerTarget(active = false) {
         if (!virtualPointer.targetEl) return;
         const target = pointerTargetAtCurrentPosition();
@@ -616,7 +650,7 @@
         initPointerPosition();
         el.style.left = `${virtualPointer.x}px`;
         el.style.top = `${virtualPointer.y}px`;
-        updatePointerTarget(active);
+        schedulePointerTargetUpdate(active, { force: opts.forceTarget === true || !moving });
         applyVirtualPointerStyle(active, moving);
 
         if (virtualPointer.dimTimer) clearTimeout(virtualPointer.dimTimer);
@@ -644,6 +678,7 @@
             clearTimeout(virtualPointer.staleTimer);
             virtualPointer.staleTimer = null;
         }
+        clearPointerTargetUpdateTimer();
         virtualPointer.cursorEl?.remove();
         virtualPointer.targetEl?.remove();
         virtualPointer.cursorEl = null;
@@ -653,14 +688,15 @@
         virtualPointer.moving = false;
         virtualPointer.blocked = false;
         virtualPointer.targetSource = '';
+        virtualPointer.lastTargetUpdateAt = 0;
     }
 
     function startVirtualPointerMove() {
-        updateVirtualPointer({ active: true, moving: true });
+        updateVirtualPointer({ active: true, moving: true, forceTarget: true });
     }
 
     function endVirtualPointerMove() {
-        updateVirtualPointer({ active: false, moving: false });
+        updateVirtualPointer({ active: false, moving: false, forceTarget: true });
     }
 
     function moveVirtualPointer(left, top) {
@@ -1132,6 +1168,6 @@
 
     window.addEventListener('scroll', () => {
         if (!virtualPointer.cursorEl) return;
-        updatePointerTarget(false);
+        schedulePointerTargetUpdate(virtualPointer.moving);
     }, true);
 })();

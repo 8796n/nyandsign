@@ -412,7 +412,10 @@ function extendWakeTimeout(durationMs = wakeActiveDuration) {
 }
 
 function updateTrackerFps() {
-    tracker.targetFps = resolveWakeInferenceFps(inferenceFps, wakeState, wakeGestureType, idleInferenceFpsEnabled);
+    const fps = resolveWakeInferenceFps(inferenceFps, wakeState, wakeGestureType, idleInferenceFpsEnabled);
+    tracker.targetFps = pointerMoveController?.active
+        ? Math.max(fps, POINTER_MOVE_ACTIVE_FPS)
+        : fps;
 }
 
 function updateTrackerInferenceResolution() {
@@ -550,6 +553,7 @@ pointerMoveController = new PointerMoveController({
     stopAllGestureActions,
     isControlEnabled: () => controlEnabled && operationMode === OPERATION_MODES.POINTER,
     getSpeedMultiplier: () => moveSpeedToMultiplier(pointerMoveSpeed),
+    onStateChange: () => updateTrackerFps(),
 });
 
 holdGestureResumeController = new HoldGestureResumeController({
