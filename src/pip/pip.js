@@ -101,6 +101,11 @@ const browserWindowId = (() => {
     return v ? parseInt(v, 10) : null;
 })();
 
+const pipCameraIsXreal = (() => {
+    const p = new URLSearchParams(location.search);
+    return p.get('xrealCamera') === '1';
+})();
+
 // 単一インスタンス制御用
 const instanceId = `pip-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -424,8 +429,12 @@ function logInferenceResolution() {
     console.log('[PiP] ' + msg('logInferenceResolution', CameraRuntime.inferenceResolutionLogArgs(tracker, inferenceResolution)));
 }
 
-function currentCameraRequestOptions() {
-    return CameraRuntime.requestOptionsForInferenceResolution(inferenceResolution);
+function currentCameraHint() {
+    return CameraRuntime.primaryVideoTrack(cameraStream) || (pipCameraIsXreal ? 'XREAL' : null);
+}
+
+function currentCameraRequestOptions(cameraHint = currentCameraHint()) {
+    return CameraRuntime.requestOptionsForInferenceResolution(inferenceResolution, cameraHint);
 }
 
 function scheduleCameraRestartForSettings() {
@@ -996,11 +1005,14 @@ async function startCamera() {
 
         // カメラ取得
         statusEl.textContent = msg('pipStatusConnecting');
-        const cameraRequestOptions = currentCameraRequestOptions();
-        cameraStream = await CameraRuntime.requestCameraStream(cameraId, cameraRequestOptions);
+        const cameraResult = await CameraRuntime.requestTrackingCameraStream(
+            cameraId,
+            currentCameraRequestOptions()
+        );
+        cameraStream = cameraResult.stream;
 
-        const track = CameraRuntime.primaryVideoTrack(cameraStream);
-        logCameraResolution(cameraRequestOptions, track);
+        const track = cameraResult.track;
+        logCameraResolution(cameraResult.requestOptions, track);
 
         // メガネカメラの場合ミラー OFF
         if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;

@@ -697,8 +697,16 @@ function saveSelectedCamera() {
     try { chrome.storage.local.set({ selectedCameraId }); } catch (_) {}
 }
 
-function currentCameraRequestOptions() {
-    return CameraRuntime.requestOptionsForInferenceResolution(inferenceResolution);
+function selectedCameraDevice() {
+    return availableCameras.find(camera => camera.deviceId === selectedCameraId) || null;
+}
+
+function currentCameraHint() {
+    return CameraRuntime.primaryVideoTrack(cameraStream) || selectedCameraDevice();
+}
+
+function currentCameraRequestOptions(cameraHint = currentCameraHint()) {
+    return CameraRuntime.requestOptionsForInferenceResolution(inferenceResolution, cameraHint);
 }
 
 /* ============================================================
@@ -720,13 +728,16 @@ async function startCamera() {
             await tracker.loadModel((key) => log(msg(key)));
         }
 
-        const cameraRequestOptions = currentCameraRequestOptions();
-        cameraStream = await CameraRuntime.requestCameraStream(selectedCameraId, cameraRequestOptions);
+        const cameraResult = await CameraRuntime.requestTrackingCameraStream(
+            selectedCameraId,
+            currentCameraRequestOptions()
+        );
+        cameraStream = cameraResult.stream;
 
-        const track = CameraRuntime.primaryVideoTrack(cameraStream);
+        const track = cameraResult.track;
         activeCameraId = CameraRuntime.cameraDeviceId(cameraStream);
         log(msg('logCameraAcquired', [track?.label || 'Camera']));
-        logCameraResolution(cameraRequestOptions, track);
+        logCameraResolution(cameraResult.requestOptions, track);
 
         applyXrealMirrorAuto(track);
 
@@ -992,6 +1003,8 @@ async function openPipWindow() {
 
         // カメラ ID を保存してからサイドパネルのカメラを停止
         const cameraId = activeCameraId;
+        const cameraTrack = CameraRuntime.primaryVideoTrack(cameraStream);
+        const xrealCamera = CameraRuntime.isXrealCamera(cameraTrack);
 
         // サイドパネルの認識インスタンス所有権を先に解放
         // （ポップアップが claim した時にテイクオーバーが発生しないようにする）
@@ -1013,6 +1026,7 @@ async function openPipWindow() {
         // ポップアップウィンドウを画面右上に作成
         const params = new URLSearchParams({
             camera: cameraId || '',
+            xrealCamera: xrealCamera ? '1' : '0',
             targetTab: String(pipTargetTabId || ''),
             windowId: String(browserWindowId),
         });

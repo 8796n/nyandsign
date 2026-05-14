@@ -9,6 +9,8 @@
 const CameraRuntime = {
     DEFAULT_VIDEO_WIDTH: 1280,
     DEFAULT_VIDEO_HEIGHT: 720,
+    XREAL_RGB_VIDEO_WIDTH: 1920,
+    XREAL_RGB_VIDEO_HEIGHT: 1080,
     DEFAULT_RESTART_DEBOUNCE_MS: 400,
 
     createVideoConstraints(cameraId, options = {}) {
@@ -30,11 +32,28 @@ const CameraRuntime = {
         };
     },
 
-    requestOptionsForInferenceResolution(inferenceResolution) {
+    requestOptionsForInferenceResolution(inferenceResolution, cameraHint = null) {
+        // XREAL Eye の RGB UVC は低解像度の横長モードを広告しないため、
+        // カメラ取得は 1920x1080 に固定し、推論入力だけ内部で縮小する。
+        if (this.isXrealCamera(cameraHint)) {
+            return this.xrealRgbVideoOptions();
+        }
         const options = typeof inferenceResolutionToCameraOptions === 'function'
             ? inferenceResolutionToCameraOptions(inferenceResolution)
             : null;
         return options || this.defaultVideoOptions();
+    },
+
+    xrealRgbVideoOptions() {
+        return {
+            width: this.XREAL_RGB_VIDEO_WIDTH,
+            height: this.XREAL_RGB_VIDEO_HEIGHT,
+        };
+    },
+
+    isXrealRgbVideoOptions(options = {}) {
+        return Number(options.width) === this.XREAL_RGB_VIDEO_WIDTH
+            && Number(options.height) === this.XREAL_RGB_VIDEO_HEIGHT;
     },
 
     requestedVideoSize(options = {}) {
@@ -84,6 +103,29 @@ const CameraRuntime = {
         return navigator.mediaDevices.getUserMedia(
             this.createStreamConstraints(cameraId, options)
         );
+    },
+
+    async requestTrackingCameraStream(cameraId, options = {}) {
+        const stream = await this.requestCameraStream(cameraId, options);
+        return this.normalizeTrackingCameraStream(stream, cameraId, options);
+    },
+
+    async normalizeTrackingCameraStream(stream, cameraId, requestOptions = {}) {
+        const track = this.primaryVideoTrack(stream);
+        if (!this.isXrealCamera(track) || this.isXrealRgbVideoOptions(requestOptions)) {
+            return { stream, track, requestOptions };
+        }
+
+        const xrealOptions = this.xrealRgbVideoOptions();
+        const xrealCameraId = this.cameraDeviceId(stream) || cameraId;
+        this.releaseCameraStream(stream, null);
+
+        const xrealStream = await this.requestCameraStream(xrealCameraId, xrealOptions);
+        return {
+            stream: xrealStream,
+            track: this.primaryVideoTrack(xrealStream),
+            requestOptions: xrealOptions,
+        };
     },
 
     primaryVideoTrack(stream) {
@@ -194,13 +236,15 @@ const CameraRuntime = {
 
         let stream = null;
         try {
-            stream = await this.requestCameraStream(cameraId, requestOptions);
+            const cameraResult = await this.requestTrackingCameraStream(cameraId, requestOptions);
+            stream = cameraResult.stream;
+            requestOptions = cameraResult.requestOptions;
             if (!isCurrent()) {
                 this.releaseCameraStream(stream, null);
                 return { stale: true, stream: null, track: null, requestOptions };
             }
 
-            const track = this.primaryVideoTrack(stream);
+            const track = cameraResult.track;
             beforeStart?.({ stream, track, requestOptions });
             await this.attachStreamToVideo(videoEl, stream, attachOptions);
             await tracker.start(videoEl, canvasEl, trackerOptions);

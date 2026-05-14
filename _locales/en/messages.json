@@ -269,7 +269,7 @@
     "description": "Setting label for inference resolution"
   },
   "settingInferenceResolutionTitle": {
-    "message": "Maximum width requested from the camera and passed to hand sign inference. Lower values may reduce load",
+    "message": "Maximum width passed to hand sign inference. XREAL Eye keeps the camera at 1920x1080 and downsizes only the inference input",
     "description": "Tooltip for inference resolution setting"
   },
   "settingOkDebugLabel": {
