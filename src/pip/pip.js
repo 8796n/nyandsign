@@ -367,22 +367,11 @@ chrome.runtime.onMessage.addListener((message) => {
 /* ============================================================
  * 効果音（Web Audio API でビープ音生成）
  * ============================================================ */
-let audioCtx = null;
+const beepPlayer = NotificationSound.createBeepPlayer({
+    getVolume: () => notifyVolume,
+});
 function playBeep(freq = 880, duration = 0.12) {
-    if (notifyVolume <= 0) return;
-    try {
-        if (!audioCtx) audioCtx = new AudioContext();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(notifyVolume, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
-    } catch (_) {}
+    beepPlayer.play(freq, duration);
 }
 
 /* ============================================================
