@@ -39,11 +39,11 @@ Fist, Peace, Three, Four, OK, Aloha (shaka), Rock, Point Right, Point Left, Poin
 ＋− Zoom In / Zoom Out
 100% Reset Zoom
 
-🧪 Experimental: Pointer Control Mode
+🟡 Pointer Control Mode
 Display a virtual cursor inside the page, hold an assigned hand sign, and move your hand to move the cursor. Use a separate click sign to click links, buttons, and other page elements. This is implemented as an in-page virtual cursor within what a Chrome extension can control; it does not move the operating system mouse cursor itself.
 
 ⚡ Fully Customizable
-Switch between Media Control, Browser Control, and experimental Pointer Control modes
+Switch between Media Control, Browser Control, and Pointer Control modes
 Customize hand sign mappings separately for each mode
 Adjustable gesture hold time to reduce accidental triggers
 Repeatable actions for continuous volume, seek, scroll, and zoom control
@@ -114,6 +114,14 @@ Manifest V3 compliant
 
 
 WHAT'S NEW
+
+v1.1.118
+- Promoted Pointer Control mode to a standard mode alongside Media Control and Browser Control
+- Added the Point Up hand sign, with pointer movement assigned to Point Up and click assigned to OK by default
+- Improved pointer movement responsiveness, reduced target-highlight load, and stabilized iframe target display and clicking
+- Added settings for inference resolution, idle FPS limiting, Hold to Scroll speed, and pointer movement speed
+- Reorganized settings into Operation, Display, and Recognition tabs, with reset confirmation and two-hand sign reset
+- Improved hand sign recognition rules and debug display
 
 v1.0.92
 - Added experimental Pointer Control mode, which lets you move an in-page virtual cursor with hand signs
