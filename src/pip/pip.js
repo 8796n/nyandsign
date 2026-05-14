@@ -169,7 +169,12 @@ async function loadSettings() {
                 ? { ...DEFAULT_BROWSER_MAPPING }
                 : { ...DEFAULT_BROWSER_MAPPING, ...result.browserGestureMapping };
         }
-        if (result.pointerGestureMapping) pointerMapping = { ...DEFAULT_POINTER_MAPPING, ...result.pointerGestureMapping };
+        if (result.pointerGestureMapping) {
+            pointerMapping = normalizePointerGestureMapping(result.pointerGestureMapping);
+            if (isLegacyDefaultPointerMapping(result.pointerGestureMapping)) {
+                chrome.storage.sync.set({ pointerGestureMapping: pointerMapping });
+            }
+        }
         if (OPERATION_MODE_ORDER.includes(result.operationMode)) operationMode = normalizeOperationMode(result.operationMode);
         refreshCurrentMapping();
         if (result.controlEnabled !== undefined) controlEnabled = result.controlEnabled;
@@ -212,7 +217,7 @@ chrome.storage.onChanged.addListener((changes) => {
         refreshCurrentMapping();
     }
     if (changes.pointerGestureMapping) {
-        pointerMapping = { ...DEFAULT_POINTER_MAPPING, ...changes.pointerGestureMapping.newValue };
+        pointerMapping = normalizePointerGestureMapping(changes.pointerGestureMapping.newValue);
         refreshCurrentMapping();
     }
     if (changes.operationMode) {

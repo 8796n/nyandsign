@@ -533,11 +533,8 @@ class PointerMoveController {
             this.state.lastSeenAt = now;
         } else {
             const withinGrace = now - this.state.lastSeenAt <= this.graceMs;
-            const tracked = withinGrace ? this.findTrackedHand(hands) : null;
-            if (tracked?.pos) {
-                pos = tracked.pos;
-                this.state.lastPosition = pos;
-            } else if (withinGrace) {
+            if (withinGrace) {
+                // サイン遷移中は指先基準が跳ねやすいため、猶予中は位置を固定する。
                 return;
             }
         }

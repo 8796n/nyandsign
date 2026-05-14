@@ -1726,8 +1726,10 @@ async function loadMapping() {
 
         if (result.pointerGestureMapping) {
             const saved = { ...result.pointerGestureMapping };
-            delete saved.open;
-            pointerMapping = { ...DEFAULT_POINTER_MAPPING, ...saved };
+            pointerMapping = normalizePointerGestureMapping(saved);
+            if (isLegacyDefaultPointerMapping(saved)) {
+                chrome.storage.sync.set({ pointerGestureMapping: pointerMapping });
+            }
         }
 
         if (OPERATION_MODE_ORDER.includes(result.operationMode)) {

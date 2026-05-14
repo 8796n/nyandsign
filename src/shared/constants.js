@@ -168,6 +168,21 @@ const DEFAULT_BROWSER_MAPPING = {
 };
 
 const DEFAULT_POINTER_MAPPING = {
+    fist: 'none',
+    peace: 'none',
+    three: 'none',
+    four: 'none',
+    ok: 'pointerClick',
+    aloha: 'none',
+    rock: 'none',
+    'point-right': 'none',
+    'point-left': 'none',
+    'point-up': 'pointerMove',
+    thumbsup: 'none',
+    thumbsdown: 'none',
+};
+
+const LEGACY_DEFAULT_POINTER_MAPPING = {
     fist: 'pointerClick',
     peace: 'none',
     three: 'none',
@@ -198,6 +213,21 @@ const LEGACY_DEFAULT_BROWSER_MAPPING = {
 
 function isSameGestureMapping(mapping, baseline) {
     return Object.keys(baseline).every(key => mapping?.[key] === baseline[key]);
+}
+
+function isLegacyDefaultPointerMapping(mapping) {
+    const withoutPointUp = { ...LEGACY_DEFAULT_POINTER_MAPPING };
+    delete withoutPointUp['point-up'];
+    return isSameGestureMapping(mapping, LEGACY_DEFAULT_POINTER_MAPPING) ||
+        (mapping?.['point-up'] === undefined && isSameGestureMapping(mapping, withoutPointUp));
+}
+
+function normalizePointerGestureMapping(mapping) {
+    const saved = { ...(mapping || {}) };
+    delete saved.open;
+    return isLegacyDefaultPointerMapping(saved)
+        ? { ...DEFAULT_POINTER_MAPPING }
+        : { ...DEFAULT_POINTER_MAPPING, ...saved };
 }
 
 const OPERATION_MODES = {
