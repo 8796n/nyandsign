@@ -12,6 +12,7 @@ const CameraRuntime = {
     XREAL_RGB_VIDEO_WIDTH: 1920,
     XREAL_RGB_VIDEO_HEIGHT: 1080,
     DEFAULT_RESTART_DEBOUNCE_MS: 400,
+    DEFAULT_VIDEO_LOAD_TIMEOUT_MS: 5000,
 
     createVideoConstraints(cameraId, options = {}) {
         const { width = this.DEFAULT_VIDEO_WIDTH, height = this.DEFAULT_VIDEO_HEIGHT } = options;
@@ -143,19 +144,45 @@ const CameraRuntime = {
         return /XREAL|3318|Nreal|0486|0817|0909/.test(label);
     },
 
-    waitForLoadedData(videoEl) {
+    waitForLoadedData(videoEl, timeoutMs = this.DEFAULT_VIDEO_LOAD_TIMEOUT_MS) {
         if (!videoEl || videoEl.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
             return Promise.resolve();
         }
-        return new Promise(resolve => {
-            videoEl.addEventListener('loadeddata', resolve, { once: true });
+        return new Promise((resolve, reject) => {
+            let timer = null;
+            const cleanup = () => {
+                if (timer) clearTimeout(timer);
+                videoEl.removeEventListener('loadeddata', onLoaded);
+                videoEl.removeEventListener('error', onError);
+            };
+            const onLoaded = () => {
+                cleanup();
+                resolve();
+            };
+            const onError = () => {
+                cleanup();
+                const error = new Error('Camera video failed to load');
+                error.name = 'NotReadableError';
+                reject(error);
+            };
+
+            videoEl.addEventListener('loadeddata', onLoaded, { once: true });
+            videoEl.addEventListener('error', onError, { once: true });
+            if (timeoutMs > 0) {
+                timer = setTimeout(() => {
+                    cleanup();
+                    const error = new Error('Camera video did not produce frames in time');
+                    error.name = 'TimeoutError';
+                    reject(error);
+                }, timeoutMs);
+            }
         });
     },
 
-    async attachStreamToVideo(videoEl, stream, { play = false } = {}) {
+    async attachStreamToVideo(videoEl, stream, { play = false, loadTimeoutMs = this.DEFAULT_VIDEO_LOAD_TIMEOUT_MS } = {}) {
         if (!videoEl) return;
         videoEl.srcObject = stream;
-        await this.waitForLoadedData(videoEl);
+        await this.waitForLoadedData(videoEl, loadTimeoutMs);
         if (play) {
             await videoEl.play();
         }

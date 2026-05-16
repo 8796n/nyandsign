@@ -1038,6 +1038,8 @@ async function startCamera() {
         previewLoop();
 
     } catch (e) {
+        tracker.stop();
+        cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
         statusEl.textContent = msg('pipStatusError', [e?.message || String(e)]);
         console.error('[PiP] Camera error:', e);
     }

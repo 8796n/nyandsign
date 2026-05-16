@@ -788,6 +788,8 @@ async function startCamera() {
         }
     } catch (e) {
         const errMsg = e?.message || e?.name || String(e);
+        tracker.stop();
+        cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
         if (e?.name === 'NotAllowedError') {
             showCameraPermissionHint();
         } else if (e?.name === 'OverconstrainedError') {
