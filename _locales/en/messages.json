@@ -648,11 +648,27 @@
       "1": { "content": "$1", "example": "USB Camera" }
     }
   },
+  "logCameraSelected": {
+    "message": "Camera selected: $1 / profile $2",
+    "description": "Log selected camera label and detected profile before requesting the stream",
+    "placeholders": {
+      "1": { "content": "$1", "example": "XREAL One" },
+      "2": { "content": "$2", "example": "Electric glasses camera" }
+    }
+  },
   "logCameraRequesting": {
     "message": "Camera request: $1",
     "description": "Log before requesting a camera stream",
     "placeholders": {
       "1": { "content": "$1", "example": "auto" }
+    }
+  },
+  "logCameraAttemptFailed": {
+    "message": "Camera attempt failed: $1 / $2",
+    "description": "Log one failed camera request attempt",
+    "placeholders": {
+      "1": { "content": "$1", "example": "512x378" },
+      "2": { "content": "$2", "example": "Could not start video source" }
     }
   },
   "logCameraResolution": {

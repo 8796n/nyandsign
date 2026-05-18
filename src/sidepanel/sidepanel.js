@@ -802,6 +802,19 @@ function currentCameraRequestOptions(cameraHint = currentCameraHint()) {
     return CameraRuntime.requestOptionsForInferenceResolution(inferenceResolution, cameraHint);
 }
 
+function selectedCameraLogLabel() {
+    const camera = selectedCameraDevice();
+    return camera?.label || msg('cameraFallbackName', ['?']);
+}
+
+function cameraProfileLogLabel(cameraHint) {
+    const profile = CameraRuntime.xrealCameraProfile(cameraHint);
+    if (profile === CameraRuntime.XREAL_CAMERA_PROFILE_RGB) return msg('xrealCameraUvc0Label');
+    if (profile === CameraRuntime.XREAL_CAMERA_PROFILE_MONO) return msg('xrealCameraUvc1Label');
+    if (CameraRuntime.isXrealCamera(cameraHint)) return msg('xrealCameraLabel');
+    return '-';
+}
+
 /* ============================================================
  * カメラ制御
  * ============================================================ */
@@ -821,7 +834,9 @@ async function startCamera() {
             await tracker.loadModel((key) => log(msg(key)));
         }
 
-        const requestOptions = currentCameraRequestOptions();
+        const cameraHint = currentCameraHint();
+        const requestOptions = currentCameraRequestOptions(cameraHint);
+        log(msg('logCameraSelected', [selectedCameraLogLabel(), cameraProfileLogLabel(cameraHint)]));
         log(msg('logCameraRequesting', [CameraRuntime.formatRequestOptions(requestOptions)]));
         const cameraResult = await CameraRuntime.requestTrackingCameraStream(
             selectedCameraId,
@@ -895,6 +910,7 @@ async function startCamera() {
             selectedCameraId = null;
             startCameraPolling();
         } else {
+            logCameraAttemptErrors(e);
             log(msg('logCameraError', [errMsg]));
         }
         console.error('[GW] Camera error:', e);
@@ -928,7 +944,9 @@ async function restartCameraForSettings() {
     activeCameraId = null;
 
     try {
-        const requestOptions = currentCameraRequestOptions();
+        const cameraHint = currentCameraHint();
+        const requestOptions = currentCameraRequestOptions(cameraHint);
+        log(msg('logCameraSelected', [selectedCameraLogLabel(), cameraProfileLogLabel(cameraHint)]));
         log(msg('logCameraRequesting', [CameraRuntime.formatRequestOptions(requestOptions)]));
         const result = await CameraRuntime.restartTrackingCamera({
             currentStream: previousStream,
@@ -971,6 +989,7 @@ async function restartCameraForSettings() {
         log(msg('logCameraRestartedForSettings'));
     } catch (e) {
         const errMsg = e?.message || e?.name || String(e);
+        logCameraAttemptErrors(e);
         log(msg('logCameraError', [errMsg]));
         console.error('[GW] Camera restart error:', e);
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
@@ -1408,6 +1427,15 @@ function logCameraResolution(requestOptions, track) {
 function logXrealCameraFallback(cameraResult) {
     if (cameraResult?.fallbackProfile === CameraRuntime.XREAL_CAMERA_PROFILE_MONO) {
         log(msg('logXrealMonoFallback'));
+    }
+}
+
+function logCameraAttemptErrors(error) {
+    if (!Array.isArray(error?.cameraAttemptErrors)) return;
+    for (const attempt of error.cameraAttemptErrors) {
+        const request = CameraRuntime.formatRequestOptions(attempt.requestOptions || {});
+        const message = attempt.message || attempt.name || '-';
+        log(msg('logCameraAttemptFailed', [request, message]));
     }
 }
 

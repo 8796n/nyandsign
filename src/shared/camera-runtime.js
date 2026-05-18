@@ -158,28 +158,55 @@ const CameraRuntime = {
             const stream = await this.requestCameraStream(cameraId, options);
             return this.normalizeTrackingCameraStream(stream, cameraId, options);
         } catch (e) {
-            if (!this.shouldRetryXrealMonoCamera(e, options)) throw e;
-            const monoOptions = this.xrealMonoVideoOptions();
+            const fallbackOptions = this.xrealFallbackOptions(options);
+            if (fallbackOptions.length === 0) throw e;
+            return this.requestTrackingCameraStreamWithFallbacks(cameraId, fallbackOptions, e, options);
+        }
+    },
+
+    xrealFallbackOptions(options = {}) {
+        if (options.deviceOnly) {
+            return [this.xrealMonoVideoOptions(), this.xrealRgbVideoOptions()];
+        }
+        if (this.isXrealRgbVideoOptions(options)) {
+            return [this.xrealMonoVideoOptions(), this.deviceOnlyVideoOptions()];
+        }
+        if (this.isXrealMonoVideoOptions(options)) {
+            return [this.deviceOnlyVideoOptions(), this.xrealRgbVideoOptions()];
+        }
+        return [];
+    },
+
+    async requestTrackingCameraStreamWithFallbacks(cameraId, fallbackOptions, firstError, firstOptions = {}) {
+        const attemptErrors = [{
+            requestOptions: firstOptions,
+            name: firstError?.name || '',
+            message: firstError?.message || String(firstError),
+        }];
+        for (const options of fallbackOptions) {
             try {
-                const stream = await this.requestCameraStream(cameraId, monoOptions);
-                const result = await this.normalizeTrackingCameraStream(stream, cameraId, monoOptions);
+                const stream = await this.requestCameraStream(cameraId, options);
+                const result = await this.normalizeTrackingCameraStream(stream, cameraId, options);
                 return {
                     ...result,
-                    fallbackProfile: this.XREAL_CAMERA_PROFILE_MONO,
-                    fallbackError: e,
+                    fallbackProfile: this.xrealCameraProfile(result.track) || null,
+                    fallbackError: firstError,
+                    fallbackMode: options.deviceOnly ? 'device-only' : 'resolution',
+                    attemptErrors,
                 };
-            } catch (monoError) {
-                const deviceOnlyOptions = this.deviceOnlyVideoOptions();
-                const stream = await this.requestCameraStream(cameraId, deviceOnlyOptions);
-                const result = await this.normalizeTrackingCameraStream(stream, cameraId, deviceOnlyOptions);
-                return {
-                    ...result,
-                    fallbackProfile: this.xrealCameraProfile(result.track) || this.XREAL_CAMERA_PROFILE_MONO,
-                    fallbackError: monoError,
-                    fallbackMode: 'device-only',
-                };
+            } catch (e) {
+                attemptErrors.push({
+                    requestOptions: options,
+                    name: e?.name || '',
+                    message: e?.message || String(e),
+                });
             }
         }
+        const last = attemptErrors[attemptErrors.length - 1];
+        const error = new Error(last.message || firstError?.message || 'Could not start video source');
+        error.name = last.name || firstError?.name || 'NotReadableError';
+        error.cameraAttemptErrors = attemptErrors;
+        throw error;
     },
 
     async normalizeTrackingCameraStream(stream, cameraId, requestOptions = {}) {

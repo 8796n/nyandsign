@@ -491,10 +491,24 @@
       "1": { "content": "$1" }
     }
   },
+  "logCameraSelected": {
+    "message": "カメラ選択: $1 / 種別 $2",
+    "placeholders": {
+      "1": { "content": "$1" },
+      "2": { "content": "$2" }
+    }
+  },
   "logCameraRequesting": {
     "message": "カメラ取得要求: $1",
     "placeholders": {
       "1": { "content": "$1" }
+    }
+  },
+  "logCameraAttemptFailed": {
+    "message": "カメラ取得失敗: $1 / $2",
+    "placeholders": {
+      "1": { "content": "$1" },
+      "2": { "content": "$2" }
     }
   },
   "logCameraResolution": {
