@@ -19,6 +19,13 @@ const CameraRuntime = {
     DEFAULT_VIDEO_LOAD_TIMEOUT_MS: 5000,
 
     createVideoConstraints(cameraId, options = {}) {
+        if (options.deviceOnly) {
+            const video = {};
+            if (cameraId) {
+                video.deviceId = { exact: cameraId };
+            }
+            return video;
+        }
         const { width = this.DEFAULT_VIDEO_WIDTH, height = this.DEFAULT_VIDEO_HEIGHT } = options;
         const video = {
             width: { ideal: width },
@@ -37,16 +44,24 @@ const CameraRuntime = {
         };
     },
 
+    deviceOnlyVideoOptions() {
+        return { deviceOnly: true };
+    },
+
     requestOptionsForInferenceResolution(inferenceResolution, cameraHint = null) {
+        const xrealProfile = this.xrealCameraProfile(cameraHint);
         // XREAL Eye の UVC1 は 6DoF 用の白黒低解像度カメラ。
         // UVC0 の RGB カメラだけ 1920x1080 に寄せ、UVC1 はネイティブ解像度で取得する。
-        if (this.xrealCameraProfile(cameraHint) === this.XREAL_CAMERA_PROFILE_MONO) {
+        if (xrealProfile === this.XREAL_CAMERA_PROFILE_MONO) {
             return this.xrealMonoVideoOptions();
         }
         // XREAL Eye の RGB UVC0 は低解像度の横長モードを広告しないため、
         // カメラ取得は 1920x1080 に固定し、推論入力だけ内部で縮小する。
-        if (this.isXrealCamera(cameraHint)) {
+        if (xrealProfile === this.XREAL_CAMERA_PROFILE_RGB) {
             return this.xrealRgbVideoOptions();
+        }
+        if (this.isXrealCamera(cameraHint)) {
+            return this.deviceOnlyVideoOptions();
         }
         const options = typeof inferenceResolutionToCameraOptions === 'function'
             ? inferenceResolutionToCameraOptions(inferenceResolution)
@@ -79,6 +94,7 @@ const CameraRuntime = {
     },
 
     requestedVideoSize(options = {}) {
+        if (options.deviceOnly) return { width: null, height: null };
         return {
             width: options.width ?? this.DEFAULT_VIDEO_WIDTH,
             height: options.height ?? this.DEFAULT_VIDEO_HEIGHT,
@@ -140,13 +156,25 @@ const CameraRuntime = {
         } catch (e) {
             if (!this.shouldRetryXrealMonoCamera(e, options)) throw e;
             const monoOptions = this.xrealMonoVideoOptions();
-            const stream = await this.requestCameraStream(cameraId, monoOptions);
-            const result = await this.normalizeTrackingCameraStream(stream, cameraId, monoOptions);
-            return {
-                ...result,
-                fallbackProfile: this.XREAL_CAMERA_PROFILE_MONO,
-                fallbackError: e,
-            };
+            try {
+                const stream = await this.requestCameraStream(cameraId, monoOptions);
+                const result = await this.normalizeTrackingCameraStream(stream, cameraId, monoOptions);
+                return {
+                    ...result,
+                    fallbackProfile: this.XREAL_CAMERA_PROFILE_MONO,
+                    fallbackError: e,
+                };
+            } catch (monoError) {
+                const deviceOnlyOptions = this.deviceOnlyVideoOptions();
+                const stream = await this.requestCameraStream(cameraId, deviceOnlyOptions);
+                const result = await this.normalizeTrackingCameraStream(stream, cameraId, deviceOnlyOptions);
+                return {
+                    ...result,
+                    fallbackProfile: this.xrealCameraProfile(result.track) || this.XREAL_CAMERA_PROFILE_MONO,
+                    fallbackError: monoError,
+                    fallbackMode: 'device-only',
+                };
+            }
         }
     },
 
@@ -160,6 +188,9 @@ const CameraRuntime = {
             return { stream, track, requestOptions: this.xrealMonoVideoOptions() };
         }
         if (this.isXrealRgbVideoOptions(requestOptions)) {
+            return { stream, track, requestOptions };
+        }
+        if (requestOptions.deviceOnly || !profile) {
             return { stream, track, requestOptions };
         }
 

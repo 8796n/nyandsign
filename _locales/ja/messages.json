@@ -518,7 +518,7 @@
     "message": "🕶️ 電気メガネカメラを検出 — 自動選択"
   },
   "logXrealMonoFallback": {
-    "message": "電気メガネカメラ: RGB取得に失敗したため低解像度カメラで再試行"
+    "message": "電気メガネカメラ: RGB取得に失敗したため低解像度/自動解像度で再試行"
   },
   "logCameraStarted": {
     "message": "カメラ & ハンドトラッキング開始"

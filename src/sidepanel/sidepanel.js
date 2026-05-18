@@ -791,10 +791,7 @@ function selectedCameraDevice() {
 
 function currentCameraHint() {
     const selectedCamera = selectedCameraDevice();
-    if (CameraRuntime.xrealCameraProfile(selectedCamera)) return selectedCamera;
-    if (CameraRuntime.isXrealCamera(selectedCamera) && selectedXrealCameraProfile) {
-        return CameraRuntime.xrealCameraHint(selectedXrealCameraProfile);
-    }
+    if (CameraRuntime.isXrealCamera(selectedCamera)) return selectedCamera;
     const activeTrack = CameraRuntime.primaryVideoTrack(cameraStream);
     return activeTrack
         || selectedCamera

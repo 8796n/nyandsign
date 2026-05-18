@@ -681,8 +681,8 @@
     "description": "Log when electric glasses camera is detected and auto-selected"
   },
   "logXrealMonoFallback": {
-    "message": "Electric glasses camera: RGB capture failed, retrying with the low-resolution camera",
-    "description": "Log when XREAL Eye falls back from the RGB camera profile to the monochrome low-resolution camera"
+    "message": "Electric glasses camera: RGB capture failed, retrying with low-resolution/automatic capture",
+    "description": "Log when XREAL Eye falls back from the RGB camera profile to low-resolution or automatic capture"
   },
   "logCameraStarted": {
     "message": "Camera & hand tracking started",
