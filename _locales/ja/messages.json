@@ -517,6 +517,9 @@
   "logXrealDetected": {
     "message": "🕶️ 電気メガネカメラを検出 — 自動選択"
   },
+  "logXrealMonoFallback": {
+    "message": "電気メガネカメラ: RGB取得に失敗したため低解像度カメラで再試行"
+  },
   "logCameraStarted": {
     "message": "カメラ & ハンドトラッキング開始"
   },
@@ -702,6 +705,13 @@
   "xrealCameraUvc1Label": {
     "message": "電気メガネカメラ UVC1 (6DoF 白黒)",
     "description": "Label for XREAL Eye UVC1 monochrome camera in camera selector"
+  },
+  "xrealCameraUnknownLabel": {
+    "message": "電気メガネカメラ $1",
+    "description": "Label for XREAL camera before its actual profile is probed",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
   },
   "cameraFallbackName": {
     "message": "カメラ $1",

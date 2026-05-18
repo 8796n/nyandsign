@@ -430,6 +430,12 @@ function logCameraResolution(requestOptions, track) {
     console.log('[PiP] ' + msg('logCameraResolution', CameraRuntime.cameraResolutionLogArgs(requestOptions, track)));
 }
 
+function logXrealCameraFallback(cameraResult) {
+    if (cameraResult?.fallbackProfile === CameraRuntime.XREAL_CAMERA_PROFILE_MONO) {
+        console.log('[PiP] ' + msg('logXrealMonoFallback'));
+    }
+}
+
 function logInferenceResolution() {
     console.log('[PiP] ' + msg('logInferenceResolution', CameraRuntime.inferenceResolutionLogArgs(tracker, inferenceResolution)));
 }
@@ -978,6 +984,7 @@ async function restartCameraForSettings() {
 
         cameraStream = result.stream;
         const track = result.track;
+        logXrealCameraFallback(result);
         logCameraResolution(result.requestOptions, track);
         if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
         attachCameraEndedHandler(track);
@@ -1021,6 +1028,7 @@ async function startCamera() {
         cameraStream = cameraResult.stream;
 
         const track = cameraResult.track;
+        logXrealCameraFallback(cameraResult);
         logCameraResolution(cameraResult.requestOptions, track);
 
         // メガネカメラの場合ミラー OFF

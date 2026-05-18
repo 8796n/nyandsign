@@ -680,6 +680,10 @@
     "message": "🕶️ Electric glasses camera detected — auto selected",
     "description": "Log when electric glasses camera is detected and auto-selected"
   },
+  "logXrealMonoFallback": {
+    "message": "Electric glasses camera: RGB capture failed, retrying with the low-resolution camera",
+    "description": "Log when XREAL Eye falls back from the RGB camera profile to the monochrome low-resolution camera"
+  },
   "logCameraStarted": {
     "message": "Camera & hand tracking started",
     "description": "Log when camera and tracking begin"
@@ -906,6 +910,13 @@
   "xrealCameraUvc1Label": {
     "message": "Electric glasses camera UVC1 (6DoF monochrome)",
     "description": "Label for XREAL Eye UVC1 monochrome camera in camera selector"
+  },
+  "xrealCameraUnknownLabel": {
+    "message": "Electric glasses camera $1",
+    "description": "Label for XREAL camera before its actual profile is probed",
+    "placeholders": {
+      "1": { "content": "$1", "example": "1" }
+    }
   },
   "cameraFallbackName": {
     "message": "Camera $1",

@@ -121,6 +121,12 @@ const CameraRuntime = {
         };
     },
 
+    createDeviceOnlyStreamConstraints(cameraId) {
+        return {
+            video: cameraId ? { deviceId: { exact: cameraId } } : true,
+        };
+    },
+
     requestCameraStream(cameraId, options = {}) {
         return navigator.mediaDevices.getUserMedia(
             this.createStreamConstraints(cameraId, options)
@@ -128,8 +134,20 @@ const CameraRuntime = {
     },
 
     async requestTrackingCameraStream(cameraId, options = {}) {
-        const stream = await this.requestCameraStream(cameraId, options);
-        return this.normalizeTrackingCameraStream(stream, cameraId, options);
+        try {
+            const stream = await this.requestCameraStream(cameraId, options);
+            return this.normalizeTrackingCameraStream(stream, cameraId, options);
+        } catch (e) {
+            if (!this.shouldRetryXrealMonoCamera(e, options)) throw e;
+            const monoOptions = this.xrealMonoVideoOptions();
+            const stream = await this.requestCameraStream(cameraId, monoOptions);
+            const result = await this.normalizeTrackingCameraStream(stream, cameraId, monoOptions);
+            return {
+                ...result,
+                fallbackProfile: this.XREAL_CAMERA_PROFILE_MONO,
+                fallbackError: e,
+            };
+        }
     },
 
     async normalizeTrackingCameraStream(stream, cameraId, requestOptions = {}) {
@@ -183,6 +201,11 @@ const CameraRuntime = {
         }
     },
 
+    capabilityMaxValue(value) {
+        if (typeof value === 'object' && value !== null) return Number(value.max);
+        return Number(value);
+    },
+
     detectXrealCameraProfile(deviceOrLabel) {
         const explicitProfile = this.normalizeXrealCameraProfile(
             typeof deviceOrLabel === 'string' ? deviceOrLabel : deviceOrLabel?.xrealCameraProfile
@@ -195,6 +218,14 @@ const CameraRuntime = {
         if (Number.isFinite(width) && Number.isFinite(height)) {
             if (width <= 640 && height <= 480) return this.XREAL_CAMERA_PROFILE_MONO;
             if (width >= 1280 || height >= 720) return this.XREAL_CAMERA_PROFILE_RGB;
+        }
+
+        const capabilities = deviceOrLabel?.getCapabilities?.() || deviceOrLabel?.capabilities || {};
+        const maxWidth = this.capabilityMaxValue(capabilities.width);
+        const maxHeight = this.capabilityMaxValue(capabilities.height);
+        if (Number.isFinite(maxWidth) && Number.isFinite(maxHeight)) {
+            if (maxWidth <= 640 && maxHeight <= 480) return this.XREAL_CAMERA_PROFILE_MONO;
+            if (maxWidth >= 1280 || maxHeight >= 720) return this.XREAL_CAMERA_PROFILE_RGB;
         }
 
         const label = typeof deviceOrLabel === 'string'
@@ -217,7 +248,7 @@ const CameraRuntime = {
 
     xrealCameraProfile(deviceOrLabel) {
         if (!this.isXrealCamera(deviceOrLabel)) return null;
-        return this.detectXrealCameraProfile(deviceOrLabel) || this.XREAL_CAMERA_PROFILE_RGB;
+        return this.detectXrealCameraProfile(deviceOrLabel);
     },
 
     xrealCameraHint(profile) {
@@ -225,26 +256,41 @@ const CameraRuntime = {
         return normalized ? { label: 'XREAL', xrealCameraProfile: normalized } : null;
     },
 
-    annotateCameraDevices(cameras = []) {
+    annotateCameraDevices(cameras = [], knownProfiles = {}) {
         const normalized = cameras.map(camera => ({
             deviceId: camera.deviceId || '',
             groupId: camera.groupId || '',
             kind: camera.kind || '',
             label: camera.label || '',
         }));
-        let xrealIndex = 0;
         return normalized.map(camera => {
             if (!this.isXrealCamera(camera)) return camera;
-            const detectedProfile = this.detectXrealCameraProfile(camera);
-            const fallbackProfile = xrealIndex === 1
-                ? this.XREAL_CAMERA_PROFILE_MONO
-                : this.XREAL_CAMERA_PROFILE_RGB;
-            xrealIndex += 1;
+            const detectedProfile = this.normalizeXrealCameraProfile(knownProfiles[camera.deviceId])
+                || this.detectXrealCameraProfile(camera);
+            if (!detectedProfile) return camera;
             return {
                 ...camera,
-                xrealCameraProfile: detectedProfile || fallbackProfile,
+                xrealCameraProfile: detectedProfile,
             };
         });
+    },
+
+    async probeXrealCameraProfile(cameraId) {
+        let stream = null;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia(
+                this.createDeviceOnlyStreamConstraints(cameraId)
+            );
+            const track = this.primaryVideoTrack(stream);
+            return this.detectXrealCameraProfile(track);
+        } finally {
+            this.releaseCameraStream(stream, null);
+        }
+    },
+
+    shouldRetryXrealMonoCamera(error, options = {}) {
+        if (!this.isXrealRgbVideoOptions(options)) return false;
+        return ['NotReadableError', 'OverconstrainedError', 'ConstraintNotSatisfiedError'].includes(error?.name);
     },
 
     isXrealCamera(deviceOrLabel) {

@@ -65,6 +65,7 @@ let pageActionStatusVisible = false;
 let cameraPollId = null;
 let selectedCameraId = null;    // UI で選択中のカメラ
 let selectedXrealCameraProfile = null; // XREAL Eye の UVC0/UVC1 選択復元用
+let xrealCameraProfiles = {};   // deviceId ごとの実測プロファイルキャッシュ
 let activeCameraId = null;      // 実際に動作中のカメラ
 let availableCameras = [];      // 検出済みカメラリスト
 let cameraCheckSeq = 0;         // checkCamera 排他制御用
@@ -542,8 +543,9 @@ async function checkCamera() {
         const devices = await navigator.mediaDevices.enumerateDevices();
         if (seq !== cameraCheckSeq) return; // 後発の呼び出しが先に完了 → 破棄
 
-        const videoCams = CameraRuntime.annotateCameraDevices(
-            devices.filter(d => d.kind === 'videoinput')
+        let videoCams = CameraRuntime.annotateCameraDevices(
+            devices.filter(d => d.kind === 'videoinput'),
+            xrealCameraProfiles
         );
 
         if (videoCams.length === 0) {
@@ -558,6 +560,9 @@ async function checkCamera() {
             updateCameraStatus('permission');
             return;
         }
+
+        videoCams = await probeXrealCameraProfiles(videoCams, seq);
+        if (seq !== cameraCheckSeq) return;
 
         availableCameras = videoCams;
         populateCameraSelect(videoCams);
@@ -603,6 +608,29 @@ async function checkCamera() {
 
         updateCameraStatus('ready');
     } catch (_) {}
+}
+
+async function probeXrealCameraProfiles(cameras, seq) {
+    if (activeCameraId || cameraStream) return cameras;
+    const targets = cameras.filter(camera =>
+        CameraRuntime.isXrealCamera(camera) && !CameraRuntime.xrealCameraProfile(camera)
+    );
+    if (targets.length === 0) return cameras;
+
+    let changed = false;
+    for (const camera of targets) {
+        try {
+            const profile = await CameraRuntime.probeXrealCameraProfile(camera.deviceId);
+            if (seq !== cameraCheckSeq) return cameras;
+            if (profile) {
+                xrealCameraProfiles[camera.deviceId] = profile;
+                changed = true;
+            }
+        } catch (_) {
+            // 実測できない場合は起動時のフォールバックに任せる。
+        }
+    }
+    return changed ? CameraRuntime.annotateCameraDevices(cameras, xrealCameraProfiles) : cameras;
 }
 
 /** カメラドロップダウンを更新（差分がある場合のみ再構築） */
@@ -663,7 +691,7 @@ function cameraOptionLabel(camera, index) {
     if (profile === CameraRuntime.XREAL_CAMERA_PROFILE_RGB) {
         return msg('xrealCameraUvc0Label');
     }
-    return msg('xrealCameraLabel');
+    return msg('xrealCameraUnknownLabel', [String(index + 1)]);
 }
 
 function updateCameraStatus(state) {
@@ -740,6 +768,23 @@ function saveSelectedCamera() {
     } catch (_) {}
 }
 
+function updateSelectedXrealCameraProfile(profile, options = {}) {
+    const normalized = CameraRuntime.normalizeXrealCameraProfile(profile);
+    if (!normalized || !selectedCameraId) return;
+
+    selectedXrealCameraProfile = normalized;
+    xrealCameraProfiles[selectedCameraId] = normalized;
+    availableCameras = availableCameras.map(camera =>
+        camera.deviceId === selectedCameraId
+            ? { ...camera, xrealCameraProfile: normalized }
+            : camera
+    );
+    populateCameraSelect(availableCameras);
+    const sel = $('sel-camera');
+    if (sel) sel.value = selectedCameraId;
+    if (options.save !== false) saveSelectedCamera();
+}
+
 function selectedCameraDevice() {
     return availableCameras.find(camera => camera.deviceId === selectedCameraId) || null;
 }
@@ -747,6 +792,9 @@ function selectedCameraDevice() {
 function currentCameraHint() {
     const selectedCamera = selectedCameraDevice();
     if (CameraRuntime.xrealCameraProfile(selectedCamera)) return selectedCamera;
+    if (CameraRuntime.isXrealCamera(selectedCamera) && selectedXrealCameraProfile) {
+        return CameraRuntime.xrealCameraHint(selectedXrealCameraProfile);
+    }
     const activeTrack = CameraRuntime.primaryVideoTrack(cameraStream);
     return activeTrack
         || selectedCamera
@@ -785,6 +833,8 @@ async function startCamera() {
         const track = cameraResult.track;
         activeCameraId = CameraRuntime.cameraDeviceId(cameraStream);
         selectedXrealCameraProfile = CameraRuntime.xrealCameraProfile(track) || selectedXrealCameraProfile;
+        updateSelectedXrealCameraProfile(selectedXrealCameraProfile);
+        logXrealCameraFallback(cameraResult);
         log(msg('logCameraAcquired', [track?.label || 'Camera']));
         logCameraResolution(cameraResult.requestOptions, track);
 
@@ -905,6 +955,8 @@ async function restartCameraForSettings() {
         const track = result.track;
         activeCameraId = CameraRuntime.cameraDeviceId(cameraStream);
         selectedXrealCameraProfile = CameraRuntime.xrealCameraProfile(track) || selectedXrealCameraProfile;
+        updateSelectedXrealCameraProfile(selectedXrealCameraProfile);
+        logXrealCameraFallback(result);
         log(msg('logCameraAcquired', [track?.label || 'Camera']));
         logCameraResolution(result.requestOptions, track);
 
@@ -1350,6 +1402,12 @@ function updateTrackerInferenceResolution() {
 
 function logCameraResolution(requestOptions, track) {
     log(msg('logCameraResolution', CameraRuntime.cameraResolutionLogArgs(requestOptions, track)));
+}
+
+function logXrealCameraFallback(cameraResult) {
+    if (cameraResult?.fallbackProfile === CameraRuntime.XREAL_CAMERA_PROFILE_MONO) {
+        log(msg('logXrealMonoFallback'));
+    }
 }
 
 function logInferenceResolution() {
