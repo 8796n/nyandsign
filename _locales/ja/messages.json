@@ -491,6 +491,12 @@
       "1": { "content": "$1" }
     }
   },
+  "logCameraRequesting": {
+    "message": "カメラ取得要求: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
   "logCameraResolution": {
     "message": "カメラ解像度: 指定 $1 / 実際 $2",
     "placeholders": {

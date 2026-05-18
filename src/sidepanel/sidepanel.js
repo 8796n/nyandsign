@@ -821,9 +821,11 @@ async function startCamera() {
             await tracker.loadModel((key) => log(msg(key)));
         }
 
+        const requestOptions = currentCameraRequestOptions();
+        log(msg('logCameraRequesting', [CameraRuntime.formatRequestOptions(requestOptions)]));
         const cameraResult = await CameraRuntime.requestTrackingCameraStream(
             selectedCameraId,
-            currentCameraRequestOptions()
+            requestOptions
         );
         cameraStream = cameraResult.stream;
 
@@ -926,13 +928,15 @@ async function restartCameraForSettings() {
     activeCameraId = null;
 
     try {
+        const requestOptions = currentCameraRequestOptions();
+        log(msg('logCameraRequesting', [CameraRuntime.formatRequestOptions(requestOptions)]));
         const result = await CameraRuntime.restartTrackingCamera({
             currentStream: previousStream,
             videoEl: el.cameraVideo,
             tracker,
             canvasEl: el.handCanvas,
             cameraId: selectedCameraId,
-            requestOptions: currentCameraRequestOptions(),
+            requestOptions,
             trackerOptions: { skeletonOnly: el.chkSkeleton.checked },
             isCurrent: () => cameraRestartController.isCurrent(seq),
             beforeStop: () => {

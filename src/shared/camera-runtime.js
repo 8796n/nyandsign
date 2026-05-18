@@ -114,6 +114,10 @@ const CameraRuntime = {
         return `${Math.round(size.width)}x${Math.round(size.height)}`;
     },
 
+    formatRequestOptions(options = {}) {
+        return options.deviceOnly ? 'auto' : this.formatResolution(this.requestedVideoSize(options));
+    },
+
     cameraResolutionLogArgs(requestOptions, track) {
         return [
             this.formatResolution(this.requestedVideoSize(requestOptions)),
@@ -262,15 +266,11 @@ const CameraRuntime = {
         const label = typeof deviceOrLabel === 'string'
             ? deviceOrLabel
             : deviceOrLabel?.label || '';
-        if (/\b(?:UVC\s*Camera|Video\s*Streaming)\s*1\b/i.test(label)
-            || /\buvc\s*1\b/i.test(label)
-            || /\bxreal\s*1\b/i.test(label)
+        if (/\bxreal\s*1\b/i.test(label)
             || /\bxreal1\b/i.test(label)) {
             return this.XREAL_CAMERA_PROFILE_MONO;
         }
-        if (/\b(?:UVC\s*Camera|Video\s*Streaming)\s*0\b/i.test(label)
-            || /\buvc\s*0\b/i.test(label)
-            || /\bxreal\s*0\b/i.test(label)
+        if (/\bxreal\s*0\b/i.test(label)
             || /\bxreal0\b/i.test(label)) {
             return this.XREAL_CAMERA_PROFILE_RGB;
         }

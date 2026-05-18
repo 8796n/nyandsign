@@ -648,6 +648,13 @@
       "1": { "content": "$1", "example": "USB Camera" }
     }
   },
+  "logCameraRequesting": {
+    "message": "Camera request: $1",
+    "description": "Log before requesting a camera stream",
+    "placeholders": {
+      "1": { "content": "$1", "example": "auto" }
+    }
+  },
   "logCameraResolution": {
     "message": "Camera resolution: requested $1 / actual $2",
     "description": "Log camera requested and actual resolution",
