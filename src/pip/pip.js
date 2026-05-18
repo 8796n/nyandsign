@@ -369,6 +369,7 @@ chrome.runtime.onMessage.addListener((message) => {
         }
         tracker.stop();
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
+        applyInferencePreprocessForCamera(null);
         chrome.runtime.sendMessage({ type: 'pip-closed' }).catch(() => {});
         window.close();
     }
@@ -424,6 +425,13 @@ function updateTrackerFps() {
 
 function updateTrackerInferenceResolution() {
     tracker.setInferenceMaxWidth(inferenceResolutionToMaxWidth(inferenceResolution));
+}
+
+function applyInferencePreprocessForCamera(track = null) {
+    const profile = CameraRuntime.xrealCameraProfile(track);
+    tracker.setInferencePreprocess(
+        profile === CameraRuntime.XREAL_CAMERA_PROFILE_MONO ? 'mono-contrast' : 'none'
+    );
 }
 
 function logCameraResolution(requestOptions, track) {
@@ -921,6 +929,7 @@ function attachCameraEndedHandler(track) {
         stopPipComposite();
         tracker.stop();
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
+        applyInferencePreprocessForCamera(null);
         // PiP が動作中なら終了
         if (document.pictureInPictureElement) {
             document.exitPictureInPicture().catch(() => {});
@@ -978,6 +987,7 @@ async function restartCameraForSettings() {
             beforeStart: ({ track }) => {
                 if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
                 tracker.displayMirrored = mirrorCamera;
+                applyInferencePreprocessForCamera(track);
             },
         });
         if (result.stale) return;
@@ -996,6 +1006,7 @@ async function restartCameraForSettings() {
         console.log('[PiP] ' + msg('logCameraRestartedForSettings'));
     } catch (e) {
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
+        applyInferencePreprocessForCamera(null);
         statusEl.textContent = msg('pipStatusError', [e?.message || String(e)]);
         console.error('[PiP] Camera restart error:', e);
     }
@@ -1033,6 +1044,7 @@ async function startCamera() {
 
         // メガネカメラの場合ミラー OFF
         if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
+        applyInferencePreprocessForCamera(track);
 
         // カメラ切断監視 — ポップアップ内に案内を表示
         attachCameraEndedHandler(track);
@@ -1057,6 +1069,7 @@ async function startCamera() {
     } catch (e) {
         tracker.stop();
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
+        applyInferencePreprocessForCamera(null);
         statusEl.textContent = msg('pipStatusError', [e?.message || String(e)]);
         console.error('[PiP] Camera error:', e);
     }
@@ -1179,6 +1192,7 @@ async function returnToSidepanel(autoRestart) {
     stopPipComposite();
     tracker.stop();
     cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
+    applyInferencePreprocessForCamera(null);
 
     // 戻るボタン経由: await で確実に処理（ポート切断での二重処理を防止）
     if (autoRestart) {
@@ -1224,6 +1238,7 @@ window.addEventListener('beforeunload', (e) => {
     }
     tracker.stop();
     cameraStream = CameraRuntime.releaseCameraStream(cameraStream, cameraVideo);
+    applyInferencePreprocessForCamera(null);
     // 所有権を解放
     chrome.runtime.sendMessage({ type: 'release-active-instance', instanceId }).catch(() => {});
 });

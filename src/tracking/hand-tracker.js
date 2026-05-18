@@ -27,6 +27,7 @@ class HandTracker extends EventTarget {
         this._inferenceCanvas = null;
         this._inferenceCtx = null;
         this._lastInferenceSize = { width: 0, height: 0 };
+        this.inferencePreprocess = 'none';
         this._lastOkDebug = null;          // 直近の判定デバッグ情報
 
         // --- サイン安定化: 時間窓ベース多数決 + 切替ヒステリシス ---
@@ -324,6 +325,13 @@ class HandTracker extends EventTarget {
         this._lastInferenceSize = { width: 0, height: 0 };
     }
 
+    setInferencePreprocess(mode) {
+        const normalized = mode === 'mono-contrast' ? 'mono-contrast' : 'none';
+        if (this.inferencePreprocess === normalized) return;
+        this.inferencePreprocess = normalized;
+        this._lastInferenceSize = { width: 0, height: 0 };
+    }
+
     getInferenceInputSize() {
         const video = this.videoEl;
         return this._resolveInferenceInputSize(video?.videoWidth || 0, video?.videoHeight || 0);
@@ -345,8 +353,9 @@ class HandTracker extends EventTarget {
     _prepareInferenceSource(video) {
         const size = this._resolveInferenceInputSize(video.videoWidth, video.videoHeight);
         this._lastInferenceSize = size;
+        const needsPreprocess = this.inferencePreprocess === 'mono-contrast';
 
-        if (!this.inferenceMaxWidth || size.width === video.videoWidth) return video;
+        if (!needsPreprocess && (!this.inferenceMaxWidth || size.width === video.videoWidth)) return video;
 
         if (!this._inferenceCanvas) {
             const doc = this.canvasEl?.ownerDocument || document;
@@ -358,7 +367,49 @@ class HandTracker extends EventTarget {
             this._inferenceCanvas.height = size.height;
         }
         this._inferenceCtx.drawImage(video, 0, 0, size.width, size.height);
+        if (needsPreprocess) this._applyMonoContrast(this._inferenceCtx, size.width, size.height);
         return this._inferenceCanvas;
+    }
+
+    _applyMonoContrast(ctx, width, height) {
+        if (!width || !height) return;
+
+        const image = ctx.getImageData(0, 0, width, height);
+        const data = image.data;
+        const hist = new Uint32Array(256);
+        const total = width * height;
+
+        for (let i = 0; i < data.length; i += 4) {
+            const y = (data[i] * 77 + data[i + 1] * 150 + data[i + 2] * 29) >> 8;
+            hist[y]++;
+        }
+
+        const lowTarget = Math.floor(total * 0.01);
+        const highTarget = Math.ceil(total * 0.99);
+        let sum = 0;
+        let lo = 0;
+        for (; lo < 255; lo++) {
+            sum += hist[lo];
+            if (sum >= lowTarget) break;
+        }
+        sum = 0;
+        let hi = 255;
+        for (; hi > 0; hi--) {
+            sum += hist[hi];
+            if (sum >= total - highTarget) break;
+        }
+        if (hi <= lo) return;
+
+        const scale = 255 / (hi - lo);
+        for (let i = 0; i < data.length; i += 4) {
+            const y = (data[i] * 77 + data[i + 1] * 150 + data[i + 2] * 29) >> 8;
+            const v = Math.max(0, Math.min(255, Math.round((y - lo) * scale)));
+            data[i] = v;
+            data[i + 1] = v;
+            data[i + 2] = v;
+            data[i + 3] = 255;
+        }
+        ctx.putImageData(image, 0, 0);
     }
 
     /**

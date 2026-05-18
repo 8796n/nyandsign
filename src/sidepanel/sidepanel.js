@@ -830,6 +830,13 @@ function syncCameraPreviewAspect(track = null) {
     el.cameraVideo.style.setProperty('--camera-preview-aspect-ratio', `${Math.round(width)} / ${Math.round(height)}`);
 }
 
+function applyInferencePreprocessForCamera(track = null) {
+    const profile = CameraRuntime.xrealCameraProfile(track);
+    tracker.setInferencePreprocess(
+        profile === CameraRuntime.XREAL_CAMERA_PROFILE_MONO ? 'mono-contrast' : 'none'
+    );
+}
+
 /* ============================================================
  * カメラ制御
  * ============================================================ */
@@ -869,6 +876,7 @@ async function startCamera() {
 
         applyXrealMirrorAuto(track);
         syncCameraPreviewAspect(track);
+        applyInferencePreprocessForCamera(track);
 
         // 権限取得直後（selectedCameraId 未設定）: カメラリストを構築して選択反映
         if (!selectedCameraId) {
@@ -921,6 +929,7 @@ async function startCamera() {
         tracker.stop();
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
         resetCameraPreviewAspect();
+        applyInferencePreprocessForCamera(null);
         if (e?.name === 'NotAllowedError') {
             showCameraPermissionHint();
         } else if (e?.name === 'OverconstrainedError') {
@@ -984,6 +993,7 @@ async function restartCameraForSettings() {
             beforeStart: ({ track }) => {
                 applyXrealMirrorAuto(track);
                 syncCameraPreviewAspect(track);
+                applyInferencePreprocessForCamera(track);
                 applySkeletonOnly(el.chkSkeleton.checked);
             },
         });
@@ -1014,6 +1024,7 @@ async function restartCameraForSettings() {
         console.error('[GW] Camera restart error:', e);
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
         resetCameraPreviewAspect();
+        applyInferencePreprocessForCamera(null);
         show(el.btnStartCam);
         el.btnStartCam.disabled = false;
         el.btnStartCam.textContent = msg('btnStartCamera');
@@ -1098,6 +1109,7 @@ function stopCamera() {
     tracker.stop();
     cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
     resetCameraPreviewAspect();
+    applyInferencePreprocessForCamera(null);
     show(el.btnStartCam);
     el.btnStartCam.disabled = false;
     el.btnStartCam.textContent = msg('btnStartCamera');
@@ -1171,6 +1183,7 @@ async function openPipWindow() {
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
         activeCameraId = null;
         resetCameraPreviewAspect();
+        applyInferencePreprocessForCamera(null);
         hide(el.cameraSection);
         hide($('btn-pip'));
         hide(el.btnStopCam);
@@ -1275,6 +1288,7 @@ chrome.runtime.onMessage.addListener((message) => {
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
         activeCameraId = null;
         resetCameraPreviewAspect();
+        applyInferencePreprocessForCamera(null);
         // UI を「別ウィンドウで実行中」表示に切替
         hide(el.cameraSection);
         hide($('pip-active-section'));
@@ -2846,6 +2860,7 @@ function cleanupForPageExit() {
     tracker.stop();
     cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
     resetCameraPreviewAspect();
+    applyInferencePreprocessForCamera(null);
     if (!takenOver) {
         chrome.runtime.sendMessage({ type: 'release-active-instance', instanceId }).catch(() => {});
     }
