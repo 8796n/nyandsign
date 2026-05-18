@@ -815,6 +815,21 @@ function cameraProfileLogLabel(cameraHint) {
     return '-';
 }
 
+function resetCameraPreviewAspect() {
+    el.cameraVideo?.style.removeProperty('--camera-preview-aspect-ratio');
+}
+
+function syncCameraPreviewAspect(track = null) {
+    const settings = track?.getSettings?.() || {};
+    const width = el.cameraVideo?.videoWidth || settings.width || 0;
+    const height = el.cameraVideo?.videoHeight || settings.height || 0;
+    if (!width || !height) {
+        resetCameraPreviewAspect();
+        return;
+    }
+    el.cameraVideo.style.setProperty('--camera-preview-aspect-ratio', `${Math.round(width)} / ${Math.round(height)}`);
+}
+
 /* ============================================================
  * カメラ制御
  * ============================================================ */
@@ -853,6 +868,7 @@ async function startCamera() {
         logCameraResolution(cameraResult.requestOptions, track);
 
         applyXrealMirrorAuto(track);
+        syncCameraPreviewAspect(track);
 
         // 権限取得直後（selectedCameraId 未設定）: カメラリストを構築して選択反映
         if (!selectedCameraId) {
@@ -870,6 +886,7 @@ async function startCamera() {
         });
 
         await CameraRuntime.attachStreamToVideo(el.cameraVideo, cameraStream);
+        syncCameraPreviewAspect(track);
 
         applySkeletonOnly(el.chkSkeleton.checked);
         await tracker.start(el.cameraVideo, el.handCanvas, {
@@ -903,6 +920,7 @@ async function startCamera() {
         const errMsg = e?.message || e?.name || String(e);
         tracker.stop();
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
+        resetCameraPreviewAspect();
         if (e?.name === 'NotAllowedError') {
             showCameraPermissionHint();
         } else if (e?.name === 'OverconstrainedError') {
@@ -965,6 +983,7 @@ async function restartCameraForSettings() {
             },
             beforeStart: ({ track }) => {
                 applyXrealMirrorAuto(track);
+                syncCameraPreviewAspect(track);
                 applySkeletonOnly(el.chkSkeleton.checked);
             },
         });
@@ -978,6 +997,7 @@ async function restartCameraForSettings() {
         logXrealCameraFallback(result);
         log(msg('logCameraAcquired', [track?.label || 'Camera']));
         logCameraResolution(result.requestOptions, track);
+        syncCameraPreviewAspect(track);
 
         track?.addEventListener('ended', () => {
             log(msg('logCameraDisconnected'));
@@ -993,6 +1013,7 @@ async function restartCameraForSettings() {
         log(msg('logCameraError', [errMsg]));
         console.error('[GW] Camera restart error:', e);
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
+        resetCameraPreviewAspect();
         show(el.btnStartCam);
         el.btnStartCam.disabled = false;
         el.btnStartCam.textContent = msg('btnStartCamera');
@@ -1076,6 +1097,7 @@ function stopCamera() {
     }
     tracker.stop();
     cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
+    resetCameraPreviewAspect();
     show(el.btnStartCam);
     el.btnStartCam.disabled = false;
     el.btnStartCam.textContent = msg('btnStartCamera');
@@ -1148,6 +1170,7 @@ async function openPipWindow() {
         tracker.stop();
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
         activeCameraId = null;
+        resetCameraPreviewAspect();
         hide(el.cameraSection);
         hide($('btn-pip'));
         hide(el.btnStopCam);
@@ -1251,6 +1274,7 @@ chrome.runtime.onMessage.addListener((message) => {
         tracker.stop();
         cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
         activeCameraId = null;
+        resetCameraPreviewAspect();
         // UI を「別ウィンドウで実行中」表示に切替
         hide(el.cameraSection);
         hide($('pip-active-section'));
@@ -2821,6 +2845,7 @@ function cleanupForPageExit() {
     pointerVisibilityController?.stop({ hide: true });
     tracker.stop();
     cameraStream = CameraRuntime.releaseCameraStream(cameraStream, el.cameraVideo);
+    resetCameraPreviewAspect();
     if (!takenOver) {
         chrome.runtime.sendMessage({ type: 'release-active-instance', instanceId }).catch(() => {});
     }
