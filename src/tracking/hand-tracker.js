@@ -366,9 +366,28 @@ class HandTracker extends EventTarget {
             this._inferenceCanvas.width = size.width;
             this._inferenceCanvas.height = size.height;
         }
-        this._inferenceCtx.drawImage(video, 0, 0, size.width, size.height);
+        this._drawInferenceFrame(video, size.width, size.height, needsPreprocess);
         if (needsPreprocess) this._applyMonoContrast(this._inferenceCtx, size.width, size.height);
         return this._inferenceCanvas;
+    }
+
+    _drawInferenceFrame(video, width, height, smooth) {
+        const ctx = this._inferenceCtx;
+        if (!smooth) {
+            ctx.drawImage(video, 0, 0, width, height);
+            return;
+        }
+
+        // 6DoF 用白黒カメラの粒状ノイズを少し落としてから推論へ渡す。
+        ctx.save();
+        try {
+            ctx.filter = 'blur(0.7px)';
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'medium';
+            ctx.drawImage(video, 0, 0, width, height);
+        } finally {
+            ctx.restore();
+        }
     }
 
     _applyMonoContrast(ctx, width, height) {
