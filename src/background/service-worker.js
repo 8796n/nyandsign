@@ -102,7 +102,10 @@ chrome.runtime.onConnect.addListener((port) => {
         if (skipReturn || !pipInfo?.browserWindowId) return;
         // カメラ自動再開フラグを設定
         await chrome.storage.session.set({
-            pipReturnToSidepanel: { cameraId: pipInfo.cameraId || '' },
+            pipReturnToSidepanel: {
+                cameraId: pipInfo.cameraId || '',
+                xrealCameraProfile: pipInfo.xrealCameraProfile || '',
+            },
         }).catch(() => {});
     });
 });

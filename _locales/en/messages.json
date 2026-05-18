@@ -673,12 +673,12 @@
     "description": "Log when camera restart after settings change succeeds"
   },
   "logXrealMirrorAuto": {
-    "message": "Smart glasses camera: mirror auto OFF",
-    "description": "Log when mirror is auto-disabled for glasses camera"
+    "message": "Electric glasses camera: mirror auto OFF",
+    "description": "Log when mirror is auto-disabled for electric glasses camera"
   },
   "logXrealDetected": {
-    "message": "🕶️ AR glasses camera detected — auto selected",
-    "description": "Log when AR glasses camera is detected and auto-selected"
+    "message": "🕶️ Electric glasses camera detected — auto selected",
+    "description": "Log when electric glasses camera is detected and auto-selected"
   },
   "logCameraStarted": {
     "message": "Camera & hand tracking started",
@@ -896,8 +896,16 @@
     }
   },
   "xrealCameraLabel": {
-    "message": "AR Glasses Camera",
-    "description": "Label for XREAL AR glasses camera in camera selector"
+    "message": "Electric glasses camera",
+    "description": "Label for XREAL electric glasses camera in camera selector"
+  },
+  "xrealCameraUvc0Label": {
+    "message": "Electric glasses camera UVC0 (RGB)",
+    "description": "Label for XREAL Eye UVC0 RGB camera in camera selector"
+  },
+  "xrealCameraUvc1Label": {
+    "message": "Electric glasses camera UVC1 (6DoF monochrome)",
+    "description": "Label for XREAL Eye UVC1 monochrome camera in camera selector"
   },
   "cameraFallbackName": {
     "message": "Camera $1",

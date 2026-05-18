@@ -106,6 +106,11 @@ const pipCameraIsXreal = (() => {
     return p.get('xrealCamera') === '1';
 })();
 
+const pipXrealCameraProfile = (() => {
+    const p = new URLSearchParams(location.search);
+    return CameraRuntime.normalizeXrealCameraProfile(p.get('xrealCameraProfile'));
+})();
+
 // 単一インスタンス制御用
 const instanceId = `pip-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -430,7 +435,11 @@ function logInferenceResolution() {
 }
 
 function currentCameraHint() {
-    return CameraRuntime.primaryVideoTrack(cameraStream) || (pipCameraIsXreal ? 'XREAL' : null);
+    const activeTrack = CameraRuntime.primaryVideoTrack(cameraStream);
+    if (CameraRuntime.isXrealCamera(activeTrack)) return activeTrack;
+    return CameraRuntime.xrealCameraHint(pipXrealCameraProfile)
+        || activeTrack
+        || (pipCameraIsXreal ? 'XREAL' : null);
 }
 
 function currentCameraRequestOptions(cameraHint = currentCameraHint()) {
@@ -1229,6 +1238,7 @@ window.addEventListener('pagehide', () => {
     lifecyclePort.postMessage({
         browserWindowId,
         cameraId: params.get('camera') || '',
+        xrealCameraProfile: pipXrealCameraProfile || '',
     });
 
     // 認識インスタンスの所有権を要求

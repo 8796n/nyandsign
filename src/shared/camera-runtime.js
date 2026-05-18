@@ -9,8 +9,12 @@
 const CameraRuntime = {
     DEFAULT_VIDEO_WIDTH: 1280,
     DEFAULT_VIDEO_HEIGHT: 720,
+    XREAL_CAMERA_PROFILE_RGB: 'xreal-rgb',
+    XREAL_CAMERA_PROFILE_MONO: 'xreal-mono',
     XREAL_RGB_VIDEO_WIDTH: 1920,
     XREAL_RGB_VIDEO_HEIGHT: 1080,
+    XREAL_MONO_VIDEO_WIDTH: 512,
+    XREAL_MONO_VIDEO_HEIGHT: 378,
     DEFAULT_RESTART_DEBOUNCE_MS: 400,
     DEFAULT_VIDEO_LOAD_TIMEOUT_MS: 5000,
 
@@ -34,7 +38,12 @@ const CameraRuntime = {
     },
 
     requestOptionsForInferenceResolution(inferenceResolution, cameraHint = null) {
-        // XREAL Eye の RGB UVC は低解像度の横長モードを広告しないため、
+        // XREAL Eye の UVC1 は 6DoF 用の白黒低解像度カメラ。
+        // UVC0 の RGB カメラだけ 1920x1080 に寄せ、UVC1 はネイティブ解像度で取得する。
+        if (this.xrealCameraProfile(cameraHint) === this.XREAL_CAMERA_PROFILE_MONO) {
+            return this.xrealMonoVideoOptions();
+        }
+        // XREAL Eye の RGB UVC0 は低解像度の横長モードを広告しないため、
         // カメラ取得は 1920x1080 に固定し、推論入力だけ内部で縮小する。
         if (this.isXrealCamera(cameraHint)) {
             return this.xrealRgbVideoOptions();
@@ -52,9 +61,21 @@ const CameraRuntime = {
         };
     },
 
+    xrealMonoVideoOptions() {
+        return {
+            width: this.XREAL_MONO_VIDEO_WIDTH,
+            height: this.XREAL_MONO_VIDEO_HEIGHT,
+        };
+    },
+
     isXrealRgbVideoOptions(options = {}) {
         return Number(options.width) === this.XREAL_RGB_VIDEO_WIDTH
             && Number(options.height) === this.XREAL_RGB_VIDEO_HEIGHT;
+    },
+
+    isXrealMonoVideoOptions(options = {}) {
+        return Number(options.width) === this.XREAL_MONO_VIDEO_WIDTH
+            && Number(options.height) === this.XREAL_MONO_VIDEO_HEIGHT;
     },
 
     requestedVideoSize(options = {}) {
@@ -113,7 +134,14 @@ const CameraRuntime = {
 
     async normalizeTrackingCameraStream(stream, cameraId, requestOptions = {}) {
         const track = this.primaryVideoTrack(stream);
-        if (!this.isXrealCamera(track) || this.isXrealRgbVideoOptions(requestOptions)) {
+        if (!this.isXrealCamera(track)) {
+            return { stream, track, requestOptions };
+        }
+        const profile = this.xrealCameraProfile(track);
+        if (profile === this.XREAL_CAMERA_PROFILE_MONO || this.isXrealMonoVideoOptions(requestOptions)) {
+            return { stream, track, requestOptions: this.xrealMonoVideoOptions() };
+        }
+        if (this.isXrealRgbVideoOptions(requestOptions)) {
             return { stream, track, requestOptions };
         }
 
@@ -137,7 +165,91 @@ const CameraRuntime = {
         return this.primaryVideoTrack(stream)?.getSettings?.().deviceId || null;
     },
 
+    normalizeXrealCameraProfile(profile) {
+        switch (String(profile || '').toLowerCase()) {
+            case this.XREAL_CAMERA_PROFILE_RGB:
+            case 'rgb':
+            case 'uvc0':
+            case 'xreal0':
+                return this.XREAL_CAMERA_PROFILE_RGB;
+            case this.XREAL_CAMERA_PROFILE_MONO:
+            case 'mono':
+            case 'monochrome':
+            case 'uvc1':
+            case 'xreal1':
+                return this.XREAL_CAMERA_PROFILE_MONO;
+            default:
+                return null;
+        }
+    },
+
+    detectXrealCameraProfile(deviceOrLabel) {
+        const explicitProfile = this.normalizeXrealCameraProfile(
+            typeof deviceOrLabel === 'string' ? deviceOrLabel : deviceOrLabel?.xrealCameraProfile
+        );
+        if (explicitProfile) return explicitProfile;
+
+        const settings = deviceOrLabel?.getSettings?.() || {};
+        const width = Number(settings.width || deviceOrLabel?.width);
+        const height = Number(settings.height || deviceOrLabel?.height);
+        if (Number.isFinite(width) && Number.isFinite(height)) {
+            if (width <= 640 && height <= 480) return this.XREAL_CAMERA_PROFILE_MONO;
+            if (width >= 1280 || height >= 720) return this.XREAL_CAMERA_PROFILE_RGB;
+        }
+
+        const label = typeof deviceOrLabel === 'string'
+            ? deviceOrLabel
+            : deviceOrLabel?.label || '';
+        if (/\b(?:UVC\s*Camera|Video\s*Streaming)\s*1\b/i.test(label)
+            || /\buvc\s*1\b/i.test(label)
+            || /\bxreal\s*1\b/i.test(label)
+            || /\bxreal1\b/i.test(label)) {
+            return this.XREAL_CAMERA_PROFILE_MONO;
+        }
+        if (/\b(?:UVC\s*Camera|Video\s*Streaming)\s*0\b/i.test(label)
+            || /\buvc\s*0\b/i.test(label)
+            || /\bxreal\s*0\b/i.test(label)
+            || /\bxreal0\b/i.test(label)) {
+            return this.XREAL_CAMERA_PROFILE_RGB;
+        }
+        return null;
+    },
+
+    xrealCameraProfile(deviceOrLabel) {
+        if (!this.isXrealCamera(deviceOrLabel)) return null;
+        return this.detectXrealCameraProfile(deviceOrLabel) || this.XREAL_CAMERA_PROFILE_RGB;
+    },
+
+    xrealCameraHint(profile) {
+        const normalized = this.normalizeXrealCameraProfile(profile);
+        return normalized ? { label: 'XREAL', xrealCameraProfile: normalized } : null;
+    },
+
+    annotateCameraDevices(cameras = []) {
+        const normalized = cameras.map(camera => ({
+            deviceId: camera.deviceId || '',
+            groupId: camera.groupId || '',
+            kind: camera.kind || '',
+            label: camera.label || '',
+        }));
+        let xrealIndex = 0;
+        return normalized.map(camera => {
+            if (!this.isXrealCamera(camera)) return camera;
+            const detectedProfile = this.detectXrealCameraProfile(camera);
+            const fallbackProfile = xrealIndex === 1
+                ? this.XREAL_CAMERA_PROFILE_MONO
+                : this.XREAL_CAMERA_PROFILE_RGB;
+            xrealIndex += 1;
+            return {
+                ...camera,
+                xrealCameraProfile: detectedProfile || fallbackProfile,
+            };
+        });
+    },
+
     isXrealCamera(deviceOrLabel) {
+        if (this.normalizeXrealCameraProfile(deviceOrLabel)) return true;
+        if (this.normalizeXrealCameraProfile(deviceOrLabel?.xrealCameraProfile)) return true;
         const label = typeof deviceOrLabel === 'string'
             ? deviceOrLabel
             : deviceOrLabel?.label || '';

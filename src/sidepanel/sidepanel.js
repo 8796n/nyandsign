@@ -64,6 +64,7 @@ let lastActionTime = 0;
 let pageActionStatusVisible = false;
 let cameraPollId = null;
 let selectedCameraId = null;    // UI で選択中のカメラ
+let selectedXrealCameraProfile = null; // XREAL Eye の UVC0/UVC1 選択復元用
 let activeCameraId = null;      // 実際に動作中のカメラ
 let availableCameras = [];      // 検出済みカメラリスト
 let cameraCheckSeq = 0;         // checkCamera 排他制御用
@@ -541,7 +542,9 @@ async function checkCamera() {
         const devices = await navigator.mediaDevices.enumerateDevices();
         if (seq !== cameraCheckSeq) return; // 後発の呼び出しが先に完了 → 破棄
 
-        const videoCams = devices.filter(d => d.kind === 'videoinput');
+        const videoCams = CameraRuntime.annotateCameraDevices(
+            devices.filter(d => d.kind === 'videoinput')
+        );
 
         if (videoCams.length === 0) {
             availableCameras = [];
@@ -566,7 +569,8 @@ async function checkCamera() {
 
         // 電気メガネカメラが新しく接続 → カメラ未稼働なら自動選択
         if (xrealJustConnected && !activeCameraId) {
-            const xreal = videoCams.find(d => CameraRuntime.isXrealCamera(d));
+            const xreal = findXrealCameraByProfile(videoCams, selectedXrealCameraProfile)
+                || preferredXrealCamera(videoCams);
             if (xreal && selectedCameraId !== xreal.deviceId) {
                 prevSelectedBeforeXreal = selectedCameraId;
                 selectedCameraId = xreal.deviceId;
@@ -590,7 +594,8 @@ async function checkCamera() {
 
         // 有効な選択が無ければ自動選択（電気メガネ優先）
         if (!selectedCameraId || !videoCams.find(d => d.deviceId === selectedCameraId)) {
-            const xreal = videoCams.find(d => CameraRuntime.isXrealCamera(d));
+            const xreal = findXrealCameraByProfile(videoCams, selectedXrealCameraProfile)
+                || preferredXrealCamera(videoCams);
             selectedCameraId = xreal ? xreal.deviceId : videoCams[0].deviceId;
             $('sel-camera').value = selectedCameraId;
             saveSelectedCamera();
@@ -605,7 +610,9 @@ function populateCameraSelect(cameras) {
     const sel = $('sel-camera');
     const hasXreal = cameras.some(c => CameraRuntime.isXrealCamera(c));
     // 電気メガネ未検出時は EyeCon 誘導を含めた ID で差分比較
-    const newIds = cameras.map(c => c.deviceId).join(',') + (hasXreal ? '' : ',__eyecon__');
+    const newIds = cameras
+        .map(c => `${c.deviceId}:${c.xrealCameraProfile || ''}`)
+        .join(',') + (hasXreal ? '' : ',__eyecon__');
     if (sel.dataset.cameraIds === newIds) return;
     sel.dataset.cameraIds = newIds;
 
@@ -614,9 +621,7 @@ function populateCameraSelect(cameras) {
         const opt = document.createElement('option');
         opt.value = cam.deviceId;
         const prefix = CameraRuntime.isXrealCamera(cam) ? '🕶️ ' : '📷 ';
-        const label = CameraRuntime.isXrealCamera(cam)
-            ? msg('xrealCameraLabel')
-            : (cam.label || msg('cameraFallbackName', [String(cameras.indexOf(cam) + 1)]));
+        const label = cameraOptionLabel(cam, cameras.indexOf(cam));
         opt.textContent = prefix + label;
         sel.appendChild(opt);
     }
@@ -633,6 +638,32 @@ function populateCameraSelect(cameras) {
     if (cameras.some(c => c.deviceId === selectedCameraId)) {
         sel.value = selectedCameraId;
     }
+}
+
+function preferredXrealCamera(cameras) {
+    return findXrealCameraByProfile(cameras, CameraRuntime.XREAL_CAMERA_PROFILE_RGB)
+        || cameras.find(camera => CameraRuntime.isXrealCamera(camera))
+        || null;
+}
+
+function findXrealCameraByProfile(cameras, profile) {
+    const normalized = CameraRuntime.normalizeXrealCameraProfile(profile);
+    if (!normalized) return null;
+    return cameras.find(camera => CameraRuntime.xrealCameraProfile(camera) === normalized) || null;
+}
+
+function cameraOptionLabel(camera, index) {
+    if (!CameraRuntime.isXrealCamera(camera)) {
+        return camera.label || msg('cameraFallbackName', [String(index + 1)]);
+    }
+    const profile = CameraRuntime.xrealCameraProfile(camera);
+    if (profile === CameraRuntime.XREAL_CAMERA_PROFILE_MONO) {
+        return msg('xrealCameraUvc1Label');
+    }
+    if (profile === CameraRuntime.XREAL_CAMERA_PROFILE_RGB) {
+        return msg('xrealCameraUvc0Label');
+    }
+    return msg('xrealCameraLabel');
 }
 
 function updateCameraStatus(state) {
@@ -694,7 +725,19 @@ function openEyecon(e) {
 }
 
 function saveSelectedCamera() {
-    try { chrome.storage.local.set({ selectedCameraId }); } catch (_) {}
+    const selectedCamera = selectedCameraDevice();
+    const profile = CameraRuntime.xrealCameraProfile(selectedCamera);
+    if (profile) {
+        selectedXrealCameraProfile = profile;
+    } else if (selectedCamera) {
+        selectedXrealCameraProfile = null;
+    }
+    try {
+        chrome.storage.local.set({
+            selectedCameraId,
+            selectedXrealCameraProfile: selectedXrealCameraProfile || '',
+        });
+    } catch (_) {}
 }
 
 function selectedCameraDevice() {
@@ -702,7 +745,12 @@ function selectedCameraDevice() {
 }
 
 function currentCameraHint() {
-    return CameraRuntime.primaryVideoTrack(cameraStream) || selectedCameraDevice();
+    const selectedCamera = selectedCameraDevice();
+    if (CameraRuntime.xrealCameraProfile(selectedCamera)) return selectedCamera;
+    const activeTrack = CameraRuntime.primaryVideoTrack(cameraStream);
+    return activeTrack
+        || selectedCamera
+        || CameraRuntime.xrealCameraHint(selectedXrealCameraProfile);
 }
 
 function currentCameraRequestOptions(cameraHint = currentCameraHint()) {
@@ -736,6 +784,7 @@ async function startCamera() {
 
         const track = cameraResult.track;
         activeCameraId = CameraRuntime.cameraDeviceId(cameraStream);
+        selectedXrealCameraProfile = CameraRuntime.xrealCameraProfile(track) || selectedXrealCameraProfile;
         log(msg('logCameraAcquired', [track?.label || 'Camera']));
         logCameraResolution(cameraResult.requestOptions, track);
 
@@ -855,6 +904,7 @@ async function restartCameraForSettings() {
         cameraStream = result.stream;
         const track = result.track;
         activeCameraId = CameraRuntime.cameraDeviceId(cameraStream);
+        selectedXrealCameraProfile = CameraRuntime.xrealCameraProfile(track) || selectedXrealCameraProfile;
         log(msg('logCameraAcquired', [track?.label || 'Camera']));
         logCameraResolution(result.requestOptions, track);
 
@@ -1007,6 +1057,11 @@ async function openPipWindow() {
         const cameraId = activeCameraId;
         const cameraTrack = CameraRuntime.primaryVideoTrack(cameraStream);
         const xrealCamera = CameraRuntime.isXrealCamera(cameraTrack);
+        const xrealCameraProfile = xrealCamera
+            ? (CameraRuntime.xrealCameraProfile(cameraTrack)
+                || CameraRuntime.xrealCameraProfile(selectedCameraDevice())
+                || selectedXrealCameraProfile)
+            : null;
 
         // サイドパネルの認識インスタンス所有権を先に解放
         // （ポップアップが claim した時にテイクオーバーが発生しないようにする）
@@ -1029,6 +1084,7 @@ async function openPipWindow() {
         const params = new URLSearchParams({
             camera: cameraId || '',
             xrealCamera: xrealCamera ? '1' : '0',
+            xrealCameraProfile: xrealCameraProfile || '',
             targetTab: String(pipTargetTabId || ''),
             windowId: String(browserWindowId),
         });
@@ -1052,7 +1108,7 @@ async function openPipWindow() {
 
         // PiP 状態を永続化
         chrome.storage.session.set({
-            pipState: { windowId: pipWindowId, targetTabId: pipTargetTabId, cameraId, browserWindowId },
+            pipState: { windowId: pipWindowId, targetTabId: pipTargetTabId, cameraId, xrealCameraProfile, browserWindowId },
         });
 
         // ウィンドウ閉鎖を監視
@@ -1873,8 +1929,9 @@ async function loadMapping() {
         if (selHand) selHand.value = ph;
     } catch (_) {}
     try {
-        const result = await chrome.storage.local.get('selectedCameraId');
+        const result = await chrome.storage.local.get(['selectedCameraId', 'selectedXrealCameraProfile']);
         if (result.selectedCameraId) selectedCameraId = result.selectedCameraId;
+        selectedXrealCameraProfile = CameraRuntime.normalizeXrealCameraProfile(result.selectedXrealCameraProfile);
     } catch (_) {}
     // 折りたたみセクションの開閉状態を復元
     try {
@@ -2646,6 +2703,9 @@ async function init() {
             if (pipReturnToSidepanel.cameraId) {
                 selectedCameraId = pipReturnToSidepanel.cameraId;
             }
+            selectedXrealCameraProfile = CameraRuntime.normalizeXrealCameraProfile(
+                pipReturnToSidepanel.xrealCameraProfile
+            ) || selectedXrealCameraProfile;
             log(msg('logPipReturned'));
             startCamera();
         }

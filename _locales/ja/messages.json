@@ -693,7 +693,15 @@
   },
   "xrealCameraLabel": {
     "message": "電気メガネカメラ",
-    "description": "Label for XREAL AR glasses camera in camera selector"
+    "description": "Label for XREAL electric glasses camera in camera selector"
+  },
+  "xrealCameraUvc0Label": {
+    "message": "電気メガネカメラ UVC0 (RGB)",
+    "description": "Label for XREAL Eye UVC0 RGB camera in camera selector"
+  },
+  "xrealCameraUvc1Label": {
+    "message": "電気メガネカメラ UVC1 (6DoF 白黒)",
+    "description": "Label for XREAL Eye UVC1 monochrome camera in camera selector"
   },
   "cameraFallbackName": {
     "message": "カメラ $1",
