@@ -12,7 +12,7 @@ What is NyandSign?
 
 NyandSign is a Chrome extension that detects hand signs with your webcam and lets you control media playback and browser actions hands-free. It uses Google MediaPipe's on-device AI to recognize hand signs in real time. All processing happens locally in your browser, and your camera feed is never sent to any external server.
 
-Use hand signs to control media on sites like YouTube, Spotify, and Netflix, or switch to Browser Control mode for scrolling, back/forward navigation, tab switching, and zoom. Any regular webcam works, and supported electric glasses camera devices can also be used.
+Use hand signs to control media on sites like YouTube, Spotify, and Netflix, or switch to Browser Control mode for scrolling, back/forward navigation, tab switching, and zoom. Any regular webcam works, and supported electric glasses camera devices can also be used. With XREAL Eye, you can choose between the high-resolution RGB camera and the low-resolution 6DoF monochrome camera.
 
 
 KEY FEATURES
@@ -58,6 +58,9 @@ When fullscreen video makes the side panel intrusive, switch to a compact popup 
 🎯 Target Tab Control
 Send gesture actions to a specific tab. Pin a target tab to control background media or a specific page while browsing elsewhere.
 
+👓 Electric Glasses Camera Support
+NyandSign supports XREAL Eye UVC0 (RGB) and UVC1 (6DoF monochrome) camera selection. Because Windows may show similar labels for both cameras, NyandSign detects the camera profile from actual resolution and capabilities instead of relying only on the display name. UVC1 uses its native 512x378 resolution and applies preview aspect correction, light smoothing for grainy monochrome video, contrast correction, and brightness compensation. When Chrome exposes camera controls, NyandSign also tries to apply exposure/brightness controls.
+
 🔒 100% Local & Private
 All hand tracking runs on-device using WebAssembly. Your camera feed never leaves your browser. No cloud processing, no data collection, no accounts required.
 
@@ -71,7 +74,7 @@ Hands-free convenience — Control media and pages while cooking, exercising, ea
 
 Accessibility — Provides an alternative input method for users who have difficulty using a keyboard or mouse.
 
-Electric glasses camera support — Designed to work with supported XREAL / Nreal camera devices, enabling gesture control while wearing your glasses.
+Electric glasses camera support — Designed to work with supported XREAL / Nreal camera devices. With XREAL Eye, you can choose UVC0 (RGB) or UVC1 (6DoF monochrome) to balance recognition quality and device load.
 
 Distraction-free viewing — PiP mode lets you enjoy fullscreen content without a visible side panel while keeping hand sign control active.
 
@@ -107,6 +110,8 @@ TECHNICAL DETAILS
 
 Uses Google MediaPipe Hand Landmarker (on-device, WebAssembly)
 Runs at configurable FPS (default 15 fps) to balance accuracy and CPU usage
+Detects XREAL Eye UVC0 / UVC1 camera profiles from actual resolution and capabilities
+UVC1 uses native 512x378 capture, preview aspect synchronization, and monochrome inference preprocessing
 Distance-based gesture recognition with palm-size normalization
 Temporal majority voting (200ms window) + hysteresis for stable detection
 All processing happens locally — camera feed is never transmitted
@@ -114,6 +119,15 @@ Manifest V3 compliant
 
 
 WHAT'S NEW
+
+v1.1.132
+- Added XREAL Eye UVC0 (RGB) / UVC1 (6DoF monochrome) camera selection
+- Detects XREAL Eye camera profiles from actual resolution and capabilities, even when Windows shows similar camera labels
+- Captures UVC1 at its native 512x378 resolution and fixes preview/skeleton aspect mismatch
+- Added grain smoothing, contrast correction, and brightness compensation for UVC1 monochrome inference input
+- Tries to apply UVC1 exposure/brightness camera controls when Chrome exposes them
+- Improved retry behavior and diagnostics when XREAL Eye camera capture fails
+- Improved camera profile handoff between the side panel and PiP, shared notification sound generation, and camera cleanup
 
 v1.1.118
 - Promoted Pointer Control mode to a standard mode alongside Media Control and Browser Control

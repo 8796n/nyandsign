@@ -203,7 +203,7 @@
     "message": "推論解像度"
   },
   "settingInferenceResolutionTitle": {
-    "message": "ハンドサイン推論へ渡す映像の最大幅。XREAL Eye ではカメラ取得を 1920x1080 に保ち、推論入力だけ縮小します"
+    "message": "ハンドサイン推論へ渡す映像の最大幅。XREAL Eye UVC0 は高解像度RGB、UVC1 は低解像度白黒のまま推論入力を調整します"
   },
   "settingOkDebugLabel": {
     "message": "判定デバッグ"
