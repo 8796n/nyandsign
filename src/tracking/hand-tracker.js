@@ -420,12 +420,15 @@ class HandTracker extends EventTarget {
         if (hi <= lo) return;
 
         const scale = 255 / (hi - lo);
+        const gamma = 0.78;
         for (let i = 0; i < data.length; i += 4) {
             const y = (data[i] * 77 + data[i + 1] * 150 + data[i + 2] * 29) >> 8;
             const v = Math.max(0, Math.min(255, Math.round((y - lo) * scale)));
-            data[i] = v;
-            data[i + 1] = v;
-            data[i + 2] = v;
+            // 暗い6DoF用映像は中間調を少し持ち上げて手の表面特徴を残す。
+            const bright = Math.round(Math.pow(v / 255, gamma) * 255);
+            data[i] = bright;
+            data[i + 1] = bright;
+            data[i + 2] = bright;
             data[i + 3] = 255;
         }
         ctx.putImageData(image, 0, 0);

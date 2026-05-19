@@ -801,7 +801,11 @@ function compositeFrame(ctx, canvas) {
         ctx.translate(vw, 0);
         ctx.scale(-1, 1);
     }
+    if (CameraRuntime.xrealCameraProfile(CameraRuntime.primaryVideoTrack(cameraStream)) === CameraRuntime.XREAL_CAMERA_PROFILE_MONO) {
+        ctx.filter = 'brightness(1.35) contrast(1.08)';
+    }
     ctx.drawImage(video, 0, 0, vw, vh);
+    ctx.filter = 'none';
     ctx.drawImage(handCanvas, 0, 0, vw, vh);
     if (mirrored) ctx.restore();
 
