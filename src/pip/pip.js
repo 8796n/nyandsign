@@ -434,6 +434,25 @@ function applyInferencePreprocessForCamera(track = null) {
     );
 }
 
+function logXrealMonoCameraControl(result) {
+    if (!result || result.skipped) return;
+    if (result.applied) {
+        console.log('[PiP] ' + msg('logXrealMonoCameraControlApplied', [result.controls.join(', ')]));
+        return;
+    }
+    if (result.unsupported) {
+        console.log('[PiP] ' + msg('logXrealMonoCameraControlUnavailable'));
+        return;
+    }
+    console.log('[PiP] ' + msg('logXrealMonoCameraControlFailed', [(result.failed || []).join(', ') || '-']));
+}
+
+async function applyXrealMonoCameraControl(track) {
+    const result = await CameraRuntime.applyXrealMonoCameraControls(track);
+    logXrealMonoCameraControl(result);
+    return result;
+}
+
 function logCameraResolution(requestOptions, track) {
     console.log('[PiP] ' + msg('logCameraResolution', CameraRuntime.cameraResolutionLogArgs(requestOptions, track)));
 }
@@ -988,7 +1007,8 @@ async function restartCameraForSettings() {
                 stopAllGestureActions();
                 pointerVisibilityController?.stop({ hide: true });
             },
-            beforeStart: ({ track }) => {
+            beforeStart: async ({ track }) => {
+                await applyXrealMonoCameraControl(track);
                 if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
                 tracker.displayMirrored = mirrorCamera;
                 applyInferencePreprocessForCamera(track);
@@ -1045,6 +1065,8 @@ async function startCamera() {
         const track = cameraResult.track;
         logXrealCameraFallback(cameraResult);
         logCameraResolution(cameraResult.requestOptions, track);
+
+        await applyXrealMonoCameraControl(track);
 
         // メガネカメラの場合ミラー OFF
         if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;

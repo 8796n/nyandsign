@@ -125,6 +125,85 @@ const CameraRuntime = {
         ];
     },
 
+    formatCameraControlValue(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? Number(n.toFixed(3)).toString() : String(value);
+    },
+
+    cameraControlRangeValue(range, ratio) {
+        const min = Number(range?.min);
+        const max = Number(range?.max);
+        if (!Number.isFinite(min) || !Number.isFinite(max) || min >= max) return null;
+
+        const step = Number(range?.step);
+        const raw = min + (max - min) * ratio;
+        const stepped = Number.isFinite(step) && step > 0
+            ? min + Math.round((raw - min) / step) * step
+            : raw;
+        return Math.max(min, Math.min(max, stepped));
+    },
+
+    cameraControlChoice(values, preferredValues) {
+        if (!Array.isArray(values)) return null;
+        return preferredValues.find(value => values.includes(value)) || null;
+    },
+
+    async applyXrealMonoCameraControls(track) {
+        if (this.xrealCameraProfile(track) !== this.XREAL_CAMERA_PROFILE_MONO) {
+            return { skipped: true };
+        }
+        if (!track?.getCapabilities || !track?.applyConstraints) {
+            return { unsupported: true, controls: [] };
+        }
+
+        const capabilities = track.getCapabilities() || {};
+        const candidates = [];
+
+        const exposureMode = this.cameraControlChoice(capabilities.exposureMode, ['continuous']);
+        if (exposureMode) {
+            candidates.push({
+                label: `exposureMode=${exposureMode}`,
+                constraints: { exposureMode },
+            });
+        }
+
+        const exposureCompensation = this.cameraControlRangeValue(capabilities.exposureCompensation, 0.75);
+        if (exposureCompensation !== null) {
+            candidates.push({
+                label: `exposureCompensation=${this.formatCameraControlValue(exposureCompensation)}`,
+                constraints: { exposureCompensation },
+            });
+        }
+
+        const brightness = this.cameraControlRangeValue(capabilities.brightness, 0.65);
+        if (brightness !== null) {
+            candidates.push({
+                label: `brightness=${this.formatCameraControlValue(brightness)}`,
+                constraints: { brightness },
+            });
+        }
+
+        if (candidates.length === 0) return { unsupported: true, controls: [] };
+
+        const controls = [];
+        const failed = [];
+        for (const candidate of candidates) {
+            try {
+                await track.applyConstraints({ advanced: [candidate.constraints] });
+                controls.push(candidate.label);
+            } catch (e) {
+                failed.push(`${candidate.label}: ${e?.message || e?.name || String(e)}`);
+            }
+        }
+
+        return {
+            applied: controls.length > 0,
+            unsupported: controls.length === 0,
+            controls,
+            failed,
+        };
+    },
+
     inferenceResolutionLogArgs(tracker, inferenceResolution) {
         const label = typeof inferenceResolutionLabel === 'function'
             ? inferenceResolutionLabel(inferenceResolution)
@@ -488,7 +567,7 @@ const CameraRuntime = {
             }
 
             const track = cameraResult.track;
-            beforeStart?.({ stream, track, requestOptions });
+            await beforeStart?.({ stream, track, requestOptions });
             await this.attachStreamToVideo(videoEl, stream, attachOptions);
             await tracker.start(videoEl, canvasEl, trackerOptions);
             return { stale: false, stream, track, requestOptions };

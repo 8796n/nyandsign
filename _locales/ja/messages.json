@@ -540,6 +540,21 @@
   "logXrealMonoFallback": {
     "message": "電気メガネカメラ: RGB取得に失敗したため低解像度/自動解像度で再試行"
   },
+  "logXrealMonoCameraControlApplied": {
+    "message": "UVC1カメラ制御: $1 を適用",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "logXrealMonoCameraControlUnavailable": {
+    "message": "UVC1カメラ制御: Chromeから露出/明るさを変更できません"
+  },
+  "logXrealMonoCameraControlFailed": {
+    "message": "UVC1カメラ制御失敗: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
   "logCameraStarted": {
     "message": "カメラ & ハンドトラッキング開始"
   },

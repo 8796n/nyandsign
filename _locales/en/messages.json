@@ -707,6 +707,24 @@
     "message": "Electric glasses camera: RGB capture failed, retrying with low-resolution/automatic capture",
     "description": "Log when XREAL Eye falls back from the RGB camera profile to low-resolution or automatic capture"
   },
+  "logXrealMonoCameraControlApplied": {
+    "message": "UVC1 camera controls: applied $1",
+    "description": "Log when UVC1 camera hardware controls are applied",
+    "placeholders": {
+      "1": { "content": "$1", "example": "brightness=0.5" }
+    }
+  },
+  "logXrealMonoCameraControlUnavailable": {
+    "message": "UVC1 camera controls: Chrome cannot change exposure/brightness",
+    "description": "Log when UVC1 camera hardware controls are not exposed to Chrome"
+  },
+  "logXrealMonoCameraControlFailed": {
+    "message": "UVC1 camera controls failed: $1",
+    "description": "Log when UVC1 camera hardware controls fail",
+    "placeholders": {
+      "1": { "content": "$1", "example": "brightness=0.5: unsupported" }
+    }
+  },
   "logCameraStarted": {
     "message": "Camera & hand tracking started",
     "description": "Log when camera and tracking begin"

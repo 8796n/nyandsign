@@ -850,6 +850,25 @@ function applyInferencePreprocessForCamera(track = null) {
     );
 }
 
+function logXrealMonoCameraControl(result) {
+    if (!result || result.skipped) return;
+    if (result.applied) {
+        log(msg('logXrealMonoCameraControlApplied', [result.controls.join(', ')]));
+        return;
+    }
+    if (result.unsupported) {
+        log(msg('logXrealMonoCameraControlUnavailable'));
+        return;
+    }
+    log(msg('logXrealMonoCameraControlFailed', [(result.failed || []).join(', ') || '-']));
+}
+
+async function applyXrealMonoCameraControl(track) {
+    const result = await CameraRuntime.applyXrealMonoCameraControls(track);
+    logXrealMonoCameraControl(result);
+    return result;
+}
+
 /* ============================================================
  * カメラ制御
  * ============================================================ */
@@ -887,6 +906,7 @@ async function startCamera() {
         log(msg('logCameraAcquired', [track?.label || 'Camera']));
         logCameraResolution(cameraResult.requestOptions, track);
 
+        await applyXrealMonoCameraControl(track);
         applyXrealMirrorAuto(track);
         syncCameraPreviewAspect(track);
         syncCameraPreviewFilter(track);
@@ -1005,7 +1025,8 @@ async function restartCameraForSettings() {
                 resetMetaGestureState();
                 setGestureText('—', '');
             },
-            beforeStart: ({ track }) => {
+            beforeStart: async ({ track }) => {
+                await applyXrealMonoCameraControl(track);
                 applyXrealMirrorAuto(track);
                 syncCameraPreviewAspect(track);
                 syncCameraPreviewFilter(track);
