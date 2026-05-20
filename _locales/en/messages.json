@@ -580,6 +580,10 @@
     "message": "Frame",
     "description": "Meta gesture display name: frame"
   },
+  "metaGestureBothOpen": {
+    "message": "Double Open Hand",
+    "description": "Meta gesture display name: both open hands"
+  },
   "metaGestureBothPeace": {
     "message": "Double Peace",
     "description": "Meta gesture display name: both peace"

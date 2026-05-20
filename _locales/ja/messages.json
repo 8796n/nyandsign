@@ -437,6 +437,9 @@
   "metaGestureFrame": {
     "message": "フレーム"
   },
+  "metaGestureBothOpen": {
+    "message": "両手パー"
+  },
   "metaGestureBothPeace": {
     "message": "両手ピース"
   },

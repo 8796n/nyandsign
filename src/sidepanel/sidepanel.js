@@ -2004,7 +2004,7 @@ async function loadMapping() {
         }
         updateWakeUI();
 
-        const validToggle = ['frame', 'both-peace', 'peace-fist', 'none'];
+        const validToggle = ['frame', 'both-open', 'both-peace', 'peace-fist', 'none'];
         toggleGestureType = validToggle.includes(result.toggleGestureType) ? result.toggleGestureType : d.toggleGestureType;
 
         gestureHoldTime = result.gestureHoldTime !== undefined

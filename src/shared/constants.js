@@ -335,7 +335,7 @@ function inferenceResolutionLabel(value) {
     return msg(option?.labelKey || INFERENCE_RESOLUTION_OPTIONS.source.labelKey);
 }
 
-const META_GESTURE_TYPES = ['frame', 'both-peace', 'peace-fist'];
+const META_GESTURE_TYPES = ['frame', 'both-open', 'both-peace', 'peace-fist'];
 
 const META_ACTION_I18N_KEYS = {
     toggleEnabled: 'metaActionToggleEnabled',
@@ -357,6 +357,7 @@ const META_ACTION_ICONS = {
 
 const DEFAULT_META_GESTURE_MAPPING = {
     frame: 'toggleEnabled',
+    'both-open': 'none',
     'both-peace': 'toggleMode',
     'peace-fist': 'none',
 };

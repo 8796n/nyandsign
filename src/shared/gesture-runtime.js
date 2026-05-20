@@ -8,6 +8,7 @@
 
 const META_GESTURE_DISPLAY = {
     frame: { emoji: '🖼️', i18nKey: 'metaGestureFrame' },
+    'both-open': { emoji: '🖐️🖐️', i18nKey: 'metaGestureBothOpen' },
     'both-peace': { emoji: '✌️✌️', i18nKey: 'metaGestureBothPeace' },
     'peace-fist': { emoji: '✌️✊', i18nKey: 'metaGesturePeaceFist' },
 };
@@ -46,6 +47,10 @@ const GestureRuntimeUtils = {
 
     isUncertainGesture(gesture) {
         return !gesture || gesture === 'unknown';
+    },
+
+    isOpenGesture(gesture) {
+        return gesture === 'open' || gesture === 'open-palm';
     },
 
     dist2d(a, b) {
@@ -128,6 +133,7 @@ const GestureRuntimeUtils = {
         const pairs = this.distinctHandPairs(hands);
         if (!pairs.length) return null;
         if (this.detectFrameGesture(pairs)) return 'frame';
+        if (pairs.some(([a, b]) => this.isOpenGesture(a.gesture) && this.isOpenGesture(b.gesture))) return 'both-open';
         if (pairs.some(([a, b]) => a.gesture === 'peace' && b.gesture === 'peace')) return 'both-peace';
         if (pairs.some(([a, b]) =>
             (a.gesture === 'peace' && b.gesture === 'fist') ||
