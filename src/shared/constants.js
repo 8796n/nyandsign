@@ -252,6 +252,7 @@ const INFERENCE_FPS_MIN = 5;
 const INFERENCE_FPS_MAX = 30;
 const POINTER_MOVE_ACTIVE_FPS = 30;
 const WAKE_OPEN_FACE_ON_MIN = 0.65;
+const WAKE_OPEN_PALM_SPREAD_MIN = 0.48;
 const WAKE_OPEN_FINGER_FAN_MIN = 0.60;
 const WAKE_OPEN_AVG_TIP_DIST_MIN = 1.08;
 
@@ -259,6 +260,7 @@ const WAKE_OPEN_ISSUE_I18N_KEYS = {
     faceOn: 'wakeOpenIssueFaceOn',
     fingersExtended: 'wakeOpenIssueFingersExtended',
     fingersStraight: 'wakeOpenIssueFingersStraight',
+    pinkyOpen: 'wakeOpenIssuePinkyOpen',
     thumbOpen: 'wakeOpenIssueThumbOpen',
     fingerFan: 'wakeOpenIssueFingerFan',
     palmOpen: 'wakeOpenIssuePalmOpen',

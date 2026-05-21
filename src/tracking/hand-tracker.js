@@ -263,6 +263,7 @@ class HandTracker extends EventTarget {
             const wakeOpenDebug = this._lastWakeOpenDebug
                 ? { ...this._lastWakeOpenDebug, rawGesture: gesture, hand }
                 : null;
+            if (okDebug && wakeOpenDebug) okDebug.wakeOpenDebug = wakeOpenDebug;
             hands.push({
                 hand,
                 gesture,
@@ -698,12 +699,18 @@ class HandTracker extends EventTarget {
         return { x: v.x / n, y: v.y / n, z: (v.z ?? 0) / n };
     }
 
-    _palmFaceOnScore(lm) {
+    _getPalmFaceOn(lm) {
         if (!lm?.[0] || !lm?.[5] || !lm?.[9] || !lm?.[17]) return 0;
         const palmAxis = this._sub(lm[9], lm[0]);
         const palmWidth = this._sub(lm[17], lm[5]);
         const normal = this._normalize(this._cross(palmAxis, palmWidth));
-        return Math.abs(normal.z ?? 0);
+        const palmHeight = this._dist(lm[0], lm[9]);
+        const palmWidthLength = this._dist(lm[5], lm[17]);
+        const palmSpreadRatio = palmHeight > 1e-6 ? palmWidthLength / palmHeight : 0;
+        return {
+            normalScore: Math.abs(normal.z ?? 0),
+            palmSpreadRatio,
+        };
     }
 
     /* ============================================================
@@ -907,30 +914,38 @@ class HandTracker extends EventTarget {
                     ? 'index-extended'
                     : 'matched';
         // ウェイク用のパーは通常判定より厳しくし、手の面がカメラ正面に近い場合だけ許可する。
-        const wakeOpenFaceOnScore = this._palmFaceOnScore(lm);
+        const wakeOpenFaceOn = this._getPalmFaceOn(lm);
+        const wakeOpenFaceOnScore = wakeOpenFaceOn.normalScore;
+        const wakeOpenPalmSpread = wakeOpenFaceOn.palmSpreadRatio;
         const wakeOpenFingerFan = this._dist(g[8], g[20]) / palmSize;
-        const wakeOpenFingersExtended =
-            index.extended && middle.extended && ring.extended && pinky.extended;
+        const wakeOpenLongFingersExtended = index.extended && middle.extended && ring.extended;
+        const wakeOpenPinkyOpen =
+            pinky.extended ||
+            (!pinky.curled && pinky.tipDist > 0.88 && pinky.straightness > 0.80);
         const wakeOpenFingersStraight =
             index.straightness > 0.92 &&
             middle.straightness > 0.92 &&
             ring.straightness > 0.92 &&
-            pinky.straightness > 0.90;
+            pinky.straightness > 0.80;
         const wakeOpenThumbOpen = thumb.extendedAway && thumb.thumbIndexTipDist >= 0.62;
         const wakeOpenPalmOpen = avgTipDist > WAKE_OPEN_AVG_TIP_DIST_MIN;
         const wakeOpenEligible =
-            wakeOpenFingersExtended &&
+            wakeOpenLongFingersExtended &&
+            wakeOpenPinkyOpen &&
             wakeOpenFingersStraight &&
             wakeOpenThumbOpen &&
             wakeOpenPalmOpen &&
             wakeOpenFingerFan > WAKE_OPEN_FINGER_FAN_MIN &&
-            wakeOpenFaceOnScore >= WAKE_OPEN_FACE_ON_MIN;
+            wakeOpenFaceOnScore >= WAKE_OPEN_FACE_ON_MIN &&
+            wakeOpenPalmSpread >= WAKE_OPEN_PALM_SPREAD_MIN;
 
         this._lastWakeOpenDebug = {
             eligible: wakeOpenEligible,
             faceOnScore: wakeOpenFaceOnScore,
+            palmSpreadRatio: wakeOpenPalmSpread,
             fingerFan: wakeOpenFingerFan,
-            fingersExtended: wakeOpenFingersExtended,
+            longFingersExtended: wakeOpenLongFingersExtended,
+            pinkyOpen: wakeOpenPinkyOpen,
             fingersStraight: wakeOpenFingersStraight,
             thumbOpen: wakeOpenThumbOpen,
             palmOpen: wakeOpenPalmOpen,

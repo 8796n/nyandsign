@@ -339,6 +339,9 @@
   "wakeOpenIssueFingersStraight": {
     "message": "指をまっすぐ"
   },
+  "wakeOpenIssuePinkyOpen": {
+    "message": "小指を伸ばす"
+  },
   "wakeOpenIssueThumbOpen": {
     "message": "親指を開く"
   },

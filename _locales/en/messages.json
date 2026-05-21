@@ -449,6 +449,10 @@
     "message": "straighten fingers",
     "description": "Wake open-hand hint: straighten the fingers"
   },
+  "wakeOpenIssuePinkyOpen": {
+    "message": "extend pinky",
+    "description": "Wake open-hand hint: extend the pinky finger"
+  },
   "wakeOpenIssueThumbOpen": {
     "message": "open thumb",
     "description": "Wake open-hand hint: open the thumb"

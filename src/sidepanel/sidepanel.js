@@ -207,11 +207,13 @@ function selectOkDebugHand(hands = [], activeIdx = null) {
 
 function formatOkDebugDisplay(debug, stableGesture) {
     if (!debug) return 'SIGN_DEBUG\nhand=none';
+    const wake = debug.wakeOpenDebug || {};
     return [
         `SIGN_DEBUG hand=${debug.hand || '-'} raw=${debug.rawGesture || '-'} stable=${stableGesture || '-'}`,
         `dist=${formatOkDebugNumber(debug.thumbIndexOkDist)} tip=${formatOkDebugNumber(debug.thumbIndexTipDist)} pinch=${formatOkDebugBool(debug.okPinch)} relaxed=${formatOkDebugBool(debug.relaxedBentIndexOkPinch)} latch=${formatOkDebugBool(debug.okLatched)} strong=${formatOkDebugBool(debug.strongOkPinch)} strongIdx=${formatOkDebugBool(debug.strongIndexOkPinch)}`,
         `indexExt=${formatOkDebugBool(debug.indexExtended)} indexOk=${formatOkDebugBool(debug.indexExtendedOkPinch)} indexCurl=${formatOkDebugBool(debug.indexCurled)} indexBent=${formatOkDebugBool(debug.indexBentForOk)} indexStr=${formatOkDebugNumber(debug.indexStraightness)} otherExt=${debug.otherExtendedCount ?? '-'}`,
         `mid=${formatOkDebugBool(debug.middleExtended)} ring=${formatOkDebugBool(debug.ringExtended)} pinky=${formatOkDebugBool(debug.pinkyExtended)} thumbFold=${formatOkDebugBool(debug.thumbFolded)} thumbAway=${formatOkDebugBool(debug.thumbExtendedAway)} thumbPalm=${formatOkDebugNumber(debug.thumbPalmDist)} fourThumb=${formatOkDebugBool(debug.fourThumbTucked)} palm=${debug.palmFacing ? 'front' : 'back'}`,
+        `wakeOpen=${formatOkDebugBool(wake.eligible)} face=${formatOkDebugNumber(wake.faceOnScore)} spread=${formatOkDebugNumber(wake.palmSpreadRatio)} fan=${formatOkDebugNumber(wake.fingerFan)} pinkyOpen=${formatOkDebugBool(wake.pinkyOpen)}`,
         `fail=${debug.failureReason || '-'}`,
     ].join('\n');
 }
