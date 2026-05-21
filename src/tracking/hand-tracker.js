@@ -949,6 +949,12 @@ class HandTracker extends EventTarget {
             this._fingerPlaneComponent(worldLm, wakeOpenPalmNormal, 13, 16),
             this._fingerPlaneComponent(worldLm, wakeOpenPalmNormal, 17, 20)
         );
+        const wakeOpenStrongFaceOn =
+            wakeOpenFaceOnScore >= WAKE_OPEN_STRONG_FACE_ON_MIN &&
+            wakeOpenWorldFaceOnScore >= WAKE_OPEN_STRONG_WORLD_FACE_ON_MIN;
+        const wakeOpenFingerPlaneMax = wakeOpenStrongFaceOn
+            ? WAKE_OPEN_STRONG_FACE_ON_FINGER_PLANE_MAX
+            : WAKE_OPEN_FINGER_PLANE_MAX;
         const indexScreenLength = this._dist(lm[5], lm[8]) / palmSize2D;
         const middleScreenLength = this._dist(lm[9], lm[12]) / palmSize2D;
         const ringScreenLength = this._dist(lm[13], lm[16]) / palmSize2D;
@@ -962,9 +968,7 @@ class HandTracker extends EventTarget {
             index.straightness > 0.92 &&
             middle.straightness > 0.92 &&
             ring.straightness > 0.92 &&
-            pinky.straightness > 0.80 &&
-            wakeOpenLongFingerScreenLength >= WAKE_OPEN_LONG_FINGER_SCREEN_MIN &&
-            pinkyScreenLength >= WAKE_OPEN_PINKY_SCREEN_MIN;
+            pinky.straightness > 0.80;
         const wakeOpenThumbPalmTh = palmFacing ? 1.00 : 1.10;
         const wakeOpenThumbOpen =
             thumb.thumbIndexTipDist >= 0.62 &&
@@ -980,7 +984,7 @@ class HandTracker extends EventTarget {
             wakeOpenFaceOnScore >= wakeOpenFaceOnMin &&
             wakeOpenPalmSpread >= wakeOpenPalmSpreadMin &&
             wakeOpenWorldFaceOnScore >= wakeOpenWorldFaceOnMin &&
-            wakeOpenFingerPlane <= WAKE_OPEN_FINGER_PLANE_MAX;
+            wakeOpenFingerPlane <= wakeOpenFingerPlaneMax;
 
         this._lastWakeOpenDebug = {
             eligible: wakeOpenEligible,
@@ -992,7 +996,8 @@ class HandTracker extends EventTarget {
             palmSpreadRatio: wakeOpenPalmSpread,
             palmSpreadMin: wakeOpenPalmSpreadMin,
             fingerPlane: wakeOpenFingerPlane,
-            fingerPlaneMax: WAKE_OPEN_FINGER_PLANE_MAX,
+            fingerPlaneMax: wakeOpenFingerPlaneMax,
+            fingerPlaneRelaxed: wakeOpenStrongFaceOn,
             fingerFan: wakeOpenFingerFan,
             longFingerScreenLength: wakeOpenLongFingerScreenLength,
             pinkyScreenLength,

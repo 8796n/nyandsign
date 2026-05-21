@@ -851,7 +851,9 @@ tracker.addEventListener('frame', (e) => {
     const now = Date.now();
     lastFrameHands = hands;
     lastFrameActiveIdx = Number.isInteger(activeIdx) ? activeIdx : null;
-    if (!handleWakeGesture(e.detail.stableGesture, hands, lastFrameActiveIdx, { idleOnly: true })) {
+    if (handleWakeGesture(e.detail.stableGesture, hands, lastFrameActiveIdx, { idleOnly: true })) {
+        setPipGestureText(GESTURE_ICONS[e.detail.stableGesture] || '❓');
+    } else {
         showWakeOpenIssues(e.detail.stableGesture, hands, lastFrameActiveIdx);
     }
     const result = metaGestureController?.update(hands, now);

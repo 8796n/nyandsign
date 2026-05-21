@@ -1813,7 +1813,12 @@ tracker.addEventListener('frame', (e) => {
     lastFrameHands = hands;
     lastFrameActiveIdx = Number.isInteger(activeIdx) ? activeIdx : null;
     updateOkDebug(e.detail, now);
-    if (!handleWakeGesture(e.detail.stableGesture, hands, lastFrameActiveIdx, { idleOnly: true })) {
+    if (handleWakeGesture(e.detail.stableGesture, hands, lastFrameActiveIdx, { idleOnly: true })) {
+        setGestureText(
+            GESTURE_ICONS[e.detail.stableGesture] || '❓',
+            gestureLabel(e.detail.stableGesture)
+        );
+    } else {
         showWakeOpenIssues(e.detail.stableGesture, hands, lastFrameActiveIdx);
     }
     const result = metaGestureController?.update(hands, now);
