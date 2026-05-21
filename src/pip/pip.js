@@ -597,6 +597,10 @@ pointerMoveController = new PointerMoveController({
     extendWakeTimeout,
     stopAllGestureActions,
     isControlEnabled: () => controlEnabled && operationMode === OPERATION_MODES.POINTER,
+    canResumeGesture: (previousGesture, nextGesture) =>
+        operationMode === OPERATION_MODES.POINTER &&
+        POINTER_MOVE_ACTIONS.has(currentMapping?.[previousGesture]) &&
+        POINTER_MOVE_ACTIONS.has(currentMapping?.[nextGesture]),
     getSpeedMultiplier: () => moveSpeedToMultiplier(pointerMoveSpeed),
     onStateChange: () => updateTrackerFps(),
 });

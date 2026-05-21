@@ -358,6 +358,7 @@ class PointerMoveController {
         this.extendWakeTimeout = options.extendWakeTimeout;
         this.stopAllGestureActions = options.stopAllGestureActions;
         this.isControlEnabled = options.isControlEnabled;
+        this.canResumeGesture = options.canResumeGesture ?? ((previousGesture, nextGesture) => previousGesture === nextGesture);
         this.onStateChange = options.onStateChange ?? (() => {});
         this.intervalMs = options.intervalMs ?? 32;
         this.deadzone = options.deadzone ?? 0.022;
@@ -498,7 +499,7 @@ class PointerMoveController {
 
     canResume(gesture, now = Date.now()) {
         return this.suspended &&
-            this.state.gesture === gesture &&
+            this.canResumeGesture(this.state.gesture, gesture) &&
             now - this.state.suspendedAt <= this.resumeWindowMs;
     }
 
@@ -507,8 +508,18 @@ class PointerMoveController {
         const hand = GestureRuntimeUtils.findHandForGesture(gesture, hands, this.tracker.preferredHand);
         const pos = this.pointerPosition(hand, gesture);
         if (!pos) return false;
+        const previousGesture = this.state.gesture;
+        const previousOrigin = this.state.origin;
+        const previousPosition = this.state.lastPosition;
+        const keepOrigin = this.isPointGesture(previousGesture) && this.isPointGesture(gesture);
         this.state.phase = 'active';
+        this.state.gesture = gesture;
         this.state.hand = hand?.hand || this.state.hand;
+        if (!keepOrigin) {
+            const dx = previousPosition.x - previousOrigin.x;
+            const dy = previousPosition.y - previousOrigin.y;
+            this.state.origin = { x: pos.x - dx, y: pos.y - dy };
+        }
         this.state.lastPosition = pos;
         this.state.lastSeenAt = now;
         this.state.lastSentAt = now;
