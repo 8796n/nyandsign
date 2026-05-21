@@ -1000,9 +1000,11 @@ class HandTracker extends EventTarget {
         const wakeOpenStrongFaceOn =
             wakeOpenFaceOnScore >= WAKE_OPEN_STRONG_FACE_ON_MIN &&
             wakeOpenWorldFaceOnScore >= WAKE_OPEN_STRONG_WORLD_FACE_ON_MIN;
-        const wakeOpenFingerPlaneMax = wakeOpenStrongFaceOn
-            ? WAKE_OPEN_STRONG_FACE_ON_FINGER_PLANE_MAX
-            : WAKE_OPEN_FINGER_PLANE_MAX;
+        const wakeOpenFingerPlaneMax = !palmFacing
+            ? WAKE_OPEN_BACK_FINGER_PLANE_MAX
+            : wakeOpenStrongFaceOn
+                ? WAKE_OPEN_STRONG_FACE_ON_FINGER_PLANE_MAX
+                : WAKE_OPEN_FINGER_PLANE_MAX;
         const indexScreenLength = this._dist(lm[5], lm[8]) / palmSize2D;
         const middleScreenLength = this._dist(lm[9], lm[12]) / palmSize2D;
         const ringScreenLength = this._dist(lm[13], lm[16]) / palmSize2D;
