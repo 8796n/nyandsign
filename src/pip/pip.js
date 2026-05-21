@@ -511,8 +511,8 @@ function updateDirectionalScroll(hands, now) {
     directionalScrollController?.update(hands, now);
 }
 
-function startPointerMove(gesture) {
-    if (!pointerMoveController?.start(gesture, lastFrameHands)) return false;
+function startPointerMove(gesture, hands = lastFrameHands) {
+    if (!pointerMoveController?.start(gesture, hands)) return false;
     return true;
 }
 
@@ -634,9 +634,9 @@ metaGestureController = new MetaGestureController({
     },
 });
 
-function confirmAction(gesture, action) {
+function confirmAction(gesture, action, hands = lastFrameHands) {
     if (POINTER_MOVE_ACTIONS.has(action)) {
-        if (startPointerMove(gesture)) return;
+        if (startPointerMove(gesture, hands)) return;
     }
 
     const now = Date.now();
@@ -672,6 +672,8 @@ function isWakeGesture(gesture) {
 // ジェスチャーイベント
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
+    const gestureHands = Array.isArray(e.detail.gestures) ? e.detail.gestures : lastFrameHands;
+    if (Array.isArray(e.detail.gestures)) lastFrameHands = gestureHands;
     if (GestureRuntimeUtils.isUncertainGesture(gesture)) {
         setPipGestureText(gesture === 'unknown' ? (GESTURE_ICONS.unknown || '❓') : '');
         const suspended = holdGestureResumeController?.suspend();
@@ -728,7 +730,10 @@ tracker.addEventListener('gesture', (e) => {
     // 操作コマンドとして発火するのでコマンド名を表示
     setPipGestureText(`${icon} ${actionDisplay(action)}`);
 
-    if (pointerMoveController?.active && gesture === pointerMoveController.state?.gesture) return;
+    if (pointerMoveController?.active && POINTER_MOVE_ACTIONS.has(action)) {
+        if (gesture === pointerMoveController.state?.gesture) return;
+        if (pointerMoveController.switchGesture(gesture, gestureHands, now)) return;
+    }
     if (gesture === repeatingGesture || gesture === pendingGesture) return;
 
     cancelPendingAction();
@@ -739,7 +744,7 @@ tracker.addEventListener('gesture', (e) => {
 
     if (gestureHoldTime <= 0) {
         cancelPendingAction();
-        confirmAction(gesture, action);
+        confirmAction(gesture, action, gestureHands);
     } else {
         pendingActionTimer = setTimeout(() => {
             pendingActionTimer = null;

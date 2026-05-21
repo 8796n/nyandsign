@@ -1555,8 +1555,8 @@ function updateDirectionalScroll(hands, now) {
     directionalScrollController?.update(hands, now);
 }
 
-function startPointerMove(gesture) {
-    if (!pointerMoveController?.start(gesture, lastFrameHands)) return false;
+function startPointerMove(gesture, hands = lastFrameHands) {
+    if (!pointerMoveController?.start(gesture, hands)) return false;
     return true;
 }
 
@@ -1569,9 +1569,9 @@ function updatePointerMove(hands, now) {
 }
 
 /** holdTime 経過後にアクションを確定発火する */
-function confirmAction(gesture, action) {
+function confirmAction(gesture, action, hands = lastFrameHands) {
     if (POINTER_MOVE_ACTIONS.has(action)) {
-        if (startPointerMove(gesture)) {
+        if (startPointerMove(gesture, hands)) {
             setGestureText(GESTURE_ICONS[gesture] || '❓', actionDisplay(action));
             return;
         }
@@ -1632,6 +1632,8 @@ function isWakeGesture(gesture) {
 
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
+    const gestureHands = Array.isArray(e.detail.gestures) ? e.detail.gestures : lastFrameHands;
+    if (Array.isArray(e.detail.gestures)) lastFrameHands = gestureHands;
     if (GestureRuntimeUtils.isUncertainGesture(gesture)) {
         if (gesture === null && okDebugEnabled && el.okDebugPanel) {
             el.okDebugPanel.textContent = 'SIGN_DEBUG\nhand=none';
@@ -1695,7 +1697,13 @@ tracker.addEventListener('gesture', (e) => {
     if (!action || action === 'none') { stopAllGestureActions(); return; }
 
     // リピート中 or 確定待機中の同じサイン → 継続
-    if (pointerMoveController?.active && gesture === pointerMoveController.state?.gesture) return;
+    if (pointerMoveController?.active && POINTER_MOVE_ACTIONS.has(action)) {
+        if (gesture === pointerMoveController.state?.gesture) return;
+        if (pointerMoveController.switchGesture(gesture, gestureHands, now)) {
+            setGestureText(GESTURE_ICONS[gesture] || '❓', actionDisplay(action));
+            return;
+        }
+    }
     if (gesture === repeatingGesture || gesture === pendingGesture) return;
 
     // 新しいサイン → すべてリセットして確定タイマー開始
@@ -1707,7 +1715,7 @@ tracker.addEventListener('gesture', (e) => {
 
     if (gestureHoldTime <= 0) {
         cancelPendingAction();
-        confirmAction(gesture, action);
+        confirmAction(gesture, action, gestureHands);
     } else {
         pendingActionTimer = setTimeout(() => {
             pendingActionTimer = null;

@@ -240,7 +240,7 @@ class HandTracker extends EventTarget {
 
         if (!result || !result.landmarks || result.landmarks.length === 0) {
             this._lastHandData = [];
-            this._updateGesture(null, now);
+            this._updateGesture(null, now, { gestures: [] });
             return;
         }
 
@@ -305,7 +305,7 @@ class HandTracker extends EventTarget {
             this._trackedWrist = { x: wrist.x, y: wrist.y };
         }
 
-        this._updateGesture(activeGesture, now);
+        this._updateGesture(activeGesture, now, { gestures: hands, activeIdx });
 
         // 詳細イベント
         this.dispatchEvent(new CustomEvent('frame', {
@@ -460,7 +460,7 @@ class HandTracker extends EventTarget {
      * 切替候補が _switchDwellMs (100ms) 以上持続したら確定。
      * null（手なし）は即座に反映 → リピート等を速やかに停止。
      */
-    _updateGesture(gesture, now) {
+    _updateGesture(gesture, now, detail = {}) {
         // null（手なし）: 即座に安定サインをクリアしてイベント発火
         // サンプル・候補は安定状態に関係なく常にクリアする（再出現時の誤判定防止）
         if (gesture === null) {
@@ -471,7 +471,7 @@ class HandTracker extends EventTarget {
             if (this._stableGesture !== null) {
                 this._stableGesture = null;
                 this.dispatchEvent(new CustomEvent('gesture', {
-                    detail: { gesture: null }
+                    detail: { gesture: null, ...detail }
                 }));
             }
             return;
@@ -523,7 +523,7 @@ class HandTracker extends EventTarget {
             this._candidateStartTime = 0;
 
             this.dispatchEvent(new CustomEvent('gesture', {
-                detail: { gesture: winner }
+                detail: { gesture: winner, ...detail }
             }));
         }
     }

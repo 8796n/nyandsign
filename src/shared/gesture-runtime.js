@@ -374,6 +374,10 @@ class PointerMoveController {
     get active() { return this.state?.phase === 'active'; }
     get suspended() { return this.state?.phase === 'suspended'; }
 
+    isPointGesture(gesture) {
+        return gesture === 'point-left' || gesture === 'point-right' || gesture === 'point-up';
+    }
+
     landmarkPoint(point) {
         if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
         return { x: point.x, y: point.y };
@@ -421,7 +425,7 @@ class PointerMoveController {
     }
 
     pointerPosition(hand, gesture) {
-        if (gesture === 'point-up') {
+        if (this.isPointGesture(gesture)) {
             return this.landmarkPoint(hand?.landmarks?.[8]) || GestureRuntimeUtils.handPosition(hand);
         }
         if (gesture === 'ok') {
@@ -446,6 +450,31 @@ class PointerMoveController {
             skipNextUpdate: false,
         };
         this.sendAction('pointerMoveStart');
+        this.onStateChange(this.state);
+        return true;
+    }
+
+    switchGesture(gesture, hands = [], now = Date.now()) {
+        if (!this.active || !gesture || gesture === this.state.gesture) return false;
+        const hand = GestureRuntimeUtils.findHandForGesture(gesture, hands, this.tracker.preferredHand);
+        const pos = this.pointerPosition(hand, gesture);
+        if (!pos) return false;
+
+        const previousGesture = this.state.gesture;
+        const keepOrigin = this.isPointGesture(previousGesture) && this.isPointGesture(gesture);
+        if (!keepOrigin) {
+            const dx = this.state.lastPosition.x - this.state.origin.x;
+            const dy = this.state.lastPosition.y - this.state.origin.y;
+            this.state.origin = { x: pos.x - dx, y: pos.y - dy };
+        }
+
+        this.state.gesture = gesture;
+        this.state.hand = hand?.hand || this.state.hand;
+        this.state.lastPosition = pos;
+        this.state.lastSeenAt = now;
+        this.state.lastSentAt = now;
+        this.state.skipNextUpdate = false;
+        this.extendWakeTimeout();
         this.onStateChange(this.state);
         return true;
     }
