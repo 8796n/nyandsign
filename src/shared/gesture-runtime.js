@@ -81,18 +81,6 @@ const GestureRuntimeUtils = {
         return gesture === wakeGestureType;
     },
 
-    wakeOpenFaceOnMin(debug = {}) {
-        return debug.faceOnMin ?? (debug.palmFacing === false
-            ? WAKE_OPEN_BACK_FACE_ON_MIN
-            : WAKE_OPEN_FRONT_FACE_ON_MIN);
-    },
-
-    wakeOpenPalmSpreadMin(debug = {}) {
-        return debug.palmSpreadMin ?? (debug.palmFacing === false
-            ? WAKE_OPEN_BACK_PALM_SPREAD_MIN
-            : WAKE_OPEN_FRONT_PALM_SPREAD_MIN);
-    },
-
     wakeOpenIssueIds(gesture, wakeGestureType, hands = [], activeIdx = null) {
         if (wakeGestureType !== 'open' && wakeGestureType !== 'open-palm') return [];
         const hand = this.findOpenHand(gesture, hands, activeIdx);
@@ -102,16 +90,20 @@ const GestureRuntimeUtils = {
         const debug = hand.wakeOpenDebug || {};
 
         if (wakeGestureType === 'open-palm' && hand.gesture !== 'open-palm') issues.push('palmSide');
-        const angleTooShallow =
-            debug.faceOnScore < this.wakeOpenFaceOnMin(debug) ||
-            debug.palmSpreadRatio < this.wakeOpenPalmSpreadMin(debug) ||
-            debug.worldFaceOnScore < (debug.worldFaceOnMin ?? 0);
+        const faceTooTilted =
+            Number.isFinite(debug.faceDeg) &&
+            debug.faceDeg > (debug.faceMaxDeg ?? (debug.palmFacing === false
+                ? WAKE_OPEN_BACK_FACE_MAX_DEG
+                : WAKE_OPEN_FRONT_FACE_MAX_DEG));
+        const yawTooTilted =
+            Number.isFinite(debug.yawDeg) &&
+            Math.abs(debug.yawDeg) > (debug.yawAbsMaxDeg ?? WAKE_OPEN_YAW_ABS_MAX_DEG);
         const pitchTooTilted =
             Number.isFinite(debug.pitchDeg) &&
             Math.abs(debug.pitchDeg) > (debug.pitchAbsMaxDeg ?? WAKE_OPEN_PITCH_ABS_MAX_DEG);
-        if (angleTooShallow) issues.push('faceOn');
+        if (faceTooTilted || yawTooTilted) issues.push('faceOn');
         if (pitchTooTilted) issues.push('palmPitch');
-        if (angleTooShallow || pitchTooTilted) return issues;
+        if (faceTooTilted || yawTooTilted || pitchTooTilted) return issues;
 
         if (debug.longFingersExtended === false) issues.push('fingersExtended');
         if (debug.longFingersExtended !== false && debug.pinkyOpen === false) issues.push('pinkyOpen');

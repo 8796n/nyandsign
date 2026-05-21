@@ -969,26 +969,28 @@ class HandTracker extends EventTarget {
                 : !okIndexAllowed
                     ? 'index-extended'
                     : 'matched';
-        // ウェイク用のパーは通常判定より厳しくし、手の面がカメラ正面に近い場合だけ許可する。
+        // ウェイク用のパーは通常判定より厳しくし、3DoF 相当の手の姿勢と形状で許可する。
         const wakeOpenFaceOn = this._getPalmFaceOn(lm);
         const wakeOpenFaceOnScore = wakeOpenFaceOn.normalScore;
         const wakeOpenPalmSpread = wakeOpenFaceOn.palmSpreadRatio;
         const wakeOpenWorldFaceOn = worldLm ? this._getPalmFaceOn(worldLm) : null;
         const wakeOpenWorldFaceOnScore = wakeOpenWorldFaceOn?.normalScore ?? Infinity;
         const wakeOpenOrientation = this._getPalmOrientation(lm, worldLm);
+        const wakeOpenFaceDeg = wakeOpenOrientation?.faceDeg ?? NaN;
+        const wakeOpenFaceMaxDeg = palmFacing
+            ? WAKE_OPEN_FRONT_FACE_MAX_DEG
+            : WAKE_OPEN_BACK_FACE_MAX_DEG;
+        const wakeOpenFaceOk =
+            !Number.isFinite(wakeOpenFaceDeg) ||
+            wakeOpenFaceDeg <= wakeOpenFaceMaxDeg;
+        const wakeOpenYawDeg = wakeOpenOrientation?.yawDeg ?? NaN;
+        const wakeOpenYawOk =
+            !Number.isFinite(wakeOpenYawDeg) ||
+            Math.abs(wakeOpenYawDeg) <= WAKE_OPEN_YAW_ABS_MAX_DEG;
         const wakeOpenPitchDeg = wakeOpenOrientation?.pitchDeg ?? NaN;
         const wakeOpenPitchOk =
             !Number.isFinite(wakeOpenPitchDeg) ||
             Math.abs(wakeOpenPitchDeg) <= WAKE_OPEN_PITCH_ABS_MAX_DEG;
-        const wakeOpenFaceOnMin = palmFacing
-            ? WAKE_OPEN_FRONT_FACE_ON_MIN
-            : WAKE_OPEN_BACK_FACE_ON_MIN;
-        const wakeOpenWorldFaceOnMin = palmFacing
-            ? WAKE_OPEN_FRONT_WORLD_FACE_ON_MIN
-            : WAKE_OPEN_BACK_WORLD_FACE_ON_MIN;
-        const wakeOpenPalmSpreadMin = palmFacing
-            ? WAKE_OPEN_FRONT_PALM_SPREAD_MIN
-            : WAKE_OPEN_BACK_PALM_SPREAD_MIN;
         const wakeOpenFingerFan = this._dist(g[8], g[20]) / palmSize;
         const wakeOpenPalmNormal = worldLm ? this._getPalmNormal(worldLm) : null;
         const wakeOpenFingerPlane = Math.max(
@@ -997,19 +999,14 @@ class HandTracker extends EventTarget {
             this._fingerPlaneComponent(worldLm, wakeOpenPalmNormal, 13, 16),
             this._fingerPlaneComponent(worldLm, wakeOpenPalmNormal, 17, 20)
         );
-        const wakeOpenStrongFaceOn =
-            wakeOpenFaceOnScore >= WAKE_OPEN_STRONG_FACE_ON_MIN &&
-            wakeOpenWorldFaceOnScore >= WAKE_OPEN_STRONG_WORLD_FACE_ON_MIN;
+        const wakeOpenStrongFace =
+            Number.isFinite(wakeOpenFaceDeg) &&
+            wakeOpenFaceDeg <= WAKE_OPEN_STRONG_FACE_MAX_DEG;
         const wakeOpenFingerPlaneMax = !palmFacing
             ? WAKE_OPEN_BACK_FINGER_PLANE_MAX
-            : wakeOpenStrongFaceOn
-                ? WAKE_OPEN_STRONG_FACE_ON_FINGER_PLANE_MAX
+            : wakeOpenStrongFace
+                ? WAKE_OPEN_STRONG_FACE_FINGER_PLANE_MAX
                 : WAKE_OPEN_FINGER_PLANE_MAX;
-        const indexScreenLength = this._dist(lm[5], lm[8]) / palmSize2D;
-        const middleScreenLength = this._dist(lm[9], lm[12]) / palmSize2D;
-        const ringScreenLength = this._dist(lm[13], lm[16]) / palmSize2D;
-        const pinkyScreenLength = this._dist(lm[17], lm[20]) / palmSize2D;
-        const wakeOpenLongFingerScreenLength = Math.min(indexScreenLength, middleScreenLength, ringScreenLength);
         const wakeOpenLongFingersExtended = index.extended && middle.extended && ring.extended;
         const wakeOpenPinkyOpen =
             pinky.extended ||
@@ -1031,9 +1028,8 @@ class HandTracker extends EventTarget {
             wakeOpenThumbOpen &&
             wakeOpenPalmOpen &&
             wakeOpenFingerFan > WAKE_OPEN_FINGER_FAN_MIN &&
-            wakeOpenFaceOnScore >= wakeOpenFaceOnMin &&
-            wakeOpenPalmSpread >= wakeOpenPalmSpreadMin &&
-            wakeOpenWorldFaceOnScore >= wakeOpenWorldFaceOnMin &&
+            wakeOpenFaceOk &&
+            wakeOpenYawOk &&
             wakeOpenPitchOk &&
             wakeOpenFingerPlane <= wakeOpenFingerPlaneMax;
 
@@ -1041,24 +1037,23 @@ class HandTracker extends EventTarget {
             eligible: wakeOpenEligible,
             palmFacing,
             faceOnScore: wakeOpenFaceOnScore,
-            faceOnMin: wakeOpenFaceOnMin,
             worldFaceOnScore: wakeOpenWorldFaceOnScore,
-            worldFaceOnMin: wakeOpenWorldFaceOnMin,
             rollDeg: wakeOpenOrientation?.rollDeg ?? NaN,
-            yawDeg: wakeOpenOrientation?.yawDeg ?? NaN,
+            yawDeg: wakeOpenYawDeg,
+            yawAbsMaxDeg: WAKE_OPEN_YAW_ABS_MAX_DEG,
+            yawOk: wakeOpenYawOk,
             pitchDeg: wakeOpenPitchDeg,
             pitchAbsMaxDeg: WAKE_OPEN_PITCH_ABS_MAX_DEG,
             pitchOk: wakeOpenPitchOk,
-            faceDeg: wakeOpenOrientation?.faceDeg ?? NaN,
+            faceDeg: wakeOpenFaceDeg,
+            faceMaxDeg: wakeOpenFaceMaxDeg,
+            faceOk: wakeOpenFaceOk,
             orientationSource: wakeOpenOrientation?.source ?? 'none',
             palmSpreadRatio: wakeOpenPalmSpread,
-            palmSpreadMin: wakeOpenPalmSpreadMin,
             fingerPlane: wakeOpenFingerPlane,
             fingerPlaneMax: wakeOpenFingerPlaneMax,
-            fingerPlaneRelaxed: wakeOpenStrongFaceOn,
+            fingerPlaneRelaxed: wakeOpenStrongFace,
             fingerFan: wakeOpenFingerFan,
-            longFingerScreenLength: wakeOpenLongFingerScreenLength,
-            pinkyScreenLength,
             longFingersExtended: wakeOpenLongFingersExtended,
             pinkyOpen: wakeOpenPinkyOpen,
             fingersStraight: wakeOpenFingersStraight,
