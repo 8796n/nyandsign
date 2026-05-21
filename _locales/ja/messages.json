@@ -357,6 +357,9 @@
   "wakeOpenIssuePalmSide": {
     "message": "掌を向ける"
   },
+  "wakeOpenIssuePalmPitch": {
+    "message": "上下傾きを抑える"
+  },
   "wakeOpenIssueRelease": {
     "message": "一度手を離す"
   },

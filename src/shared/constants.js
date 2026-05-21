@@ -261,6 +261,7 @@ const WAKE_OPEN_FINGER_PLANE_MAX = 0.42;
 const WAKE_OPEN_STRONG_FACE_ON_FINGER_PLANE_MAX = 0.58;
 const WAKE_OPEN_STRONG_FACE_ON_MIN = 0.92;
 const WAKE_OPEN_STRONG_WORLD_FACE_ON_MIN = 0.88;
+const WAKE_OPEN_PITCH_ABS_MAX_DEG = 40;
 const WAKE_OPEN_FINGER_FAN_MIN = 0.60;
 const WAKE_OPEN_AVG_TIP_DIST_MIN = 1.08;
 
@@ -274,6 +275,7 @@ const WAKE_OPEN_ISSUE_I18N_KEYS = {
     fingerFan: 'wakeOpenIssueFingerFan',
     palmOpen: 'wakeOpenIssuePalmOpen',
     palmSide: 'wakeOpenIssuePalmSide',
+    palmPitch: 'wakeOpenIssuePalmPitch',
     release: 'wakeOpenIssueRelease',
 };
 

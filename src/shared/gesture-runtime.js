@@ -106,7 +106,12 @@ const GestureRuntimeUtils = {
             debug.faceOnScore < this.wakeOpenFaceOnMin(debug) ||
             debug.palmSpreadRatio < this.wakeOpenPalmSpreadMin(debug) ||
             debug.worldFaceOnScore < (debug.worldFaceOnMin ?? 0);
-        if (angleTooShallow) return ['faceOn'];
+        const pitchTooTilted =
+            Number.isFinite(debug.pitchDeg) &&
+            Math.abs(debug.pitchDeg) > (debug.pitchAbsMaxDeg ?? WAKE_OPEN_PITCH_ABS_MAX_DEG);
+        if (angleTooShallow) issues.push('faceOn');
+        if (pitchTooTilted) issues.push('palmPitch');
+        if (angleTooShallow || pitchTooTilted) return issues;
 
         if (debug.longFingersExtended === false) issues.push('fingersExtended');
         if (debug.longFingersExtended !== false && debug.pinkyOpen === false) issues.push('pinkyOpen');

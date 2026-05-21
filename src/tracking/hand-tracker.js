@@ -976,6 +976,10 @@ class HandTracker extends EventTarget {
         const wakeOpenWorldFaceOn = worldLm ? this._getPalmFaceOn(worldLm) : null;
         const wakeOpenWorldFaceOnScore = wakeOpenWorldFaceOn?.normalScore ?? Infinity;
         const wakeOpenOrientation = this._getPalmOrientation(lm, worldLm);
+        const wakeOpenPitchDeg = wakeOpenOrientation?.pitchDeg ?? NaN;
+        const wakeOpenPitchOk =
+            !Number.isFinite(wakeOpenPitchDeg) ||
+            Math.abs(wakeOpenPitchDeg) <= WAKE_OPEN_PITCH_ABS_MAX_DEG;
         const wakeOpenFaceOnMin = palmFacing
             ? WAKE_OPEN_FRONT_FACE_ON_MIN
             : WAKE_OPEN_BACK_FACE_ON_MIN;
@@ -1028,6 +1032,7 @@ class HandTracker extends EventTarget {
             wakeOpenFaceOnScore >= wakeOpenFaceOnMin &&
             wakeOpenPalmSpread >= wakeOpenPalmSpreadMin &&
             wakeOpenWorldFaceOnScore >= wakeOpenWorldFaceOnMin &&
+            wakeOpenPitchOk &&
             wakeOpenFingerPlane <= wakeOpenFingerPlaneMax;
 
         this._lastWakeOpenDebug = {
@@ -1039,7 +1044,9 @@ class HandTracker extends EventTarget {
             worldFaceOnMin: wakeOpenWorldFaceOnMin,
             rollDeg: wakeOpenOrientation?.rollDeg ?? NaN,
             yawDeg: wakeOpenOrientation?.yawDeg ?? NaN,
-            pitchDeg: wakeOpenOrientation?.pitchDeg ?? NaN,
+            pitchDeg: wakeOpenPitchDeg,
+            pitchAbsMaxDeg: WAKE_OPEN_PITCH_ABS_MAX_DEG,
+            pitchOk: wakeOpenPitchOk,
             faceDeg: wakeOpenOrientation?.faceDeg ?? NaN,
             orientationSource: wakeOpenOrientation?.source ?? 'none',
             palmSpreadRatio: wakeOpenPalmSpread,
