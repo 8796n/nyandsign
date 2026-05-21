@@ -90,10 +90,11 @@ const GestureRuntimeUtils = {
         const debug = hand.wakeOpenDebug || {};
 
         if (wakeGestureType === 'open-palm' && hand.gesture !== 'open-palm') issues.push('palmSide');
-        if (
+        const angleTooShallow =
             debug.faceOnScore < WAKE_OPEN_FACE_ON_MIN ||
-            debug.palmSpreadRatio < WAKE_OPEN_PALM_SPREAD_MIN
-        ) issues.push('faceOn');
+            debug.palmSpreadRatio < WAKE_OPEN_PALM_SPREAD_MIN;
+        if (angleTooShallow) return ['faceOn'];
+
         if (debug.longFingersExtended === false) issues.push('fingersExtended');
         if (debug.longFingersExtended !== false && debug.pinkyOpen === false) issues.push('pinkyOpen');
         if (debug.longFingersExtended !== false && debug.pinkyOpen !== false && debug.fingersStraight === false) {
