@@ -917,6 +917,12 @@ class HandTracker extends EventTarget {
         const wakeOpenFaceOn = this._getPalmFaceOn(lm);
         const wakeOpenFaceOnScore = wakeOpenFaceOn.normalScore;
         const wakeOpenPalmSpread = wakeOpenFaceOn.palmSpreadRatio;
+        const wakeOpenFaceOnMin = palmFacing
+            ? WAKE_OPEN_FRONT_FACE_ON_MIN
+            : WAKE_OPEN_BACK_FACE_ON_MIN;
+        const wakeOpenPalmSpreadMin = palmFacing
+            ? WAKE_OPEN_FRONT_PALM_SPREAD_MIN
+            : WAKE_OPEN_BACK_PALM_SPREAD_MIN;
         const wakeOpenFingerFan = this._dist(g[8], g[20]) / palmSize;
         const wakeOpenLongFingersExtended = index.extended && middle.extended && ring.extended;
         const wakeOpenPinkyOpen =
@@ -936,13 +942,16 @@ class HandTracker extends EventTarget {
             wakeOpenThumbOpen &&
             wakeOpenPalmOpen &&
             wakeOpenFingerFan > WAKE_OPEN_FINGER_FAN_MIN &&
-            wakeOpenFaceOnScore >= WAKE_OPEN_FACE_ON_MIN &&
-            wakeOpenPalmSpread >= WAKE_OPEN_PALM_SPREAD_MIN;
+            wakeOpenFaceOnScore >= wakeOpenFaceOnMin &&
+            wakeOpenPalmSpread >= wakeOpenPalmSpreadMin;
 
         this._lastWakeOpenDebug = {
             eligible: wakeOpenEligible,
+            palmFacing,
             faceOnScore: wakeOpenFaceOnScore,
+            faceOnMin: wakeOpenFaceOnMin,
             palmSpreadRatio: wakeOpenPalmSpread,
+            palmSpreadMin: wakeOpenPalmSpreadMin,
             fingerFan: wakeOpenFingerFan,
             longFingersExtended: wakeOpenLongFingersExtended,
             pinkyOpen: wakeOpenPinkyOpen,

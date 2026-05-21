@@ -81,6 +81,18 @@ const GestureRuntimeUtils = {
         return gesture === wakeGestureType;
     },
 
+    wakeOpenFaceOnMin(debug = {}) {
+        return debug.faceOnMin ?? (debug.palmFacing === false
+            ? WAKE_OPEN_BACK_FACE_ON_MIN
+            : WAKE_OPEN_FRONT_FACE_ON_MIN);
+    },
+
+    wakeOpenPalmSpreadMin(debug = {}) {
+        return debug.palmSpreadMin ?? (debug.palmFacing === false
+            ? WAKE_OPEN_BACK_PALM_SPREAD_MIN
+            : WAKE_OPEN_FRONT_PALM_SPREAD_MIN);
+    },
+
     wakeOpenIssueIds(gesture, wakeGestureType, hands = [], activeIdx = null) {
         if (wakeGestureType !== 'open' && wakeGestureType !== 'open-palm') return [];
         const hand = this.findOpenHand(gesture, hands, activeIdx);
@@ -91,8 +103,8 @@ const GestureRuntimeUtils = {
 
         if (wakeGestureType === 'open-palm' && hand.gesture !== 'open-palm') issues.push('palmSide');
         const angleTooShallow =
-            debug.faceOnScore < WAKE_OPEN_FACE_ON_MIN ||
-            debug.palmSpreadRatio < WAKE_OPEN_PALM_SPREAD_MIN;
+            debug.faceOnScore < this.wakeOpenFaceOnMin(debug) ||
+            debug.palmSpreadRatio < this.wakeOpenPalmSpreadMin(debug);
         if (angleTooShallow) return ['faceOn'];
 
         if (debug.longFingersExtended === false) issues.push('fingersExtended');
