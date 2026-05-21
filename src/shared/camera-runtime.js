@@ -69,6 +69,21 @@ const CameraRuntime = {
         return options || this.defaultVideoOptions();
     },
 
+    effectiveInferenceResolution(inferenceResolution, cameraHint = null) {
+        // UVC1 は元が低解像度なので、推論入力をさらに縮小しない。
+        if (this.xrealCameraProfile(cameraHint) === this.XREAL_CAMERA_PROFILE_MONO) {
+            return 'source';
+        }
+        return inferenceResolution;
+    },
+
+    inferenceMaxWidthForCamera(inferenceResolution, cameraHint = null) {
+        const effectiveResolution = this.effectiveInferenceResolution(inferenceResolution, cameraHint);
+        return typeof inferenceResolutionToMaxWidth === 'function'
+            ? inferenceResolutionToMaxWidth(effectiveResolution)
+            : 0;
+    },
+
     xrealRgbVideoOptions() {
         return {
             width: this.XREAL_RGB_VIDEO_WIDTH,
@@ -204,10 +219,11 @@ const CameraRuntime = {
         };
     },
 
-    inferenceResolutionLogArgs(tracker, inferenceResolution) {
+    inferenceResolutionLogArgs(tracker, inferenceResolution, cameraHint = null) {
+        const effectiveResolution = this.effectiveInferenceResolution(inferenceResolution, cameraHint);
         const label = typeof inferenceResolutionLabel === 'function'
-            ? inferenceResolutionLabel(inferenceResolution)
-            : String(inferenceResolution || '');
+            ? inferenceResolutionLabel(effectiveResolution)
+            : String(effectiveResolution || '');
         return [
             label,
             this.formatResolution(tracker?.getInferenceInputSize?.()),

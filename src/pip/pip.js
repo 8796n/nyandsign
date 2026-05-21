@@ -423,8 +423,8 @@ function updateTrackerFps() {
         : fps;
 }
 
-function updateTrackerInferenceResolution() {
-    tracker.setInferenceMaxWidth(inferenceResolutionToMaxWidth(inferenceResolution));
+function updateTrackerInferenceResolution(cameraHint = currentCameraHint()) {
+    tracker.setInferenceMaxWidth(CameraRuntime.inferenceMaxWidthForCamera(inferenceResolution, cameraHint));
 }
 
 function applyInferencePreprocessForCamera(track = null) {
@@ -463,8 +463,8 @@ function logXrealCameraFallback(cameraResult) {
     }
 }
 
-function logInferenceResolution() {
-    console.log('[PiP] ' + msg('logInferenceResolution', CameraRuntime.inferenceResolutionLogArgs(tracker, inferenceResolution)));
+function logInferenceResolution(cameraHint = currentCameraHint()) {
+    console.log('[PiP] ' + msg('logInferenceResolution', CameraRuntime.inferenceResolutionLogArgs(tracker, inferenceResolution, cameraHint)));
 }
 
 function currentCameraHint() {
@@ -1010,6 +1010,7 @@ async function restartCameraForSettings() {
             beforeStart: async ({ track }) => {
                 await applyXrealMonoCameraControl(track);
                 if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
+                updateTrackerInferenceResolution(track);
                 tracker.displayMirrored = mirrorCamera;
                 applyInferencePreprocessForCamera(track);
             },
@@ -1022,7 +1023,7 @@ async function restartCameraForSettings() {
         logCameraResolution(result.requestOptions, track);
         if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
         attachCameraEndedHandler(track);
-        logInferenceResolution();
+        logInferenceResolution(track);
         pointerVisibilityController?.sync();
         statusEl.textContent = msg('pipStatusCameraReady');
         btnStartPip.disabled = false;
@@ -1070,6 +1071,7 @@ async function startCamera() {
 
         // メガネカメラの場合ミラー OFF
         if (CameraRuntime.isXrealCamera(track)) mirrorCamera = false;
+        updateTrackerInferenceResolution(track);
         applyInferencePreprocessForCamera(track);
 
         // カメラ切断監視 — ポップアップ内に案内を表示
@@ -1083,7 +1085,7 @@ async function startCamera() {
         await tracker.start(cameraVideo, handCanvas, {
             skeletonOnly: tracker.skeletonOnly,
         });
-        logInferenceResolution();
+        logInferenceResolution(track);
 
         statusEl.textContent = msg('pipStatusCameraReady');
         btnStartPip.disabled = false;

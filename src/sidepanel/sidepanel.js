@@ -908,6 +908,7 @@ async function startCamera() {
 
         await applyXrealMonoCameraControl(track);
         applyXrealMirrorAuto(track);
+        updateTrackerInferenceResolution(track);
         syncCameraPreviewAspect(track);
         syncCameraPreviewFilter(track);
         applyInferencePreprocessForCamera(track);
@@ -934,7 +935,7 @@ async function startCamera() {
         await tracker.start(el.cameraVideo, el.handCanvas, {
             skeletonOnly: el.chkSkeleton.checked,
         });
-        logInferenceResolution();
+        logInferenceResolution(track);
 
         // 認識インスタンスの所有権を要求（他インスタンスを停止させる）
         takenOver = false;
@@ -1028,6 +1029,7 @@ async function restartCameraForSettings() {
             beforeStart: async ({ track }) => {
                 await applyXrealMonoCameraControl(track);
                 applyXrealMirrorAuto(track);
+                updateTrackerInferenceResolution(track);
                 syncCameraPreviewAspect(track);
                 syncCameraPreviewFilter(track);
                 applyInferencePreprocessForCamera(track);
@@ -1051,7 +1053,7 @@ async function restartCameraForSettings() {
             stopCamera();
         });
 
-        logInferenceResolution();
+        logInferenceResolution(track);
         pointerVisibilityController?.sync();
         log(msg('logCameraRestartedForSettings'));
     } catch (e) {
@@ -1495,8 +1497,8 @@ function updateTrackerFps() {
         : fps;
 }
 
-function updateTrackerInferenceResolution() {
-    tracker.setInferenceMaxWidth(inferenceResolutionToMaxWidth(inferenceResolution));
+function updateTrackerInferenceResolution(cameraHint = currentCameraHint()) {
+    tracker.setInferenceMaxWidth(CameraRuntime.inferenceMaxWidthForCamera(inferenceResolution, cameraHint));
 }
 
 function logCameraResolution(requestOptions, track) {
@@ -1518,8 +1520,8 @@ function logCameraAttemptErrors(error) {
     }
 }
 
-function logInferenceResolution() {
-    log(msg('logInferenceResolution', CameraRuntime.inferenceResolutionLogArgs(tracker, inferenceResolution)));
+function logInferenceResolution(cameraHint = currentCameraHint()) {
+    log(msg('logInferenceResolution', CameraRuntime.inferenceResolutionLogArgs(tracker, inferenceResolution, cameraHint)));
 }
 
 /* ============================================================
