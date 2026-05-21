@@ -699,6 +699,10 @@ class HandTracker extends EventTarget {
         return { x: v.x / n, y: v.y / n, z: (v.z ?? 0) / n };
     }
 
+    _toDegrees(rad) {
+        return rad * 180 / Math.PI;
+    }
+
     _getPalmFaceOn(lm) {
         if (!lm?.[0] || !lm?.[5] || !lm?.[9] || !lm?.[17]) return 0;
         const palmAxis = this._sub(lm[9], lm[0]);
@@ -718,6 +722,45 @@ class HandTracker extends EventTarget {
         const palmAxis = this._sub(points[9], points[0]);
         const palmWidth = this._sub(points[17], points[5]);
         return this._normalize(this._cross(palmAxis, palmWidth));
+    }
+
+    _getPalmOrientation(lm, worldLm) {
+        if (!lm?.[0] || !lm?.[9]) return null;
+
+        const palmAxis2d = this._sub(lm[9], lm[0]);
+        const rollX = this.displayMirrored ? -palmAxis2d.x : palmAxis2d.x;
+        const rollDeg = this._toDegrees(Math.atan2(rollX, -palmAxis2d.y));
+        const points = worldLm ?? lm;
+        const normal = this._getPalmNormal(points);
+        if (!normal) {
+            return {
+                rollDeg,
+                yawDeg: NaN,
+                pitchDeg: NaN,
+                faceDeg: NaN,
+                source: 'none',
+            };
+        }
+
+        const viewNormal = (normal.z ?? 0) < 0
+            ? { x: -normal.x, y: -normal.y, z: -(normal.z ?? 0) }
+            : normal;
+        const z = Math.max(Math.abs(viewNormal.z ?? 0), 1e-6);
+        const yawRaw = this._toDegrees(Math.atan2(viewNormal.x, z));
+        const yawDeg = this.displayMirrored ? -yawRaw : yawRaw;
+        const pitchDeg = this._toDegrees(Math.atan2(viewNormal.y, z));
+        const faceDeg = this._toDegrees(Math.atan2(
+            Math.hypot(viewNormal.x, viewNormal.y),
+            z
+        ));
+
+        return {
+            rollDeg,
+            yawDeg,
+            pitchDeg,
+            faceDeg,
+            source: worldLm ? 'world' : 'image',
+        };
     }
 
     _fingerPlaneComponent(points, palmNormal, mcp, tip) {
@@ -932,6 +975,7 @@ class HandTracker extends EventTarget {
         const wakeOpenPalmSpread = wakeOpenFaceOn.palmSpreadRatio;
         const wakeOpenWorldFaceOn = worldLm ? this._getPalmFaceOn(worldLm) : null;
         const wakeOpenWorldFaceOnScore = wakeOpenWorldFaceOn?.normalScore ?? Infinity;
+        const wakeOpenOrientation = this._getPalmOrientation(lm, worldLm);
         const wakeOpenFaceOnMin = palmFacing
             ? WAKE_OPEN_FRONT_FACE_ON_MIN
             : WAKE_OPEN_BACK_FACE_ON_MIN;
@@ -993,6 +1037,11 @@ class HandTracker extends EventTarget {
             faceOnMin: wakeOpenFaceOnMin,
             worldFaceOnScore: wakeOpenWorldFaceOnScore,
             worldFaceOnMin: wakeOpenWorldFaceOnMin,
+            rollDeg: wakeOpenOrientation?.rollDeg ?? NaN,
+            yawDeg: wakeOpenOrientation?.yawDeg ?? NaN,
+            pitchDeg: wakeOpenOrientation?.pitchDeg ?? NaN,
+            faceDeg: wakeOpenOrientation?.faceDeg ?? NaN,
+            orientationSource: wakeOpenOrientation?.source ?? 'none',
             palmSpreadRatio: wakeOpenPalmSpread,
             palmSpreadMin: wakeOpenPalmSpreadMin,
             fingerPlane: wakeOpenFingerPlane,
