@@ -253,8 +253,11 @@ const INFERENCE_FPS_MAX = 30;
 const POINTER_MOVE_ACTIVE_FPS = 30;
 const WAKE_OPEN_FRONT_FACE_ON_MIN = 0.60;
 const WAKE_OPEN_BACK_FACE_ON_MIN = 0.80;
+const WAKE_OPEN_FRONT_WORLD_FACE_ON_MIN = 0.45;
+const WAKE_OPEN_BACK_WORLD_FACE_ON_MIN = 0.65;
 const WAKE_OPEN_FRONT_PALM_SPREAD_MIN = 0.35;
 const WAKE_OPEN_BACK_PALM_SPREAD_MIN = 0.58;
+const WAKE_OPEN_FINGER_PLANE_MAX = 0.42;
 const WAKE_OPEN_LONG_FINGER_SCREEN_MIN = 1.05;
 const WAKE_OPEN_PINKY_SCREEN_MIN = 0.78;
 const WAKE_OPEN_FINGER_FAN_MIN = 0.60;
@@ -264,6 +267,7 @@ const WAKE_OPEN_ISSUE_I18N_KEYS = {
     faceOn: 'wakeOpenIssueFaceOn',
     fingersExtended: 'wakeOpenIssueFingersExtended',
     fingersStraight: 'wakeOpenIssueFingersStraight',
+    fingerDepth: 'wakeOpenIssueFingerDepth',
     pinkyOpen: 'wakeOpenIssuePinkyOpen',
     thumbOpen: 'wakeOpenIssueThumbOpen',
     fingerFan: 'wakeOpenIssueFingerFan',

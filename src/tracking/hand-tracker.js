@@ -713,6 +713,19 @@ class HandTracker extends EventTarget {
         };
     }
 
+    _getPalmNormal(points) {
+        if (!points?.[0] || !points?.[5] || !points?.[9] || !points?.[17]) return null;
+        const palmAxis = this._sub(points[9], points[0]);
+        const palmWidth = this._sub(points[17], points[5]);
+        return this._normalize(this._cross(palmAxis, palmWidth));
+    }
+
+    _fingerPlaneComponent(points, palmNormal, mcp, tip) {
+        if (!points?.[mcp] || !points?.[tip] || !palmNormal) return 0;
+        const axis = this._normalize(this._sub(points[tip], points[mcp]));
+        return Math.abs(this._dot(axis, palmNormal));
+    }
+
     /* ============================================================
      * 手のひらジオメトリ計算
      * worldLandmarks があれば距離計算に使用（視点依存が小さい）
@@ -917,13 +930,25 @@ class HandTracker extends EventTarget {
         const wakeOpenFaceOn = this._getPalmFaceOn(lm);
         const wakeOpenFaceOnScore = wakeOpenFaceOn.normalScore;
         const wakeOpenPalmSpread = wakeOpenFaceOn.palmSpreadRatio;
+        const wakeOpenWorldFaceOn = worldLm ? this._getPalmFaceOn(worldLm) : null;
+        const wakeOpenWorldFaceOnScore = wakeOpenWorldFaceOn?.normalScore ?? Infinity;
         const wakeOpenFaceOnMin = palmFacing
             ? WAKE_OPEN_FRONT_FACE_ON_MIN
             : WAKE_OPEN_BACK_FACE_ON_MIN;
+        const wakeOpenWorldFaceOnMin = palmFacing
+            ? WAKE_OPEN_FRONT_WORLD_FACE_ON_MIN
+            : WAKE_OPEN_BACK_WORLD_FACE_ON_MIN;
         const wakeOpenPalmSpreadMin = palmFacing
             ? WAKE_OPEN_FRONT_PALM_SPREAD_MIN
             : WAKE_OPEN_BACK_PALM_SPREAD_MIN;
         const wakeOpenFingerFan = this._dist(g[8], g[20]) / palmSize;
+        const wakeOpenPalmNormal = worldLm ? this._getPalmNormal(worldLm) : null;
+        const wakeOpenFingerPlane = Math.max(
+            this._fingerPlaneComponent(worldLm, wakeOpenPalmNormal, 5, 8),
+            this._fingerPlaneComponent(worldLm, wakeOpenPalmNormal, 9, 12),
+            this._fingerPlaneComponent(worldLm, wakeOpenPalmNormal, 13, 16),
+            this._fingerPlaneComponent(worldLm, wakeOpenPalmNormal, 17, 20)
+        );
         const indexScreenLength = this._dist(lm[5], lm[8]) / palmSize2D;
         const middleScreenLength = this._dist(lm[9], lm[12]) / palmSize2D;
         const ringScreenLength = this._dist(lm[13], lm[16]) / palmSize2D;
@@ -953,15 +978,21 @@ class HandTracker extends EventTarget {
             wakeOpenPalmOpen &&
             wakeOpenFingerFan > WAKE_OPEN_FINGER_FAN_MIN &&
             wakeOpenFaceOnScore >= wakeOpenFaceOnMin &&
-            wakeOpenPalmSpread >= wakeOpenPalmSpreadMin;
+            wakeOpenPalmSpread >= wakeOpenPalmSpreadMin &&
+            wakeOpenWorldFaceOnScore >= wakeOpenWorldFaceOnMin &&
+            wakeOpenFingerPlane <= WAKE_OPEN_FINGER_PLANE_MAX;
 
         this._lastWakeOpenDebug = {
             eligible: wakeOpenEligible,
             palmFacing,
             faceOnScore: wakeOpenFaceOnScore,
             faceOnMin: wakeOpenFaceOnMin,
+            worldFaceOnScore: wakeOpenWorldFaceOnScore,
+            worldFaceOnMin: wakeOpenWorldFaceOnMin,
             palmSpreadRatio: wakeOpenPalmSpread,
             palmSpreadMin: wakeOpenPalmSpreadMin,
+            fingerPlane: wakeOpenFingerPlane,
+            fingerPlaneMax: WAKE_OPEN_FINGER_PLANE_MAX,
             fingerFan: wakeOpenFingerFan,
             longFingerScreenLength: wakeOpenLongFingerScreenLength,
             pinkyScreenLength,

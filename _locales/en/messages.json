@@ -449,6 +449,10 @@
     "message": "straighten fingers",
     "description": "Wake open-hand hint: straighten the fingers"
   },
+  "wakeOpenIssueFingerDepth": {
+    "message": "raise fingers",
+    "description": "Wake open-hand hint: keep fingers in the palm plane instead of pointing toward the camera"
+  },
   "wakeOpenIssuePinkyOpen": {
     "message": "extend pinky",
     "description": "Wake open-hand hint: extend the pinky finger"
