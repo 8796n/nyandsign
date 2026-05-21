@@ -937,6 +937,12 @@ class HandTracker extends EventTarget {
         const extendedCount = fingers.filter(f => f.extended).length;
         const avgTipDist = fingers.reduce((s, f) => s + f.tipDist, 0) / 4;
         const otherExtendedCount = [middle, ring, pinky].filter(f => f.extended).length;
+        const pointDirection = this._getPointDirection(lm, palmSize2D);
+        const indexScreenLength = this._dist(lm[5], lm[8]) / palmSize2D;
+        const indexPointLike =
+            pointDirection &&
+            index.straightness > 0.88 &&
+            indexScreenLength > 0.85;
         const normalOkPinch = thumb.thumbIndexOkDist < 0.65;
         const strongOkPinch = thumb.thumbIndexOkDist < 0.45;
         const relaxedBentIndexOkPinch =
@@ -1076,6 +1082,9 @@ class HandTracker extends EventTarget {
             indexCurled: index.curled,
             indexStraightness: index.straightness,
             indexBentForOk: index.bentForOk,
+            indexPointLike,
+            indexScreenLength,
+            pointDirection,
             thumbFolded: thumb.folded,
             thumbExtendedAway: thumb.extendedAway,
             thumbPalmDist: thumb.thumbPalmDist,
@@ -1115,7 +1124,8 @@ class HandTracker extends EventTarget {
 
         // 4) thumbsup / thumbsdown: 親指が孤立 + 4本指が畳まれている
         //    pinky.curled を明示的にチェックしてアロハとの誤判定を防ぐ
-        if (curledCount >= 3 && !index.extended && !middle.extended && pinky.curled && thumb.extendedAway) {
+        //    人差し指が画面上ではっきり指差し方向を向く場合は、角度で extended が落ちても親指判定に逃がさない。
+        if (curledCount >= 3 && !index.extended && !indexPointLike && !middle.extended && pinky.curled && thumb.extendedAway) {
             if (thumb.aboveWrist) return 'thumbsup';
             if (thumb.belowWrist) return 'thumbsdown';
         }
@@ -1133,10 +1143,9 @@ class HandTracker extends EventTarget {
         }
 
         // 6) point-left/right/up: 人差し指だけが十分に特定方向を向いている
-        if (index.extended && middle.curled && ring.curled && pinky.curled &&
+        if ((index.extended || indexPointLike) && middle.curled && ring.curled && pinky.curled &&
             thumb.thumbIndexTipDist > 0.35) {
-            const direction = this._getPointDirection(lm, palmSize2D);
-            if (direction) return direction;
+            if (pointDirection) return pointDirection;
         }
 
         // 7) three: 人差し指 + 中指 + 薬指が伸び、小指が畳まれている
