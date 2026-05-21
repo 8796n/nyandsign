@@ -321,6 +321,39 @@
   "gestureUnknown": {
     "message": "不明"
   },
+  "wakeOpenNeeds": {
+    "message": "ウェイク: $1",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "wakeOpenIssueSeparator": {
+    "message": "・"
+  },
+  "wakeOpenIssueFaceOn": {
+    "message": "手を正面へ"
+  },
+  "wakeOpenIssueFingersExtended": {
+    "message": "4本指を伸ばす"
+  },
+  "wakeOpenIssueFingersStraight": {
+    "message": "指をまっすぐ"
+  },
+  "wakeOpenIssueThumbOpen": {
+    "message": "親指を開く"
+  },
+  "wakeOpenIssueFingerFan": {
+    "message": "指を少し開く"
+  },
+  "wakeOpenIssuePalmOpen": {
+    "message": "手を大きく開く"
+  },
+  "wakeOpenIssuePalmSide": {
+    "message": "掌を向ける"
+  },
+  "wakeOpenIssueUnknown": {
+    "message": "形を整える"
+  },
 
   "actionPlayPause": {
     "message": "再生/一時停止"

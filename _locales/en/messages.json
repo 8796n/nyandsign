@@ -426,6 +426,49 @@
     "message": "Unknown",
     "description": "Hand sign name: unknown gesture"
   },
+  "wakeOpenNeeds": {
+    "message": "Wake: $1",
+    "description": "Compact hint shown when an open hand is detected but not accepted as the wake sign",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "wakeOpenIssueSeparator": {
+    "message": ", ",
+    "description": "Separator between wake open-hand hint items"
+  },
+  "wakeOpenIssueFaceOn": {
+    "message": "face camera",
+    "description": "Wake open-hand hint: turn the hand toward the camera"
+  },
+  "wakeOpenIssueFingersExtended": {
+    "message": "extend 4 fingers",
+    "description": "Wake open-hand hint: extend all four long fingers"
+  },
+  "wakeOpenIssueFingersStraight": {
+    "message": "straighten fingers",
+    "description": "Wake open-hand hint: straighten the fingers"
+  },
+  "wakeOpenIssueThumbOpen": {
+    "message": "open thumb",
+    "description": "Wake open-hand hint: open the thumb"
+  },
+  "wakeOpenIssueFingerFan": {
+    "message": "spread fingers",
+    "description": "Wake open-hand hint: spread the fingers slightly"
+  },
+  "wakeOpenIssuePalmOpen": {
+    "message": "open hand wider",
+    "description": "Wake open-hand hint: open the hand shape wider"
+  },
+  "wakeOpenIssuePalmSide": {
+    "message": "show palm",
+    "description": "Wake open-hand hint: palm-only wake mode needs the palm side"
+  },
+  "wakeOpenIssueUnknown": {
+    "message": "adjust shape",
+    "description": "Fallback wake open-hand hint"
+  },
 
   "actionPlayPause": {
     "message": "Play/Pause",

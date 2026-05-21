@@ -686,6 +686,16 @@ function handleWakeGesture(gesture, hands = lastFrameHands, activeIdx = lastFram
     return true;
 }
 
+function showWakeOpenIssues(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx) {
+    if (wakeGestureType === 'none' || wakeState !== WAKE_STATE.IDLE || pageActionStatusVisible) return false;
+    const issueIds = GestureRuntimeUtils.wakeOpenIssueIds(gesture, wakeGestureType, hands, activeIdx);
+    const text = GestureRuntimeUtils.wakeOpenIssueText(issueIds, 1);
+    if (!text) return false;
+
+    setPipGestureText(`${GESTURE_ICONS[gesture] || GESTURE_ICONS.open} ${text}`);
+    return true;
+}
+
 // ジェスチャーイベント
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
@@ -719,6 +729,7 @@ tracker.addEventListener('gesture', (e) => {
         setPipGestureText(icon);
         return;
     }
+    showWakeOpenIssues(gesture, gestureHands, activeIdx);
 
     const now = Date.now();
     holdGestureResumeController?.expire(now);
@@ -816,7 +827,9 @@ tracker.addEventListener('frame', (e) => {
     const now = Date.now();
     lastFrameHands = hands;
     lastFrameActiveIdx = Number.isInteger(activeIdx) ? activeIdx : null;
-    handleWakeGesture(e.detail.stableGesture, hands, lastFrameActiveIdx, { idleOnly: true });
+    if (!handleWakeGesture(e.detail.stableGesture, hands, lastFrameActiveIdx, { idleOnly: true })) {
+        showWakeOpenIssues(e.detail.stableGesture, hands, lastFrameActiveIdx);
+    }
     const result = metaGestureController?.update(hands, now);
     if (result?.allowDirectional) {
         updateDirectionalScroll(hands, now);

@@ -53,17 +53,21 @@ const GestureRuntimeUtils = {
         return gesture === 'open' || gesture === 'open-palm';
     },
 
-    findWakeOpenHand(gesture, hands = [], activeIdx = null) {
+    findOpenHand(gesture, hands = [], activeIdx = null) {
         if (!this.isOpenGesture(gesture) || !Array.isArray(hands) || !hands.length) return null;
 
         const activeHand = Number.isInteger(activeIdx)
             ? hands.find(h => h?.idx === activeIdx) || hands[activeIdx]
             : null;
-        if (this.isOpenGesture(activeHand?.gesture)) {
-            return activeHand.wakeOpen === true ? activeHand : null;
-        }
+        if (this.isOpenGesture(activeHand?.gesture)) return activeHand;
 
-        return hands.find(h => this.isOpenGesture(h?.gesture) && h.wakeOpen === true) || null;
+        return hands.find(h => this.isOpenGesture(h?.gesture)) || null;
+    },
+
+    findWakeOpenHand(gesture, hands = [], activeIdx = null) {
+        const hand = this.findOpenHand(gesture, hands, activeIdx);
+        if (hand?.wakeOpen === true) return hand;
+        return null;
     },
 
     isWakeGesture(gesture, wakeGestureType, hands = [], activeIdx = null) {
@@ -75,6 +79,34 @@ const GestureRuntimeUtils = {
             return gesture === 'open-palm' && hand?.gesture === 'open-palm';
         }
         return gesture === wakeGestureType;
+    },
+
+    wakeOpenIssueIds(gesture, wakeGestureType, hands = [], activeIdx = null) {
+        if (wakeGestureType !== 'open' && wakeGestureType !== 'open-palm') return [];
+        const hand = this.findOpenHand(gesture, hands, activeIdx);
+        if (!hand) return [];
+
+        const issues = [];
+        const debug = hand.wakeOpenDebug || {};
+
+        if (wakeGestureType === 'open-palm' && hand.gesture !== 'open-palm') issues.push('palmSide');
+        if (debug.faceOnScore < WAKE_OPEN_FACE_ON_MIN) issues.push('faceOn');
+        if (debug.fingersExtended === false) issues.push('fingersExtended');
+        if (debug.fingersExtended !== false && debug.fingersStraight === false) issues.push('fingersStraight');
+        if (debug.thumbOpen === false) issues.push('thumbOpen');
+        if (debug.palmOpen === false) issues.push('palmOpen');
+        if (debug.fingerFan < WAKE_OPEN_FINGER_FAN_MIN) issues.push('fingerFan');
+
+        return issues;
+    },
+
+    wakeOpenIssueText(issueIds = [], limit = 2) {
+        const labels = issueIds
+            .slice(0, limit)
+            .map(id => msg(WAKE_OPEN_ISSUE_I18N_KEYS[id] || 'wakeOpenIssueUnknown'))
+            .filter(Boolean);
+        if (!labels.length) return '';
+        return msg('wakeOpenNeeds', [labels.join(msg('wakeOpenIssueSeparator'))]);
     },
 
     dist2d(a, b) {

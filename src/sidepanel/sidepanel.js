@@ -1644,6 +1644,16 @@ function handleWakeGesture(gesture, hands = lastFrameHands, activeIdx = lastFram
     return true;
 }
 
+function showWakeOpenIssues(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx) {
+    if (wakeGestureType === 'none' || wakeState !== WAKE_STATE.IDLE || pageActionStatusVisible) return false;
+    const issueIds = GestureRuntimeUtils.wakeOpenIssueIds(gesture, wakeGestureType, hands, activeIdx);
+    const text = GestureRuntimeUtils.wakeOpenIssueText(issueIds);
+    if (!text) return false;
+
+    setGestureText(GESTURE_ICONS[gesture] || GESTURE_ICONS.open, `${gestureLabel(gesture)} / ${text}`);
+    return true;
+}
+
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
     const gestureHands = Array.isArray(e.detail.gestures) ? e.detail.gestures : lastFrameHands;
@@ -1681,6 +1691,7 @@ tracker.addEventListener('gesture', (e) => {
 
     // ウェイクサインで ACTIVE に遷移
     if (handleWakeGesture(gesture, gestureHands, activeIdx)) return;
+    showWakeOpenIssues(gesture, gestureHands, activeIdx);
 
     const now = Date.now();
     holdGestureResumeController?.expire(now);
@@ -1779,7 +1790,9 @@ tracker.addEventListener('frame', (e) => {
     lastFrameHands = hands;
     lastFrameActiveIdx = Number.isInteger(activeIdx) ? activeIdx : null;
     updateOkDebug(e.detail, now);
-    handleWakeGesture(e.detail.stableGesture, hands, lastFrameActiveIdx, { idleOnly: true });
+    if (!handleWakeGesture(e.detail.stableGesture, hands, lastFrameActiveIdx, { idleOnly: true })) {
+        showWakeOpenIssues(e.detail.stableGesture, hands, lastFrameActiveIdx);
+    }
     const result = metaGestureController?.update(hands, now);
     if (result?.allowDirectional) {
         updateDirectionalScroll(hands, now);

@@ -917,13 +917,14 @@ class HandTracker extends EventTarget {
             ring.straightness > 0.92 &&
             pinky.straightness > 0.90;
         const wakeOpenThumbOpen = thumb.extendedAway && thumb.thumbIndexTipDist >= 0.62;
+        const wakeOpenPalmOpen = avgTipDist > WAKE_OPEN_AVG_TIP_DIST_MIN;
         const wakeOpenEligible =
             wakeOpenFingersExtended &&
             wakeOpenFingersStraight &&
             wakeOpenThumbOpen &&
-            avgTipDist > 1.08 &&
-            wakeOpenFingerFan > 0.75 &&
-            wakeOpenFaceOnScore >= 0.65;
+            wakeOpenPalmOpen &&
+            wakeOpenFingerFan > WAKE_OPEN_FINGER_FAN_MIN &&
+            wakeOpenFaceOnScore >= WAKE_OPEN_FACE_ON_MIN;
 
         this._lastWakeOpenDebug = {
             eligible: wakeOpenEligible,
@@ -932,6 +933,7 @@ class HandTracker extends EventTarget {
             fingersExtended: wakeOpenFingersExtended,
             fingersStraight: wakeOpenFingersStraight,
             thumbOpen: wakeOpenThumbOpen,
+            palmOpen: wakeOpenPalmOpen,
         };
 
         this._lastOkDebug = {
