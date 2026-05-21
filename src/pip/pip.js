@@ -65,6 +65,7 @@ let metaGestureController = null;
 
 // 方向スクロール
 let lastFrameHands = [];
+let lastFrameActiveIdx = null;
 let directionalScrollController = null;
 let pointerMoveController = null;
 let holdGestureResumeController = null;
@@ -668,16 +669,33 @@ function confirmAction(gesture, action, hands = lastFrameHands) {
     }
 }
 
-function isWakeGesture(gesture) {
-    if (wakeGestureType === 'open') return gesture === 'open' || gesture === 'open-palm';
-    return gesture === wakeGestureType;
+function isWakeGesture(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx) {
+    return GestureRuntimeUtils.isWakeGesture(gesture, wakeGestureType, hands, activeIdx);
+}
+
+function handleWakeGesture(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx, options = {}) {
+    if (wakeGestureType === 'none' || !controlEnabled) return false;
+    if (options.idleOnly && wakeState !== WAKE_STATE.IDLE) return false;
+    if (!isWakeGesture(gesture, hands, activeIdx)) return false;
+
+    continuousGestureGate?.reset();
+    stopAllGestureActions();
+    if (wakeState === WAKE_STATE.IDLE) {
+        setWakeState(WAKE_STATE.ACTIVE);
+    }
+    return true;
 }
 
 // ジェスチャーイベント
 tracker.addEventListener('gesture', (e) => {
     const gesture = e.detail.gesture;
     const gestureHands = Array.isArray(e.detail.gestures) ? e.detail.gestures : lastFrameHands;
-    if (Array.isArray(e.detail.gestures)) lastFrameHands = gestureHands;
+    const detailActiveIdx = Number.isInteger(e.detail.activeIdx) ? e.detail.activeIdx : null;
+    const activeIdx = Array.isArray(e.detail.gestures) ? detailActiveIdx : lastFrameActiveIdx;
+    if (Array.isArray(e.detail.gestures)) {
+        lastFrameHands = gestureHands;
+        lastFrameActiveIdx = detailActiveIdx;
+    }
     if (GestureRuntimeUtils.isUncertainGesture(gesture)) {
         setPipGestureText(gesture === 'unknown' ? (GESTURE_ICONS.unknown || '❓') : '');
         const suspended = holdGestureResumeController?.suspend();
@@ -697,12 +715,7 @@ tracker.addEventListener('gesture', (e) => {
     if (!controlEnabled) return;
 
     // ウェイクサイン検出で ACTIVE に遷移
-    if (wakeGestureType !== 'none' && isWakeGesture(gesture)) {
-        continuousGestureGate?.reset();
-        stopAllGestureActions();
-        if (wakeState === WAKE_STATE.IDLE) {
-            setWakeState(WAKE_STATE.ACTIVE);
-        }
+    if (handleWakeGesture(gesture, gestureHands, activeIdx)) {
         setPipGestureText(icon);
         return;
     }
@@ -799,9 +812,11 @@ function executeMetaAction(action) {
 }
 
 tracker.addEventListener('frame', (e) => {
-    const { gestures: hands } = e.detail;
+    const { gestures: hands, activeIdx } = e.detail;
     const now = Date.now();
     lastFrameHands = hands;
+    lastFrameActiveIdx = Number.isInteger(activeIdx) ? activeIdx : null;
+    handleWakeGesture(e.detail.stableGesture, hands, lastFrameActiveIdx, { idleOnly: true });
     const result = metaGestureController?.update(hands, now);
     if (result?.allowDirectional) {
         updateDirectionalScroll(hands, now);

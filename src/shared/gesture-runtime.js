@@ -53,6 +53,30 @@ const GestureRuntimeUtils = {
         return gesture === 'open' || gesture === 'open-palm';
     },
 
+    findWakeOpenHand(gesture, hands = [], activeIdx = null) {
+        if (!this.isOpenGesture(gesture) || !Array.isArray(hands) || !hands.length) return null;
+
+        const activeHand = Number.isInteger(activeIdx)
+            ? hands.find(h => h?.idx === activeIdx) || hands[activeIdx]
+            : null;
+        if (this.isOpenGesture(activeHand?.gesture)) {
+            return activeHand.wakeOpen === true ? activeHand : null;
+        }
+
+        return hands.find(h => this.isOpenGesture(h?.gesture) && h.wakeOpen === true) || null;
+    },
+
+    isWakeGesture(gesture, wakeGestureType, hands = [], activeIdx = null) {
+        if (wakeGestureType === 'open') {
+            return this.findWakeOpenHand(gesture, hands, activeIdx) !== null;
+        }
+        if (wakeGestureType === 'open-palm') {
+            const hand = this.findWakeOpenHand(gesture, hands, activeIdx);
+            return gesture === 'open-palm' && hand?.gesture === 'open-palm';
+        }
+        return gesture === wakeGestureType;
+    },
+
     dist2d(a, b) {
         return Math.hypot(a.x - b.x, a.y - b.y);
     },

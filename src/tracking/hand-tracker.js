@@ -29,6 +29,7 @@ class HandTracker extends EventTarget {
         this._lastInferenceSize = { width: 0, height: 0 };
         this.inferencePreprocess = 'none';
         this._lastOkDebug = null;          // 直近の判定デバッグ情報
+        this._lastWakeOpenDebug = null;    // 直近のウェイク用パー判定情報
 
         // --- サイン安定化: 時間窓ベース多数決 + 切替ヒステリシス ---
         // サンプルはタイムスタンプ付きで保持し、時間窓内のみ集計
@@ -259,7 +260,18 @@ class HandTracker extends EventTarget {
             const okDebug = this._lastOkDebug
                 ? { ...this._lastOkDebug, rawGesture: gesture, hand }
                 : null;
-            hands.push({ hand, gesture, landmarks: lm, idx: i, okDebug });
+            const wakeOpenDebug = this._lastWakeOpenDebug
+                ? { ...this._lastWakeOpenDebug, rawGesture: gesture, hand }
+                : null;
+            hands.push({
+                hand,
+                gesture,
+                landmarks: lm,
+                idx: i,
+                okDebug,
+                wakeOpen: wakeOpenDebug?.eligible === true,
+                wakeOpenDebug,
+            });
         }
 
         this._lastHandData = hands;
@@ -654,6 +666,14 @@ class HandTracker extends EventTarget {
         return a.x * b.x + a.y * b.y + (a.z ?? 0) * (b.z ?? 0);
     }
 
+    _cross(a, b) {
+        return {
+            x: a.y * (b.z ?? 0) - (a.z ?? 0) * b.y,
+            y: (a.z ?? 0) * b.x - a.x * (b.z ?? 0),
+            z: a.x * b.y - a.y * b.x,
+        };
+    }
+
     _vecLen(v) {
         return Math.sqrt(v.x * v.x + v.y * v.y + (v.z ?? 0) * (v.z ?? 0));
     }
@@ -676,6 +696,14 @@ class HandTracker extends EventTarget {
         const n = this._vecLen(v);
         if (n < 1e-6) return { x: 0, y: 0, z: 0 };
         return { x: v.x / n, y: v.y / n, z: (v.z ?? 0) / n };
+    }
+
+    _palmFaceOnScore(lm) {
+        if (!lm?.[0] || !lm?.[5] || !lm?.[9] || !lm?.[17]) return 0;
+        const palmAxis = this._sub(lm[9], lm[0]);
+        const palmWidth = this._sub(lm[17], lm[5]);
+        const normal = this._normalize(this._cross(palmAxis, palmWidth));
+        return Math.abs(normal.z ?? 0);
     }
 
     /* ============================================================
@@ -830,6 +858,7 @@ class HandTracker extends EventTarget {
     _detectGesture(lm, handedness, worldLm = null) {
         const palm = this._getPalmGeometry(lm, worldLm, handedness);
         this._lastOkDebug = null;
+        this._lastWakeOpenDebug = null;
         if (!palm) return 'unknown';
 
         const { g, palmCenter, palmSize, palmSize2D, u, palmFacing } = palm;
@@ -877,6 +906,33 @@ class HandTracker extends EventTarget {
                 : !okIndexAllowed
                     ? 'index-extended'
                     : 'matched';
+        // ウェイク用のパーは通常判定より厳しくし、手の面がカメラ正面に近い場合だけ許可する。
+        const wakeOpenFaceOnScore = this._palmFaceOnScore(lm);
+        const wakeOpenFingerFan = this._dist(g[8], g[20]) / palmSize;
+        const wakeOpenFingersExtended =
+            index.extended && middle.extended && ring.extended && pinky.extended;
+        const wakeOpenFingersStraight =
+            index.straightness > 0.92 &&
+            middle.straightness > 0.92 &&
+            ring.straightness > 0.92 &&
+            pinky.straightness > 0.90;
+        const wakeOpenThumbOpen = thumb.extendedAway && thumb.thumbIndexTipDist >= 0.62;
+        const wakeOpenEligible =
+            wakeOpenFingersExtended &&
+            wakeOpenFingersStraight &&
+            wakeOpenThumbOpen &&
+            avgTipDist > 1.08 &&
+            wakeOpenFingerFan > 0.75 &&
+            wakeOpenFaceOnScore >= 0.65;
+
+        this._lastWakeOpenDebug = {
+            eligible: wakeOpenEligible,
+            faceOnScore: wakeOpenFaceOnScore,
+            fingerFan: wakeOpenFingerFan,
+            fingersExtended: wakeOpenFingersExtended,
+            fingersStraight: wakeOpenFingersStraight,
+            thumbOpen: wakeOpenThumbOpen,
+        };
 
         this._lastOkDebug = {
             palmFacing,
