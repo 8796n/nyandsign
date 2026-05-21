@@ -924,6 +924,11 @@ class HandTracker extends EventTarget {
             ? WAKE_OPEN_FRONT_PALM_SPREAD_MIN
             : WAKE_OPEN_BACK_PALM_SPREAD_MIN;
         const wakeOpenFingerFan = this._dist(g[8], g[20]) / palmSize;
+        const indexScreenLength = this._dist(lm[5], lm[8]) / palmSize2D;
+        const middleScreenLength = this._dist(lm[9], lm[12]) / palmSize2D;
+        const ringScreenLength = this._dist(lm[13], lm[16]) / palmSize2D;
+        const pinkyScreenLength = this._dist(lm[17], lm[20]) / palmSize2D;
+        const wakeOpenLongFingerScreenLength = Math.min(indexScreenLength, middleScreenLength, ringScreenLength);
         const wakeOpenLongFingersExtended = index.extended && middle.extended && ring.extended;
         const wakeOpenPinkyOpen =
             pinky.extended ||
@@ -932,7 +937,9 @@ class HandTracker extends EventTarget {
             index.straightness > 0.92 &&
             middle.straightness > 0.92 &&
             ring.straightness > 0.92 &&
-            pinky.straightness > 0.80;
+            pinky.straightness > 0.80 &&
+            wakeOpenLongFingerScreenLength >= WAKE_OPEN_LONG_FINGER_SCREEN_MIN &&
+            pinkyScreenLength >= WAKE_OPEN_PINKY_SCREEN_MIN;
         const wakeOpenThumbPalmTh = palmFacing ? 1.00 : 1.10;
         const wakeOpenThumbOpen =
             thumb.thumbIndexTipDist >= 0.62 &&
@@ -956,6 +963,8 @@ class HandTracker extends EventTarget {
             palmSpreadRatio: wakeOpenPalmSpread,
             palmSpreadMin: wakeOpenPalmSpreadMin,
             fingerFan: wakeOpenFingerFan,
+            longFingerScreenLength: wakeOpenLongFingerScreenLength,
+            pinkyScreenLength,
             longFingersExtended: wakeOpenLongFingersExtended,
             pinkyOpen: wakeOpenPinkyOpen,
             fingersStraight: wakeOpenFingersStraight,
