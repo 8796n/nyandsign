@@ -112,13 +112,24 @@ Uses Google MediaPipe Hand Landmarker (on-device, WebAssembly)
 Runs at configurable FPS (default 15 fps) to balance accuracy and CPU usage
 Detects XREAL Eye UVC0 / UVC1 camera profiles from actual resolution and capabilities
 UVC1 uses native 512x378 capture, preview aspect synchronization, and monochrome inference preprocessing
-Distance-based gesture recognition with palm-size normalization
+Distance-based gesture recognition with palm-size normalization, plus 3DoF hand-pose checks (face / yaw / pitch / roll) for wake sign detection
 Temporal majority voting (200ms window) + hysteresis for stable detection
 All processing happens locally — camera feed is never transmitted
 Manifest V3 compliant
 
 
 WHAT'S NEW
+
+v1.1.153
+- Reworked the wake Open Hand check around 3DoF-style hand pose values (face / yaw / pitch / roll), making camera-facing hands easier to reason about
+- Reduced accidental wake triggers from angled, flat, or incidental hands such as hands appearing while typing
+- Tuned wake Open Hand checks separately for palm-side and back-of-hand views
+- Prevented a held wake sign from waking again after the standby timeout until the hand is released once
+- Added clearer wake-sign guidance, such as facing the hand toward the camera, reducing pitch, or spreading the fingers
+- Added a two-hand Open Hand sign
+- Expanded pointer movement start/recovery from Point Up to include Point Left and Point Right
+- Reduced cases where pointing signs were misrecognized as Thumbs Up at certain angles
+- Kept UVC1 inference input at native resolution to improve stability on the low-resolution monochrome camera
 
 v1.1.132
 - Added XREAL Eye UVC0 (RGB) / UVC1 (6DoF monochrome) camera selection
