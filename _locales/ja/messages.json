@@ -354,6 +354,9 @@
   "wakeOpenIssuePalmSide": {
     "message": "掌を向ける"
   },
+  "wakeOpenIssueRelease": {
+    "message": "一度手を離す"
+  },
   "wakeOpenIssueUnknown": {
     "message": "形を整える"
   },

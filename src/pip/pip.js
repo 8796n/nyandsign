@@ -40,6 +40,7 @@ let wakeState = WAKE_STATE.IDLE;
 let wakeTimeout = null;
 let wakeActiveDuration = DEFAULT_SETTINGS.wakeActiveDuration;
 let wakeGestureType = DEFAULT_SETTINGS.wakeGestureType;
+let wakeGestureReleaseRequired = false;
 
 // ジェスチャー確定
 let gestureHoldTime = DEFAULT_SETTINGS.gestureHoldTime;
@@ -189,7 +190,10 @@ async function loadSettings() {
         if (OPERATION_MODE_ORDER.includes(result.operationMode)) operationMode = normalizeOperationMode(result.operationMode);
         refreshCurrentMapping();
         if (result.controlEnabled !== undefined) controlEnabled = result.controlEnabled;
-        if (result.wakeGestureType) wakeGestureType = result.wakeGestureType;
+        if (result.wakeGestureType) {
+            wakeGestureType = result.wakeGestureType;
+            wakeGestureReleaseRequired = false;
+        }
         if (result.wakeActiveDuration) wakeActiveDuration = result.wakeActiveDuration;
         if (result.toggleGestureType) toggleGestureType = result.toggleGestureType;
         if (result.metaGestureMapping) {
@@ -247,6 +251,7 @@ chrome.storage.onChanged.addListener((changes) => {
     }
     if (changes.wakeGestureType) {
         wakeGestureType = changes.wakeGestureType.newValue;
+        wakeGestureReleaseRequired = false;
         updateTrackerFps();
     }
     if (changes.wakeActiveDuration) wakeActiveDuration = changes.wakeActiveDuration.newValue;
@@ -673,14 +678,30 @@ function isWakeGesture(gesture, hands = lastFrameHands, activeIdx = lastFrameAct
     return GestureRuntimeUtils.isWakeGesture(gesture, wakeGestureType, hands, activeIdx);
 }
 
+function isWakeGestureHeld(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx) {
+    if (wakeGestureType === 'open' || wakeGestureType === 'open-palm') {
+        return GestureRuntimeUtils.findOpenHand(gesture, hands, activeIdx) !== null;
+    }
+    return isWakeGesture(gesture, hands, activeIdx);
+}
+
+function updateWakeGestureReleaseGate(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx) {
+    if (wakeGestureType === 'none' || !isWakeGestureHeld(gesture, hands, activeIdx)) {
+        wakeGestureReleaseRequired = false;
+    }
+}
+
 function handleWakeGesture(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx, options = {}) {
     if (wakeGestureType === 'none' || !controlEnabled) return false;
+    updateWakeGestureReleaseGate(gesture, hands, activeIdx);
     if (options.idleOnly && wakeState !== WAKE_STATE.IDLE) return false;
+    if (wakeGestureReleaseRequired) return false;
     if (!isWakeGesture(gesture, hands, activeIdx)) return false;
 
     continuousGestureGate?.reset();
     stopAllGestureActions();
     if (wakeState === WAKE_STATE.IDLE) {
+        wakeGestureReleaseRequired = true;
         setWakeState(WAKE_STATE.ACTIVE);
     }
     return true;
@@ -688,7 +709,9 @@ function handleWakeGesture(gesture, hands = lastFrameHands, activeIdx = lastFram
 
 function showWakeOpenIssues(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx) {
     if (wakeGestureType === 'none' || wakeState !== WAKE_STATE.IDLE || pageActionStatusVisible) return false;
-    const issueIds = GestureRuntimeUtils.wakeOpenIssueIds(gesture, wakeGestureType, hands, activeIdx);
+    const issueIds = wakeGestureReleaseRequired && isWakeGestureHeld(gesture, hands, activeIdx)
+        ? ['release']
+        : GestureRuntimeUtils.wakeOpenIssueIds(gesture, wakeGestureType, hands, activeIdx);
     const text = GestureRuntimeUtils.wakeOpenIssueText(issueIds, 1);
     if (!text) return false;
 
@@ -707,6 +730,7 @@ tracker.addEventListener('gesture', (e) => {
         lastFrameActiveIdx = detailActiveIdx;
     }
     if (GestureRuntimeUtils.isUncertainGesture(gesture)) {
+        updateWakeGestureReleaseGate(gesture, gestureHands, activeIdx);
         setPipGestureText(gesture === 'unknown' ? (GESTURE_ICONS.unknown || '❓') : '');
         const suspended = holdGestureResumeController?.suspend();
         if (!suspended) {

@@ -469,6 +469,10 @@
     "message": "show palm",
     "description": "Wake open-hand hint: palm-only wake mode needs the palm side"
   },
+  "wakeOpenIssueRelease": {
+    "message": "release hand",
+    "description": "Wake open-hand hint: release the wake sign before waking again"
+  },
   "wakeOpenIssueUnknown": {
     "message": "adjust shape",
     "description": "Fallback wake open-hand hint"

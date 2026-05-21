@@ -80,6 +80,7 @@ let wakeTimeout = null;
 let wakeActiveDuration = DEFAULT_SETTINGS.wakeActiveDuration;
 // ウェイクサイン種別: 'open' | 'open-palm' | 'none'
 let wakeGestureType = DEFAULT_SETTINGS.wakeGestureType;
+let wakeGestureReleaseRequired = false;
 // サイン確定待機: 同じサインが holdTime 以上持続して初めてアクション発火
 let gestureHoldTime = DEFAULT_SETTINGS.gestureHoldTime;
 let pendingActionTimer = null;
@@ -1632,14 +1633,30 @@ function isWakeGesture(gesture, hands = lastFrameHands, activeIdx = lastFrameAct
     return GestureRuntimeUtils.isWakeGesture(gesture, wakeGestureType, hands, activeIdx);
 }
 
+function isWakeGestureHeld(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx) {
+    if (wakeGestureType === 'open' || wakeGestureType === 'open-palm') {
+        return GestureRuntimeUtils.findOpenHand(gesture, hands, activeIdx) !== null;
+    }
+    return isWakeGesture(gesture, hands, activeIdx);
+}
+
+function updateWakeGestureReleaseGate(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx) {
+    if (wakeGestureType === 'none' || !isWakeGestureHeld(gesture, hands, activeIdx)) {
+        wakeGestureReleaseRequired = false;
+    }
+}
+
 function handleWakeGesture(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx, options = {}) {
     if (wakeGestureType === 'none' || !controlEnabled) return false;
+    updateWakeGestureReleaseGate(gesture, hands, activeIdx);
     if (options.idleOnly && wakeState !== WAKE_STATE.IDLE) return false;
+    if (wakeGestureReleaseRequired) return false;
     if (!isWakeGesture(gesture, hands, activeIdx)) return false;
 
     continuousGestureGate?.reset();
     stopAllGestureActions();
     if (wakeState === WAKE_STATE.IDLE) {
+        wakeGestureReleaseRequired = true;
         setWakeState(WAKE_STATE.ACTIVE);
         log(msg('logWakeActivated'));
     }
@@ -1648,7 +1665,9 @@ function handleWakeGesture(gesture, hands = lastFrameHands, activeIdx = lastFram
 
 function showWakeOpenIssues(gesture, hands = lastFrameHands, activeIdx = lastFrameActiveIdx) {
     if (wakeGestureType === 'none' || wakeState !== WAKE_STATE.IDLE || pageActionStatusVisible) return false;
-    const issueIds = GestureRuntimeUtils.wakeOpenIssueIds(gesture, wakeGestureType, hands, activeIdx);
+    const issueIds = wakeGestureReleaseRequired && isWakeGestureHeld(gesture, hands, activeIdx)
+        ? ['release']
+        : GestureRuntimeUtils.wakeOpenIssueIds(gesture, wakeGestureType, hands, activeIdx);
     const text = GestureRuntimeUtils.wakeOpenIssueText(issueIds);
     if (!text) return false;
 
@@ -1666,6 +1685,7 @@ tracker.addEventListener('gesture', (e) => {
         lastFrameActiveIdx = detailActiveIdx;
     }
     if (GestureRuntimeUtils.isUncertainGesture(gesture)) {
+        updateWakeGestureReleaseGate(gesture, gestureHands, activeIdx);
         if (gesture === null && okDebugEnabled && el.okDebugPanel) {
             el.okDebugPanel.textContent = 'SIGN_DEBUG\nhand=none';
         }
@@ -2032,6 +2052,7 @@ async function loadMapping() {
 
         const validWake = ['open', 'open-palm', 'none'];
         wakeGestureType = validWake.includes(result.wakeGestureType) ? result.wakeGestureType : d.wakeGestureType;
+        wakeGestureReleaseRequired = false;
         const selWake = $('sel-wake-gesture');
         if (selWake) selWake.value = wakeGestureType;
         setWakeState(WAKE_STATE.IDLE);
@@ -2368,6 +2389,7 @@ function updateWakeUI() {
 }
 selWakeGesture.addEventListener('change', () => {
     wakeGestureType = selWakeGesture.value;
+    wakeGestureReleaseRequired = false;
     chrome.storage.sync.set({ wakeGestureType });
     setWakeState(WAKE_STATE.IDLE);
     updateWakeUI();
@@ -2501,6 +2523,7 @@ function resetSettings() {
 
     // 状態変数を復元
     wakeGestureType = d.wakeGestureType;
+    wakeGestureReleaseRequired = false;
     wakeActiveDuration = d.wakeActiveDuration;
     tracker.preferredHand = d.preferredHand;
     gestureHoldTime = d.gestureHoldTime;

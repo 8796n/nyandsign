@@ -265,6 +265,7 @@ const WAKE_OPEN_ISSUE_I18N_KEYS = {
     fingerFan: 'wakeOpenIssueFingerFan',
     palmOpen: 'wakeOpenIssuePalmOpen',
     palmSide: 'wakeOpenIssuePalmSide',
+    release: 'wakeOpenIssueRelease',
 };
 
 const INFERENCE_RESOLUTION_SOURCE = 'source';
